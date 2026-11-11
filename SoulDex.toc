@@ -23,4 +23,8 @@ src\Shards.lua
 src\Toast.lua
 src\Capture.lua
 src\Tooltip.lua
+src\UIFormat.lua
+src\UI.lua
+src\UIDetail.lua
+src\Options.lua
 src\Init.lua

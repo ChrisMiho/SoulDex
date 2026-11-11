@@ -19,6 +19,39 @@ end
 ns.version = GetVersion()
 ns.Print = Print
 
+local HELP = {
+	"/souldex - open or close the Soul-Dex",
+	"/souldex options - popup, sound and announcement switches",
+	"/souldex add <name> - follow a friend's dex by name",
+	"/souldex remove <name> - stop following them",
+}
+
+-- "" toggles the window; options; add/remove <name> (needs the friends module); else help.
+function ns.OnSlash(msg)
+	local action, name = ns.Settings.parseCommand(msg)
+	if action == "toggle" then
+		if ns.UI then
+			ns.UI.toggle()
+		end
+	elseif action == "options" then
+		if ns.Options then
+			ns.Options.toggle()
+		end
+	elseif action == "add" or action == "remove" then
+		local fn = ns.Net and (action == "add" and ns.Net.addFriend or ns.Net.removeFriend)
+		if fn then
+			fn(name)
+		else
+			Print("Friends aren't available yet.")
+		end
+	else
+		Print("commands:")
+		for _, line in ipairs(HELP) do
+			Print(line)
+		end
+	end
+end
+
 SLASH_SOULDEX1 = "/souldex"
 SlashCmdList.SOULDEX = function(msg)
 	if ns.OnSlash then
