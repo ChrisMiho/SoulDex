@@ -813,6 +813,15 @@ describe("Capture glue", function()
 			assert.equal("Elwynn Forest \194\183 |cff7dff6a+10 pts|r", ns.Toast.subtitle(player, "Elwynn Forest"))
 			assert.equal("Molten Core \194\183 |cff7dff6a+25 pts|r", ns.Toast.subtitle(raid, "Molten Core"))
 		end)
+		it("finds the shard icon without the removed GetItemIcon", function()
+			local ns = load()
+			local byId = { GetItemIconByID = function(id) return id == 6265 and 134075 or nil end }
+			assert.equal(134075, ns.Toast.shardIcon(byId, nil))
+			assert.equal(42, ns.Toast.shardIcon(nil, function() return 42 end))
+			assert.equal(ns.Toast.SHARD_ICON_FILE, ns.Toast.shardIcon(nil, nil))
+			local blocked = { GetItemIconByID = function() error("blocked") end }
+			assert.equal(ns.Toast.SHARD_ICON_FILE, ns.Toast.shardIcon(blocked, nil))
+		end)
 		it("runs every catch hook even when one errors", function()
 			local ns = load()
 			local calls, errors = {}, {}

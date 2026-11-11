@@ -16,6 +16,21 @@ local RARITY_LABELS = {
 	worldboss = "Boss",
 }
 
+Toast.SHARD_ICON_FILE = "Interface\\Icons\\INV_Misc_Gem_Amethyst_02"
+
+-- The Soul Shard icon. GetItemIcon is gone on WoW: Forever; C_Item.GetItemIconByID replaces it.
+-- itemApi is C_Item (or nil), legacy is GetItemIcon (or nil); falls back to the icon file.
+function Toast.shardIcon(itemApi, legacy)
+	local getter = itemApi and itemApi.GetItemIconByID or legacy
+	if getter then
+		local ok, icon = pcall(getter, SHARD_ITEM_ID)
+		if ok and icon and (not issecretvalue or not issecretvalue(icon)) then
+			return icon
+		end
+	end
+	return Toast.SHARD_ICON_FILE
+end
+
 -- "Elite" / "Rare" / "Boss" marker for a classification, or nil for ordinary mobs.
 function Toast.rarityLabel(classification)
 	return RARITY_LABELS[classification]
@@ -56,7 +71,7 @@ local function build()
 	frame.icon = frame:CreateTexture(nil, "ARTWORK")
 	frame.icon:SetSize(38, 38)
 	frame.icon:SetPoint("LEFT", 8, 0)
-	frame.icon:SetTexture(GetItemIcon(SHARD_ITEM_ID))
+	frame.icon:SetTexture(Toast.shardIcon(C_Item, GetItemIcon))
 
 	frame.title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 	frame.title:SetPoint("TOPLEFT", frame.icon, "TOPRIGHT", 8, 0)
