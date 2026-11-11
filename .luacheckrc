@@ -10,6 +10,7 @@ exclude_files = {
 	".luacheckrc",
 	".worktrees/",   -- package worktrees
 	".superpowers/", -- local tooling state
+	"scripts/probe/", -- throwaway in-game probes (not shipped)
 }
 
 -- Globals this addon creates
