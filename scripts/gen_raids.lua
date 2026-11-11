@@ -34,6 +34,8 @@ local RAIDS = {
 -- Bosses the spawn filter misses: summoned or scripted-spawn bosses have no
 -- spawns and zoneID 0 in the database, and Vaelastrasz is flagged friendly.
 -- They are added to the given raid and flagged as bosses.
+-- Arlokk (14515) was dropped by the spawn filter for the same reason as
+-- Ragnaros: her record has spawns = nil and zoneID 0 (she is scripted).
 local HAND_BOSSES = {
 	{ id = 11502, raid = "MC" }, -- Ragnaros (summoned)
 	{ id = 12018, raid = "MC" }, -- Majordomo Executus (no spawn record)
@@ -42,6 +44,7 @@ local HAND_BOSSES = {
 	{ id = 15517, raid = "AQ40" }, -- Ouro (summoned)
 	{ id = 15989, raid = "Naxx" }, -- Sapphiron (no spawn record)
 	{ id = 15114, raid = "ZG" }, -- Gahz'ranka (summoned)
+	{ id = 14515, raid = "ZG" }, -- High Priestess Arlokk (database record has no spawns and zoneID 0)
 	{ id = 15082, raid = "ZG" }, -- Gri'lek (Edge of Madness)
 	{ id = 15083, raid = "ZG" }, -- Hazza'rah (Edge of Madness)
 	{ id = 15084, raid = "ZG" }, -- Renataki (Edge of Madness)

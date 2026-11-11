@@ -42,6 +42,7 @@ ns.RaidData = {
 			{ id = 14507, name = "High Priest Venoxis", boss = true },
 			{ id = 14509, name = "High Priest Thekal", boss = true },
 			{ id = 14510, name = "High Priestess Mar'li", boss = true },
+			{ id = 14515, name = "High Priestess Arlokk", boss = true },
 			{ id = 14517, name = "High Priestess Jeklik", boss = true },
 			{ id = 14532, name = "Razzashi Venombrood" },
 			{ id = 14750, name = "Gurubashi Bat Rider" },

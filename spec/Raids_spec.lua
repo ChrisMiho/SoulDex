@@ -59,3 +59,44 @@ describe("Raids", function()
 		end
 	end)
 end)
+
+describe("Raids boss roster", function()
+	local roster = {
+		ZG = { "High Priestess Jeklik", "High Priest Venoxis", "High Priestess Mar'li", "High Priest Thekal",
+			"High Priestess Arlokk", "Hakkar", "Bloodlord Mandokir", "Jin'do the Hexxer", "Gahz'ranka", "Gri'lek",
+			"Hazza'rah", "Renataki", "Wushoolay" },
+		MC = { "Lucifron", "Magmadar", "Gehennas", "Garr", "Shazzrah", "Baron Geddon", "Golemagg the Incinerator",
+			"Sulfuron Harbinger", "Majordomo Executus", "Ragnaros" },
+		Onyxia = { "Onyxia" },
+		BWL = { "Razorgore the Untamed", "Vaelastrasz the Corrupt", "Broodlord Lashlayer", "Firemaw", "Ebonroc",
+			"Flamegor", "Chromaggus", "Nefarian" },
+		AQ20 = { "Kurinnaxx", "General Rajaxx", "Moam", "Buru the Gorger", "Ayamiss the Hunter",
+			"Ossirian the Unscarred" },
+		AQ40 = { "The Prophet Skeram", "Vem", "Princess Yauj", "Lord Kri", "Battleguard Sartura",
+			"Fankriss the Unyielding", "Viscidus", "Princess Huhuran", "Emperor Vek'lor", "Emperor Vek'nilash",
+			"Ouro", "C'Thun" },
+		Naxx = { "Anub'Rekhan", "Grand Widow Faerlina", "Maexxna", "Noth the Plaguebringer", "Heigan the Unclean",
+			"Loatheb", "Instructor Razuvious", "Gothik the Harvester", "Thane Korth'azz", "Lady Blaumeux",
+			"Highlord Mograine", "Sir Zeliek", "Patchwerk", "Grobbulus", "Gluth", "Thaddius", "Sapphiron",
+			"Kel'Thuzad" },
+	}
+
+	it("lists every vanilla raid boss as a boss in its raid", function()
+		local ns = LoadAddonFile("src/RaidData.lua")
+		local byKey = {}
+		for _, raid in ipairs(ns.RaidData) do
+			local bosses = {}
+			for _, mob in ipairs(raid.mobs) do
+				if mob.boss then
+					bosses[mob.name] = true
+				end
+			end
+			byKey[raid.key] = bosses
+		end
+		for key, names in pairs(roster) do
+			for _, name in ipairs(names) do
+				assert.is_true(byKey[key][name] == true, name .. " missing from " .. key)
+			end
+		end
+	end)
+end)
