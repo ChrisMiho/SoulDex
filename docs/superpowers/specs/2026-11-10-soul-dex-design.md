@@ -208,7 +208,7 @@ The look was settled through mockups; the final versions are in
 
 ### 5.5 Detail pane
 
-- Clicking a name **slides a pane in from the right**, covering the names
+- Clicking a name **slides a pane in from the right** (0.2 s), covering the names
   list; the left list stays visible. **[user]**
 - Closed with a small **`« Back`** button in the tab style (dark purple,
   light purple text, brighter on hover) at the top left, or a `×` at the top
@@ -242,7 +242,10 @@ Not mocked up. Same two columns. **[user for what; call for layout]**
 - Clicking someone shows their summary; a **Browse dex** button opens
   **their dex** read-only in the same window, with a visible "Viewing <name>"
   marker and a "« My dex" button back to yours. Entries they have and you
-  don't are highlighted green. **[user]**
+  don't are highlighted green. **[user]** (changed during build: the build
+  plan put a summary and a Browse dex button first, so scores can be compared
+  without fetching a whole dex over the network; the user's intent, a
+  read-only view, a "Viewing" marker, a way back and highlighting, is kept.)
 - People added by name are contacted directly when they're online. Offline
   people show their last known summary.
 - Not limited to warlocks: anyone running the addon shows up. **[user]**
@@ -287,7 +290,7 @@ the user agreed to this table as an example]**
   list quietly: no popup, no points. **[call]** "#N here" in the toast is the
   place's unique count after this catch.
 - On a **first** catch only (mob, player or raid entry), a small purple toast
-  slides in near the top of the screen for a few seconds: "NEW SOUL CAUGHT!",
+  slides in near the top of the screen (0.3 s slide, 4 s hold, 0.5 s fade): "NEW SOUL CAUGHT!",
   the name, rarity, place, "#N here", and "+N pts". A short sound plays. **[user]**
 - The popup and the sound each have their own on/off setting. **[user]**
 
@@ -368,7 +371,7 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
 **Catching**
 - Drain Soul a mob to death and get a shard: the popup "NEW SOUL CAUGHT!"
   appears at top centre (name in rarity colour, zone, "#N here", "+N pts"),
-  a sound plays, it fades after about 4 s; a second quick kill replaces it.
+  a sound plays, it holds 4 s, then fades (about 5 s in all); a second quick kill replaces it.
   The mob is listed under the right place.
 - The same mob name again: no popup or sound. The same mob in another zone:
   listed there, no popup.
@@ -439,3 +442,13 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
   or 60 s (added friend only).
 - A dev checkout without `Libs/`: one chat line "Friends are offline:
   AceComm-3.0 is missing...", no Lua errors.
+
+### Known limitations
+
+- Newcomer replies can be sent needlessly near the 6-minute mark (the newcomer
+  threshold is only one poll tick above the 300 s heartbeat).
+- Added friends who are offline are asked every 60 s with no back-off (their
+  "not playing" notices are hidden).
+- Alt-Z (hiding the UI) resets browsing to your own dex.
+- A browsed friend's Milestones tab shows nothing earned (no dates are sent).
+- Raid data is Classic Era and may need regenerating for WoW: Forever content.
