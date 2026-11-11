@@ -21,8 +21,12 @@ local LEFT_ROW_H, RIGHT_ROW_H = 16, 17
 
 UI.TABS = { "Mobs", "Players", "Raids", "Milestones", "Friends" }
 
+-- Sizes of the two Friends tab frames handed to the builder (see setFriendsTab).
+UI.FRIENDS_LEFT_W, UI.FRIENDS_RIGHT_W, UI.FRIENDS_H = LEFT_W, BODY_W - RIGHT_X, BODY_H
+
 local WINDOW_BG, BORDER, DIVIDER = "14101c", "6b4fa0", "3d2d5c"
 local TAB_BG = "251b36"
+local BACK_BG, BACK_BORDER, BACK_HOVER = "251b36", "5a4486", "3d2d5c"
 
 -- Shared painting helpers (src/UIList.lua), kept on UI for callers.
 local L = ns.UIList
@@ -41,7 +45,7 @@ local state = {
 	friendsBuilder = nil,
 }
 
-local frame, titleLeft, titleRight, divider
+local frame, titleLeft, titleRight, divider, myDexButton
 local leftList, rightList, fullList, pane
 local friendsBox, friendsLeft, friendsRight, friendsNote
 local tabButtons = {}
@@ -158,9 +162,15 @@ draw = function(action)
 	local tab = state.tab
 	local keepLeft, keepRight = F.keepScroll(action)
 	local left, right = ns.View.header(dex, tab)
+	titleLeft:ClearAllPoints()
 	if state.owner then
 		left = "Soul-Dex \194\183 Viewing " .. state.owner
+		titleLeft:SetPoint("LEFT", myDexButton, "RIGHT", 5, 0)
+	else
+		titleLeft:SetPoint("LEFT", 2, 0)
 	end
+	titleLeft:SetPoint("RIGHT", titleRight, "LEFT", -6, 0)
+	setShown(myDexButton, state.owner ~= nil)
 	titleLeft:SetText(left)
 	titleRight:SetText(right)
 	styleTabs()
@@ -268,6 +278,28 @@ local function buildTitle()
 	titleRight = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	titleRight:SetPoint("RIGHT", gear, "LEFT", -6, 0)
 	UI.textColor(titleRight, C.TITLE)
+	-- "« My dex": shown while browsing a friend's dex (draw anchors the title after it).
+	myDexButton = CreateFrame("Button", nil, bar, "BackdropTemplate")
+	myDexButton:SetSize(56, 14)
+	myDexButton:SetPoint("LEFT", 0, 0)
+	UI.backdrop(myDexButton, BACK_BG, BACK_BORDER)
+	myDexButton.label = myDexButton:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	myDexButton.label:SetPoint("CENTER", 0, 0)
+	myDexButton.label:SetText("\194\171 My dex")
+	UI.textColor(myDexButton.label, C.TITLE)
+	myDexButton:SetScript("OnEnter", function(self)
+		UI.backdrop(self, BACK_HOVER, BACK_BORDER)
+		UI.textColor(self.label, C.WHITE)
+	end)
+	myDexButton:SetScript("OnLeave", function(self)
+		UI.backdrop(self, BACK_BG, BACK_BORDER)
+		UI.textColor(self.label, C.TITLE)
+	end)
+	myDexButton:SetScript("OnClick", function()
+		UI.showDex(nil, nil)
+	end)
+	myDexButton:Hide()
+
 	titleLeft = bar:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 	titleLeft:SetPoint("LEFT", 2, 0)
 	titleLeft:SetPoint("RIGHT", titleRight, "LEFT", -6, 0)
@@ -357,8 +389,10 @@ local function build()
 	buildTitle()
 	buildBody()
 	buildTabs()
+	-- Closing the window while browsing a friend: it reopens on your own dex.
 	frame:SetScript("OnHide", function()
 		closeDetail(true)
+		state.dex, state.owner, state.compare = nil, nil, nil
 	end)
 	frame:Hide()
 end
@@ -411,6 +445,10 @@ function UI.refresh()
 	if frame and frame:IsShown() then
 		draw("refresh")
 	end
+end
+
+function UI.currentTab()
+	return state.tab
 end
 
 function UI.isBrowsing()

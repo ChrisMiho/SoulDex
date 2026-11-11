@@ -28,4 +28,5 @@ src\UIList.lua
 src\UI.lua
 src\UIDetail.lua
 src\Options.lua
+src\Net.lua
 src\Init.lua

@@ -3,7 +3,7 @@
 describe("UI", function()
 	local STUBBED = {
 		"CreateFrame", "UIParent", "UISpecialFrames", "GameFontNormal", "GameFontHighlightSmall",
-		"RAID_CLASS_COLORS", "SoulDexFrame", "SoulDexOptionsFrame", "date",
+		"RAID_CLASS_COLORS", "SoulDexFrame", "SoulDexOptionsFrame", "date", "UnitName", "time", "LibStub",
 	}
 	local saved, created, ns
 
@@ -201,6 +201,77 @@ describe("UI", function()
 		assert.is_true(ns.UI.isBrowsing())
 		ns.UI.showDex(nil, nil)
 		assert.is_false(ns.UI.isBrowsing())
+	end)
+
+	it("shows '« My dex' while browsing; it and closing the window go back to yours", function()
+		loadDb()
+		local friend = ns.Dex.new({})
+		ns.UI.showDex(friend, "Pal")
+		local button = find("Button", function(f)
+			local label = rawget(f, "label")
+			return label and label.text == "\194\171 My dex"
+		end)
+		assert.is_true(button.shown)
+		button.scripts.OnClick(button)
+		assert.is_false(ns.UI.isBrowsing())
+		assert.is_false(button.shown)
+
+		ns.UI.showDex(friend, "Pal")
+		local frame = _G.SoulDexFrame
+		frame:Hide()
+		frame.scripts.OnHide(frame)
+		assert.is_false(ns.UI.isBrowsing())
+	end)
+
+	it("draws the Friends tab: leaderboard, add box and remove", function()
+		_G.UnitName = function() return "Fel" end
+		_G.time = function() return 5000 end
+		_G.LibStub = nil
+		for _, file in ipairs({ "Comm", "Friends", "Net" }) do
+			LoadAddonFile("src/" .. file .. ".lua", ns)
+		end
+		local db = loadDb()
+		db.friends.Ann = { added = true, seen = 4990, summary = { score = 99, mobs = 1, players = 0, raids = 0 } }
+		ns.UI.toggle()
+		ns.UI.selectTab("Friends")
+		local function rowWith(text)
+			return find("Button", function(f)
+				local left = rawget(f, "left")
+				return left and left.text == text
+			end)
+		end
+		assert.is_truthy(rowWith("1. Ann"))
+		assert.is_truthy(rowWith("2. Fel (you)"))
+
+		local box = find("EditBox", function() return true end)
+		box.GetText = function() return "bob" end
+		box.scripts.OnEnterPressed(box)
+		assert.is_true(db.friends.Bob.added)
+
+		local row = find("Button", function(f) return f.value == "Ann" end)
+		row.scripts.OnClick(row)
+		assert.is_truthy(rowWith("Raids completed"))
+		local function shownCrosses()
+			local out = {}
+			for _, f in ipairs(created) do
+				local label = rawget(f, "label")
+				if label and label.text == "\195\151" and f.shown then
+					out[f] = true
+				end
+			end
+			return out
+		end
+		local before = shownCrosses()
+		row.scripts.OnEnter(row) -- Ann is added: hovering shows her ×
+		local remove
+		for f in pairs(shownCrosses()) do
+			if not before[f] then
+				assert.is_nil(remove)
+				remove = f
+			end
+		end
+		remove.scripts.OnClick(remove)
+		assert.is_false(db.friends.Ann.added) -- seen recently: kept, but no longer added
 	end)
 
 	it("saves option switches as they are clicked", function()
