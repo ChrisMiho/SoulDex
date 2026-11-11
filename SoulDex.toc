@@ -17,4 +17,6 @@ src\Dex.lua
 src\Milestones.lua
 src\Catch.lua
 src\Shards.lua
+src\Toast.lua
+src\Capture.lua
 src\Init.lua
