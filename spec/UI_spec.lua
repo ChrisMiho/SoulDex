@@ -20,6 +20,7 @@ describe("UI", function()
 		GetStringHeight = function() return 24 end,
 		GetFrameLevel = function() return 1 end,
 		GetPoint = function() return "TOPLEFT", nil, "BOTTOMLEFT", 100, 500 end,
+		SetVerticalScroll = function(self, y) self.vscroll = y end,
 	}
 	Stub.__index = function(_, key)
 		return methods[key] or function() end
@@ -72,7 +73,7 @@ describe("UI", function()
 		}
 		for _, file in ipairs({
 			"Settings", "Raids", "Points", "Flavour", "Dex", "Milestones", "View",
-			"UIFormat", "UI", "UIDetail", "Options",
+			"UIFormat", "UIList", "UI", "UIDetail", "Options",
 		}) do
 			LoadAddonFile("src/" .. file .. ".lua", ns)
 		end
@@ -103,6 +104,7 @@ describe("UI", function()
 			assert.equal("function", type(ns.UI[fn]), fn)
 		end
 		assert.equal("function", type(ns.Options.toggle))
+		assert.equal("function", type(ns.UIList.new))
 		assert.equal(1, #ns.onLoaded)
 		assert.equal(1, #ns.onCatch)
 	end)
@@ -135,6 +137,47 @@ describe("UI", function()
 
 		ns.UI.toggle()
 		assert.is_false(frame.shown)
+	end)
+
+	it("keeps the left list's scroll on selection and both on a catch; a tab switch resets", function()
+		local db = loadDb()
+		db.window.tab = "Mobs"
+		for _, fn in ipairs(ns.onLoaded) do
+			fn(db)
+		end
+		for i = 1, 20 do
+			local ctx = { time = 1000, zone = string.format("Zone %02d", i), group = "Kalimdor" }
+			ns.dex:recordMob({ name = "Mob " .. i }, ctx)
+			ns.dex:recordMob({ name = "Other " .. i }, { time = 1000, zone = "Zone 20", group = "Kalimdor" })
+		end
+		ns.UI.toggle()
+		local scrolls = {}
+		for _, f in ipairs(created) do
+			if f.kind == "ScrollFrame" then
+				scrolls[#scrolls + 1] = f
+			end
+		end
+		local left, right = scrolls[1], scrolls[2]
+		left.scripts.OnMouseWheel(left, -3)
+		right.scripts.OnMouseWheel(right, -1)
+		assert.is_true(left.vscroll > 0)
+		local leftScroll = left.vscroll
+
+		local row = find("Button", function(f) return f.value == "Zone 20" end)
+		row.scripts.OnClick(row)
+		assert.equal(leftScroll, left.vscroll)
+		assert.equal(0, right.vscroll)
+
+		right.scripts.OnMouseWheel(right, -1)
+		local rightScroll = right.vscroll
+		assert.is_true(rightScroll > 0)
+		ns.onCatch[1]({}, {})
+		assert.equal(leftScroll, left.vscroll)
+		assert.equal(rightScroll, right.vscroll)
+
+		ns.UI.selectTab("Players")
+		assert.equal(0, left.vscroll)
+		assert.equal(0, right.vscroll)
 	end)
 
 	it("hands the Friends tab to a registered builder", function()

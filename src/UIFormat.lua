@@ -117,6 +117,19 @@ function F.pick(rows, field, current)
 	return first
 end
 
+-- Which lists keep their scroll position for a redraw: "select" (a click on the
+-- left list) keeps the left and resets the right; "refresh" (a new catch, a compare
+-- change) keeps both; anything else ("open", "tab") resets both.
+local KEEP = { select = { true, false }, refresh = { true, true } }
+
+function F.keepScroll(action)
+	local keep = KEEP[action]
+	if not keep then
+		return false, false
+	end
+	return keep[1], keep[2]
+end
+
 function F.note(text)
 	return { text = text, color = C.MUTED }
 end

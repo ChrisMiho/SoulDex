@@ -57,6 +57,14 @@ describe("UIFormat", function()
 			assert.is_nil(F.classHex("ROGUE", nil))
 		end)
 
+		it("decides which lists keep their scroll for each redraw", function()
+			assert.same({ true, false }, { F.keepScroll("select") })
+			assert.same({ true, true }, { F.keepScroll("refresh") })
+			assert.same({ false, false }, { F.keepScroll("tab") })
+			assert.same({ false, false }, { F.keepScroll("open") })
+			assert.same({ false, false }, { F.keepScroll(nil) })
+		end)
+
 		it("keeps a valid selection, else picks the first", function()
 			local rows = { { header = "X" }, { place = "A" }, { place = "B" } }
 			assert.equal("B", F.pick(rows, "place", "B"))
