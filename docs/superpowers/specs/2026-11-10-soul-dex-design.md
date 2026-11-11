@@ -153,7 +153,10 @@ death detection is used; the capture window below replaces the death queue.)
 - **Mobs:** one entry per mob **name** **[user: "each unique mob"]**, filed
   under each place you've caught it. The same name caught in two zones shows
   in both zones' lists, but counts once toward the "unique mobs" total. **[call]**
-- **Players:** one entry per player (name-realm). **[user]**
+- **Players:** one entry per player (name-realm). **[user]** (changed during build: WoW: Forever
+  splits character names in two — `UnitName` returns "Forgot", "Shards" for "Forgot Shards" — so
+  the two parts are joined as the player's name and the realm comes from `GetRealmName`. Friend
+  names are compared the same way, each word capitalised.)
 - **Raid mobs:** matched by NPC ID (taken from the GUID) against the raid data
   list, so same-named mobs in different raids stay apart. **[call]**
   Raid mobs are recorded **only** in the Raids collection, not under Mobs. **[call]**

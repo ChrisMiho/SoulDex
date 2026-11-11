@@ -66,9 +66,13 @@ function Net.accepts(kind, distribution, added, requested)
 end
 
 -- Whether sender (Ambiguate'd) is the local player.
-function Net.isMe(sender, myName)
-	local a, b = ns.Friends.normalise(sender), ns.Friends.normalise(myName)
-	return a ~= nil and a == b
+-- myName, second are UnitName("player")'s two values (WoW: Forever splits names in two).
+function Net.isMe(sender, myName, second)
+	local a = ns.Friends.normalise(sender)
+	if a == nil then
+		return false
+	end
+	return a == ns.Friends.normalise(ns.Friends.fullName(myName, second)) or a == ns.Friends.normalise(myName)
 end
 
 -- Someone we haven't heard from lately (or ever): answer their summary with ours.
@@ -214,7 +218,7 @@ local state = {
 }
 
 local function myName()
-	return Friends.normalise(UnitName("player"))
+	return Friends.normalise(Friends.fullName(UnitName("player")))
 end
 
 local function refreshFriends()
@@ -591,7 +595,7 @@ local function drawTab(left, right)
 	if not dex or not db or not db.friends then
 		return
 	end
-	local me = { name = UnitName("player"), summary = Net.mySummary(dex) }
+	local me = { name = myName(), summary = Net.mySummary(dex) }
 	local rows = Friends.leaderboard(db.friends, me, time())
 	local byName, added = {}, {}
 	for _, r in ipairs(rows) do
@@ -621,6 +625,7 @@ end
 
 local function start(db)
 	db.friends = type(db.friends) == "table" and db.friends or {}
+	Friends.tidy(db.friends, myName())
 	if ns.UI then
 		ns.UI.setFriendsTab(drawTab)
 	end

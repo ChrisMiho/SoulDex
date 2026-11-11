@@ -28,8 +28,9 @@ local function upperFirst(s)
 	return s:sub(1, 1):upper() .. s:sub(2)
 end
 
--- The one spelling a name is stored and compared by: realm dropped, first
--- letter capitalised, the rest lower case (so "ëlric" and "Ëlric" are the same).
+-- The one spelling a name is stored and compared by: realm dropped, each word's
+-- first letter capitalised, the rest lower case (so "ëlric" and "Ëlric" are the
+-- same, and WoW: Forever's two-part names stay "Forgot Shards").
 function Friends.normalise(name)
 	if type(name) ~= "string" then
 		return nil
@@ -38,7 +39,51 @@ function Friends.normalise(name)
 	if name == "" then
 		return nil
 	end
-	return upperFirst(lowerCase(name))
+	return (lowerCase(name):gsub("[^ ]+", upperFirst))
+end
+
+-- WoW: Forever splits a character's name in two: UnitName returns "Forgot", "Shards"
+-- for "Forgot Shards" (the second value is not a realm there). Joins them back.
+function Friends.fullName(name, second)
+	if type(name) ~= "string" or name == "" then
+		return nil
+	end
+	if type(second) == "string" and second ~= "" then
+		return name .. " " .. second
+	end
+	return name
+end
+
+-- Brings a saved store up to the current spelling rule: keys that normalise
+-- differently are merged into their normalised key (newest seen/summary wins, added
+-- if either was), and the local player's own entry is dropped.
+function Friends.tidy(store, me)
+	local myKey = Friends.normalise(me)
+	local oldKeys = {}
+	for key in pairs(store) do
+		if Friends.normalise(key) ~= key then
+			oldKeys[#oldKeys + 1] = key
+		end
+	end
+	for _, key in ipairs(oldKeys) do
+		local old, newKey = store[key], Friends.normalise(key)
+		store[key] = nil
+		if newKey then
+			local cur = store[newKey]
+			if not cur then
+				store[newKey] = old
+			else
+				cur.added = cur.added or old.added
+				if (old.seen or 0) > (cur.seen or 0) then
+					cur.seen, cur.summary = old.seen, old.summary or cur.summary
+				end
+			end
+		end
+	end
+	if myKey then
+		store[myKey] = nil
+	end
+	return store
 end
 
 local function isSeen(entry, now)

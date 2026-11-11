@@ -11,6 +11,33 @@ describe("Friends", function()
 		return { score = score, mobs = mobs or 0, players = players or 0, raids = raids or 0 }
 	end
 
+	it("keeps two-part names (WoW: Forever)", function()
+		assert.equal("Forgot Shards", Friends.normalise("Forgot Shards"))
+		assert.equal("Forgot Shards", Friends.normalise("forgot shards"))
+		assert.equal("Forgot Shards", Friends.normalise("FORGOT SHARDS-Realm"))
+		assert.equal("Forgot Shards", Friends.fullName("Forgot", "Shards"))
+		assert.equal("Bob", Friends.fullName("Bob", nil))
+		assert.equal("Bob", Friends.fullName("Bob", ""))
+		assert.is_nil(Friends.fullName(nil, "Shards"))
+	end)
+
+	it("tidies saved keys: re-spells old ones and drops yourself", function()
+		local store = {
+			["Forgot shards"] = { added = false, seen = 5 },
+			["Bob jones"] = { added = true, seen = 1 },
+			["Bob Jones"] = { added = false, seen = 9, summary = { score = 3 } },
+			["Ann"] = { added = true },
+		}
+		Friends.tidy(store, "Forgot Shards")
+		assert.is_nil(store["Forgot shards"])
+		assert.is_nil(store["Forgot Shards"])
+		assert.is_nil(store["Bob jones"])
+		assert.is_true(store["Bob Jones"].added)
+		assert.equal(9, store["Bob Jones"].seen)
+		assert.equal(3, store["Bob Jones"].summary.score)
+		assert.is_true(store["Ann"].added)
+	end)
+
 	it("normalises names", function()
 		assert.equal("Stabbyface", Friends.normalise("stabbyface"))
 		assert.equal("Stabbyface", Friends.normalise("Stabbyface-Forever"))

@@ -173,7 +173,9 @@ describe("Capture glue", function()
 
 	local function load()
 		local ns = {}
-		local pure = { "Settings", "RaidData", "Raids", "Points", "Flavour", "Dex", "Milestones", "Catch", "Shards" }
+		local pure = {
+			"Settings", "RaidData", "Raids", "Points", "Flavour", "Dex", "Milestones", "Friends", "Catch", "Shards",
+		}
 		for _, f in ipairs(pure) do
 			LoadAddonFile("src/" .. f .. ".lua", ns)
 		end
@@ -326,17 +328,21 @@ describe("Capture glue", function()
 		end)
 
 		it("a PvP kill records the player with class, race, guild and realm", function()
+			-- On WoW: Forever UnitName's second value is the second half of the name
+			-- ("Forgot", "Shards" for "Forgot Shards"), not a realm.
 			world.target = {
 				name = "Bob", realm = "Far", guid = "Player-1-AB", level = 30, player = true,
 				class = "ROGUE", race = "Human", guild = "Stabby",
 			}
 			local _, db = boot()
-			drain("cast1", "Bob-Far")
+			drain("cast1", "Bob Far")
 			putShard(1, "NEW")
 			fire("BAG_UPDATE_DELAYED")
 			flush()
-			local p = db.players["Bob-Far"]
+			local p = db.players["Bob Far-Home"]
 			assert.is_not_nil(p)
+			assert.equal("Bob Far", p.name)
+			assert.equal("Home", p.realm)
 			assert.equal("ROGUE", p.class)
 			assert.equal("Human", p.race)
 			assert.equal("Stabby", p.guild)

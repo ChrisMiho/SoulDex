@@ -68,6 +68,10 @@ describe("Net", function()
 			assert.is_true(Net.isMe("fel-Realm", "Fel"))
 			assert.is_false(Net.isMe("Bob", "Fel"))
 			assert.is_false(Net.isMe(nil, nil))
+			-- WoW: Forever: UnitName("player") returns "Forgot", "Shards"; messages come from "Forgot Shards".
+			assert.is_true(Net.isMe("Forgot Shards", "Forgot", "Shards"))
+			assert.is_true(Net.isMe("forgot shards-91", "Forgot", "Shards"))
+			assert.is_false(Net.isMe("Forgot Other", "Forgot", "Shards"))
 		end)
 
 		it("treats unknown or long-silent people as newcomers", function()

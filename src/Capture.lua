@@ -270,8 +270,9 @@ function Capture.readUnit(unit, sentName)
 		return { unknown = true, isPlayer = isPlayer, guid = guid }
 	end
 	if plainString(sentName) then
-		local full = plainString(realm) and (name .. "-" .. realm) or name
-		if sentName ~= name and sentName ~= full then
+		local dashed = plainString(realm) and (name .. "-" .. realm) or name
+		local spaced = plainString(realm) and (name .. " " .. realm) or name
+		if sentName ~= name and sentName ~= dashed and sentName ~= spaced then
 			return { unknown = true, isPlayer = isPlayer, guid = guid }
 		end
 	end
@@ -288,9 +289,10 @@ function Capture.readUnit(unit, sentName)
 		info.level = nil -- "??" skull level
 	end
 	if isPlayer then
-		local bare, fromName = Capture.splitName(name, str(realm))
-		info.name = bare
-		info.realm = fromName or str(call(GetRealmName))
+		-- WoW: Forever: UnitName's second value is the second half of the name
+		-- ("Forgot", "Shards" for "Forgot Shards"), not a realm.
+		info.name = ns.Friends.fullName(name, str(realm)) or name
+		info.realm = str(call(GetRealmName))
 		info.guild = str(call(GetGuildInfo, unit))
 		local _, classToken = call(UnitClass, unit)
 		info.class = str(classToken)
