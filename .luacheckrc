@@ -35,3 +35,14 @@ files["spec/"] = {
 files["spec/helper.lua"] = {
 	globals = { "LoadAddonFile" },
 }
+
+-- Generated data: long lines are fine
+files["src/RaidData.lua"] = {
+	max_line_length = false,
+}
+
+-- Dev scripts (not shipped) run under LuaJIT and use io/os
+files["scripts/"] = {
+	std = "+luajit",
+	read_globals = { "arg" },
+}
