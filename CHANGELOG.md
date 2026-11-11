@@ -12,3 +12,4 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - Soul Shard tooltips show whose soul it is and where it was taken, following the shard between bag slots.
 - Friends tab: a leaderboard of Soul-Dex users in your party, raid and guild plus people added with `/souldex add <name>`; browse a friend's dex read-only.
 - `/souldex options` (or the gear) toggles the popup, the sound and guild announcements.
+- Fixed: nothing was recorded on WoW: Forever (the combat log is blocked for addons). Catches now come from your Drain Soul / Shadowburn casts and shards are tracked by item, so a soul follows its shard anywhere. A target whose name the game hides is counted as an "Unknown soul" in that zone.

@@ -45,6 +45,11 @@ generated from [Questie](https://github.com/Questie/Questie) v11.38.0
 `scripts/gen_raids.lua` and the header of `src/RaidData.lua`. Data is based on
 Classic Era and may differ from WoW: Forever.
 
+WoW: Forever hides the combat log from addons, so Soul-Dex reads your target
+when you start Drain Soul (or cast Shadowburn) and names the next new shard
+after it. When the game hides the target's name, the catch is counted as an
+**Unknown soul** in that zone (no points, no popup).
+
 ## Licence
 
 MIT. See `LICENSE`. The Questie-derived raid data in `src/RaidData.lua` comes

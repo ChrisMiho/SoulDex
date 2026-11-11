@@ -45,11 +45,11 @@ works in a normal checkout: inside a git worktree the packager stops with
 | `src/View.lua` | Pure: row/group data for the tabs |
 | `src/Comm.lua` | Pure: encode/decode of friend messages |
 | `src/Friends.lua` | Pure: friends store and leaderboard |
-| `src/Catch.lua` | Pure: matching deaths to shards |
-| `src/Shards.lua` | Pure: bag slot to soul map |
+| `src/Catch.lua` | Pure: capture window (Drain Soul / Shadowburn target for the next new shard) |
+| `src/Shards.lua` | Pure: item GUID to soul map |
 | `src/Toast.lua` | New-catch popup and sound |
-| `src/Capture.lua` | Game events: tracks units, deaths, bag scans, records catches |
-| `src/Tooltip.lua` | Soul Shard tooltip lines |
+| `src/Capture.lua` | Game events: secret-value guards, player spellcasts, bag scans by item GUID, records catches |
+| `src/Tooltip.lua` | Soul Shard tooltip lines (TooltipDataProcessor, by item GUID) |
 | `src/UIFormat.lua` | UI text and colour helpers |
 | `src/UIList.lua` | Pooled scrolling list component |
 | `src/UI.lua` | Dex window, tabs, panes |
@@ -76,8 +76,11 @@ works in a normal checkout: inside a git worktree the packager stops with
   global you create in `globals`.
 - **Messages go to the player's own chat frame only** (`ns.Print`), never to a
   chat channel, except guild announcements.
-- **Never record a wrong name in the dex.** A shard with no matching death
+- **Never record a wrong name in the dex.** A shard with no matching capture
   records nothing.
+- **This client blocks the combat log and may return secret values:** never
+  register COMBAT_LOG_EVENT_UNFILTERED; check every API value with
+  issecretvalue before use (`ns.Capture.readable`/`plainString`/`plainNumber`).
 - **Libraries only through `.pkgmeta` externals** (pinned to `Release-r1403`)
   and `embeds.xml`; never commit `Libs/` or copy library code into `src/`.
 - Tabs for Lua indentation; see `.editorconfig`.

@@ -84,6 +84,9 @@ your bags are full and the shard is lost, nothing is recorded. **[call]**
 
 Shards come from Drain Soul (the target dies while you're channelling it)
 and, in vanilla, from Shadowburn (the target dies within 5 s). Both count. **[call]**
+(changed during build: WoW: Forever blocks the combat log for addons, so a
+Shadowburn catch is a shard that appears within 5 s + 3 s of a successful
+Shadowburn cast, named after the target it was cast at; untested in game.)
 Mobs only give shards if they give XP or honour, so the game already filters
 out grey mobs.
 
@@ -91,31 +94,48 @@ out grey mobs.
 
 The builder decides how to do this. The design needs:
 
-- The source's details are captured **while it's alive and targetable**
-  (target, mouseover, or nameplate), keyed by GUID, because a corpse can't
-  be queried for some of them. Needed: name, level, classification
-  (normal/elite/rare/rare elite/world boss), creature type and family. For
-  players: name, realm, level, race, class, guild.
-- When a shard appears, it is matched to the most recent death in the last
-  few seconds of a unit that had your Drain Soul or Shadowburn on it.
-  If several qualify, the newest death wins; older ones stay queued until they
-  expire. A Drain Soul aura counts as live for at most 15 s + 1 s after it was
-  applied or refreshed, even if its removal event was missed. (changed during
-  build: final review - newest death wins, Drain Soul liveness capped at 15 s + 1 s)
+(changed during build: WoW: Forever blocks the combat log for addons -
+`CombatLogGetCurrentEventInfo` is missing and registering
+`COMBAT_LOG_EVENT_UNFILTERED` is refused - and may return "secret" values. No
+death detection is used; the capture window below replaces the death queue.)
+
+- The source's details are read from your **target** when you cast:
+  at `UNIT_SPELLCAST_SENT` for Drain Soul or Shadowburn (it is alive then),
+  or at `UNIT_SPELLCAST_CHANNEL_START` if no matching SENT was seen. Needed:
+  name, level, classification (normal/elite/rare/rare elite/world boss),
+  creature type and family. For players: name, realm, level, race, class,
+  guild. Every value is checked with `issecretvalue` first; a secret field is
+  simply left out. If SENT reports a target name that differs from your
+  target's name (a mouseover macro), the name is not trusted.
+- **Capture window.** A Drain Soul channel start opens a capture for that
+  target. A **new shard** that appears while the channel runs, or within 3 s
+  after it stops, belongs to that target. A capture lives at most 20 s. A
+  successful Shadowburn opens a capture for 5 s + 3 s. An unreadable channel
+  start clears the capture (it may be a new channel on an unknown target);
+  any other unreadable spell event ends it 3 s later.
+- One capture names **one** shard (one channel kills one target); further new
+  shards in the same window are soulless. If two unused captures on different
+  targets are live at once (a new Drain Soul within 3 s of the last one
+  ending), neither names a shard.
+- **Unknown soul [user].** When the target's name is hidden (secret, empty,
+  or "Unknown"), the catch is recorded as an Unknown soul in that zone
+  (see 4.4). Players whose name is hidden go there too.
 - Recorded with the catch: date and time, your level, the zone (and subzone
   if known), and **your** map coordinates at that moment (the source's own
   position isn't available). **[call]**
 - If no match is found, the shard gets no name and no catch is recorded.
   This must never produce a wrong name.
-- A catch needs the **shard total to rise** between two bag scans (shards
-  gained minus shards that left, never below zero). (changed during build:
-  "no shard, no catch / never a wrong name" outranks never missing a catch.)
-  The one accepted loss: a shard that arrives in the same scan in which
-  another shard is used is missed.
+- A "new shard" is a Soul Shard whose **item GUID** has never been seen.
+  (changed during build: shards are tracked by item GUID, not bag slot, so
+  moves, bag sorting and banking can't confuse them; the earlier slot map
+  `shardSlots` is discarded.) Bags 0 to the last equipped bag are scanned on
+  `BAG_UPDATE_DELAYED`, `PLAYER_REGEN_ENABLED` and after each of your spell
+  events. While something is on the cursor or the bank is open, new GUIDs
+  are stored as soulless, never named.
 - Shards that were already in the bags when the addon started, or that can't
   be matched, are remembered as "seen, no soul" (soulless), so they never get
-  a name later when another shard is used or moves. (changed during build: the
-  slot map stores a soul or `false`.)
+  a name later. Shards that leave the bags are kept (bank, mailbox); a login
+  baseline forgets shards not seen for 30 days.
 - Login baseline: the first bag scan runs about 1 s after login and records
   every shard then in the bags as soulless. A shard obtained in that first
   second is part of the baseline, not a catch. (changed during build: avoids
@@ -140,6 +160,11 @@ at the first catch. **[user]**
 Player entry: name, class, race, guild, level at first and last catch, times
 sharded, first and last date, and a list of places (zone and coordinates)
 with a count for each. **[user]**
+
+Unknown soul (changed during build: WoW: Forever can hide names) **[user]**:
+per zone, a count with first and last date (`SoulDexDB.unknown[zone]`). It
+gives no points, no popup and no milestone progress, is not a unique mob,
+and is not sent to friends.
 
 Data is saved **per character** (`SavedVariablesPerCharacter`): each warlock
 has its own dex, score and milestones, and Friends shows character names. **[user]**
@@ -174,6 +199,10 @@ The look was settled through mockups; the final versions are in
   count of unique mobs on the right. Places with nothing aren't shown.
 - Right: the mobs caught in the selected place. Elites, rares and bosses get
   their usual colours and markers.
+- Unknown souls caught in the place show as one muted "Unknown soul ×N" row
+  at the end of its list; it does nothing on click. A place with only Unknown
+  souls is still listed, with a count of 0 unique mobs. (changed during build:
+  hidden names on WoW: Forever.)
 
 ### 5.3 Players tab
 
@@ -303,14 +332,15 @@ the user agreed to this table as an example]**
 - Hovering a Soul Shard in your bags adds two lines to the normal tooltip:
   "Soul of <name>" (in rarity or class colour) and "<zone> · <date>".
   Nothing else changes. **[user]**
-- In vanilla, shards don't stack, so each bag slot holds one shard. The addon
-  keeps a slot → soul map and updates it when bags change: a shard leaving
-  one slot and appearing in another counts as a move; a used or deleted shard
-  is dropped from the map.
-- When moves can't be told apart (bag sorting, several shards moving at
-  once), keep the set of souls but accept that names may swap between
-  shards. **[call]** Showing a name on the wrong shard is acceptable here; a
-  wrong name in the dex is not.
+- (changed during build: WoW: Forever.) The addon keeps an item GUID → soul
+  map (`SoulDexDB.shardSouls`), so the soul follows the shard exactly through
+  moves, sorting, the bank and relogs. The tooltip lines are added through
+  `TooltipDataProcessor` (item tooltips); the shard is found by the tooltip
+  data's GUID, or by the bag slot the tooltip was set from. Forbidden or
+  protected tooltips are left alone. Without `TooltipDataProcessor` the old
+  `GameTooltip:SetBagItem` hook is used.
+- An Unknown soul shard shows a grey "Unknown soul" line instead of
+  "Soul of <name>", then "<zone> · <date>".
 - Shards from before the addon was installed get no extra lines.
 
 ### 6.4 Guild announcements
@@ -367,10 +397,17 @@ glue and tab live in `Net.lua`.
 One list, grouped by feature. Enable script errors first, then `/reload`.
 
 **Startup**
-- No Lua errors and no chat spam after `/reload`.
+- No Lua errors and no chat spam after `/reload`; in particular no "blocked
+  from an action only available to the Blizzard UI" error. If a chat line
+  "The game refused some events (...)" appears, report which events.
+- After `/reload`, `/dump SoulDexDB.window` and `/dump SoulDexDB.friends` are
+  tables (the on-load hooks ran), and `/dump SoulDexDB.shardSouls` lists the
+  shards in your bags.
 - After `/reload` with shards in bags, wait about 1 s: no popups, and existing
-  named shards keep their tooltip lines (all bags 0-4). A shard obtained in the
+  named shards keep their tooltip lines (all bags). A shard obtained in the
   first second after login is not a catch (accepted).
+- Beta-client bug (not ours): SavedVariables can fail to load after a
+  reload; if the dex is suddenly empty, relog before reporting a bug.
 
 **Catching**
 - Drain Soul a mob to death and get a shard: the popup "NEW SOUL CAUGHT!"
@@ -379,19 +416,33 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
   The mob is listed under the right place.
 - The same mob name again: no popup or sound. The same mob in another zone:
   listed there, no popup.
-- Drain Soul mob A, switch to mob B just before A dies, kill B with Drain Soul
-  -> the dex records B only.
-- A Shadowburn kill that yields a shard counts. A kill whose shard came from
-  elsewhere, or with no Drain Soul/Shadowburn: no catch, no name.
+- Drain Soul mob A, interrupt it (move), then Drain Soul mob B to death more
+  than 3 s later -> the dex records B only. Start Drain Soul on B within 3 s
+  of breaking off A and kill B quickly -> the shard may stay unnamed (accepted;
+  never A's name).
+- Kill a mob with Drain Soul cast through a mouseover macro while targeting a
+  different mob -> recorded as Unknown soul, never the targeted mob's name.
+- A Shadowburn kill that yields a shard counts (untested so far: please check).
+  A kill whose shard came from elsewhere, or with no Drain Soul/Shadowburn:
+  no catch, no name.
+- If the game hides a target's name (it shows as secret/"Unknown"): the
+  catch appears as a muted "Unknown soul ×N" row at the end of that zone's
+  list; no popup, no sound, no points, the unique-mob count does not change.
 - Dungeon (party) kills are grouped under "Dungeons". A raid kill fills its
   slot in the Raids tab and is not listed under Mobs. A PvP Drain Soul kill
   appears under the player's class with class, race and guild.
-- `/dump SoulDexDB.shardSlots` after catches shows soul tables or `false`.
+- `/dump SoulDexDB.shardSouls` after catches shows entries keyed by item GUID,
+  each `{ soul = <table or false>, seen = <time> }`; `SoulDexDB.shardSlots`
+  is gone.
+- With the bank open, or an item on the cursor, take a shard from a Drain Soul
+  kill: it stays unnamed (accepted).
 
 **Shard tooltip**
 - Hover the new shard: two extra lines, "Soul of <name>" (coloured) and
-  "<zone> · <date>". Old or unmatched shards get no extra lines. Move the
-  shard to another slot and relog: the line follows it.
+  "<zone> · <date>"; an Unknown soul shard shows a grey "Unknown soul" line.
+  Old or unmatched shards get no extra lines. Move the shard to another bag,
+  sort the bags, put it in the bank and take it out, relog: the line stays on
+  that exact shard.
 
 **Window**
 - `/souldex` opens a small dark-purple window with the score at the top right,
@@ -458,3 +509,14 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
 - Alt-Z (hiding the UI) resets browsing to your own dex.
 - A browsed friend's Milestones tab shows nothing earned (no dates are sent).
 - Raid data is Classic Era and may need regenerating for WoW: Forever content.
+- WoW: Forever can hide target names (secret values): those catches are only
+  counted as "Unknown soul" per zone.
+- Shadowburn catches are untested in game.
+- WoW: Forever beta bug: SavedVariables can fail to load after a reload.
+- A shard refunded by a demon that despawns during a Drain Soul (or within
+  3 s after it) would take the drain target's name, and the real shard from
+  the kill then stays unnamed.
+- A shard gained while the bank is open or an item is on the cursor is never
+  named.
+- A Drain Soul started within 3 s after another one ended on a different
+  target, with no shard from the first, leaves the next shard unnamed.
