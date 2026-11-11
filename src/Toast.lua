@@ -25,9 +25,9 @@ end
 -- have no place count: "<zone> · +<points> pts".
 function Toast.subtitle(result, zone)
 	if result.kind == "mob" and result.placeCount then
-		return string.format("%s \194\183 #%d here \194\183 +%d pts", zone, result.placeCount, result.points)
+		return string.format("%s \194\183 #%d here \194\183 |cff7dff6a+%d pts|r", zone, result.placeCount, result.points)
 	end
-	return string.format("%s \194\183 +%d pts", zone, result.points)
+	return string.format("%s \194\183 |cff7dff6a+%d pts|r", zone, result.points)
 end
 
 function Toast.nameLine(info)

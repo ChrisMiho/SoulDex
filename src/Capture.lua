@@ -129,6 +129,22 @@ function Capture.recordCatch(dex, cand, ctx, instanceType, instanceID)
 	return dex:recordMob(info, ctx), "mob"
 end
 
+-- Calls fn(...) in protected mode; an error goes to handler(err) instead of propagating.
+function Capture.protect(handler, fn, ...)
+	local ok, err = pcall(fn, ...)
+	if not ok and handler then
+		handler(err)
+	end
+	return ok
+end
+
+-- Calls every hook with (...), each protected, so one bad hook can't stop the others.
+function Capture.runHooks(hooks, handler, ...)
+	for _, fn in ipairs(hooks) do
+		Capture.protect(handler, fn, ...)
+	end
+end
+
 -- Game wiring ------------------------------------------------------------------
 
 local function unitInfo(unit)
@@ -209,14 +225,12 @@ local function afterCatch(db, dex, result, entry)
 			SendChatMessage("Soul-Dex: " .. m.text .. "!", "GUILD")
 		end
 	end
-	for _, fn in ipairs(ns.onCatch) do
-		fn(result, entry)
-	end
+	Capture.runHooks(ns.onCatch, geterrorhandler(), result, entry)
 end
 
 local function fillPlayerInfo(cand)
 	if Capture.isPlayerGuid(cand.guid) then
-		local _, classToken, _, race = GetPlayerInfoByGUID(cand.guid)
+		local _, classToken, race = GetPlayerInfoByGUID(cand.guid)
 		local info = cand.info
 		info.class = info.class or classToken
 		info.race = info.race or race
@@ -226,8 +240,9 @@ local function fillPlayerInfo(cand)
 	end
 end
 
--- Records the candidate and returns the soul to remember for its shard, or nil.
-local function record(db, dex, cand)
+-- Records the candidate and returns the soul to remember for its shard, or nil,
+-- plus the entry for afterCatch (run by the caller once the map is saved).
+local function record(dex, cand)
 	fillPlayerInfo(cand)
 	local ctx, instanceType, instanceID = buildContext()
 	local result, kind = Capture.recordCatch(dex, cand, ctx, instanceType, instanceID)
@@ -240,8 +255,7 @@ local function record(db, dex, cand)
 		zone = ctx.zone,
 		time = ctx.time,
 	}
-	afterCatch(db, dex, result, { info = cand.info, ctx = ctx, kind = kind })
-	return soul
+	return soul, { result = result, entry = { info = cand.info, ctx = ctx, kind = kind } }
 end
 
 local function shardSlots()
@@ -260,19 +274,46 @@ function Capture.start(db)
 	local dex = ns.Dex.new(db)
 	ns.dex = dex
 	local matcher = ns.Catch.new()
-	local scanned = false
+	local scanned = false -- the baseline scan has run
+	local scheduled = false
 	local drainSoul, shadowburn = GetSpellInfo(DRAIN_SOUL_ID), GetSpellInfo(SHADOWBURN_ID)
 
 	local function scanBags()
 		local firstScan = not scanned
 		scanned = true
 		local newMap, gained = ns.Shards.update(db.shardSlots, shardSlots(), firstScan)
+		local done = {}
 		for _, slot in ipairs(gained) do
 			local cand = matcher:takeCandidate(GetTime())
-			local soul = cand and record(db, dex, cand)
+			local soul, after
+			if cand then
+				soul, after = record(dex, cand)
+			end
 			newMap = ns.Shards.assign(newMap, slot, soul or false)
+			if after then
+				done[#done + 1] = after
+			end
 		end
 		db.shardSlots = newMap
+		-- Saved first: nothing below can lose a catch.
+		for _, d in ipairs(done) do
+			Capture.protect(geterrorhandler(), afterCatch, db, dex, d.result, d.entry)
+		end
+	end
+
+	-- The baseline waits a second after login so every bag has reported its slots.
+	local function onEnterWorld()
+		if scanned or scheduled then
+			return
+		end
+		scheduled = true
+		C_Timer.After(1, scanBags)
+	end
+
+	local function onBagUpdate()
+		if scanned then
+			scanBags()
+		end
 	end
 
 	local function combatLog()
@@ -305,7 +346,8 @@ function Capture.start(db)
 		UPDATE_MOUSEOVER_UNIT = function() noteUnit(matcher, "mouseover") end,
 		NAME_PLATE_UNIT_ADDED = function(unit) noteUnit(matcher, unit) end,
 		COMBAT_LOG_EVENT_UNFILTERED = combatLog,
-		BAG_UPDATE_DELAYED = scanBags,
+		BAG_UPDATE_DELAYED = onBagUpdate,
+		PLAYER_ENTERING_WORLD = onEnterWorld,
 	}
 	local frame = CreateFrame("Frame")
 	for event in pairs(handlers) do

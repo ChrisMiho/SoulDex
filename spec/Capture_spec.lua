@@ -142,9 +142,24 @@ describe("Capture glue", function()
 		it("builds subtitles", function()
 			local ns = load()
 			local mob = { kind = "mob", placeCount = 3, points = 5 }
-			assert.equal("Elwynn Forest \194\183 #3 here \194\183 +5 pts", ns.Toast.subtitle(mob, "Elwynn Forest"))
-			assert.equal("Elwynn Forest \194\183 +10 pts", ns.Toast.subtitle({ kind = "player", points = 10 }, "Elwynn Forest"))
-			assert.equal("Molten Core \194\183 +25 pts", ns.Toast.subtitle({ kind = "raid", points = 25 }, "Molten Core"))
+			local player = { kind = "player", points = 10 }
+			local raid = { kind = "raid", points = 25 }
+			assert.equal("Elwynn Forest \194\183 #3 here \194\183 |cff7dff6a+5 pts|r", ns.Toast.subtitle(mob, "Elwynn Forest"))
+			assert.equal("Elwynn Forest \194\183 |cff7dff6a+10 pts|r", ns.Toast.subtitle(player, "Elwynn Forest"))
+			assert.equal("Molten Core \194\183 |cff7dff6a+25 pts|r", ns.Toast.subtitle(raid, "Molten Core"))
+		end)
+		it("runs every catch hook even when one errors", function()
+			local ns = load()
+			local calls, errors = {}, {}
+			local hooks = {
+				function(a, b) calls[#calls + 1] = a .. b end,
+				function() error("boom") end,
+				function(a) calls[#calls + 1] = a end,
+			}
+			ns.Capture.runHooks(hooks, function(e) errors[#errors + 1] = e end, "x", "y")
+			assert.same({ "xy", "x" }, calls)
+			assert.equal(1, #errors)
+			assert.is_truthy(errors[1]:find("boom"))
 		end)
 		it("marks rarity on mobs only", function()
 			local ns = load()
