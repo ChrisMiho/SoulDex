@@ -9,4 +9,6 @@
 embeds.xml
 
 src\Settings.lua
+src\Points.lua
+src\Flavour.lua
 src\Init.lua
