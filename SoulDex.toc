@@ -8,4 +8,5 @@
 
 embeds.xml
 
+src\Settings.lua
 src\Init.lua
