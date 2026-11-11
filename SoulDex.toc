@@ -19,4 +19,5 @@ src\Catch.lua
 src\Shards.lua
 src\Toast.lua
 src\Capture.lua
+src\Tooltip.lua
 src\Init.lua

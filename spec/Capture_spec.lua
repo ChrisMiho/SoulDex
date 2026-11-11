@@ -36,6 +36,7 @@ describe("Capture glue", function()
 		end
 		LoadAddonFile("src/Toast.lua", ns)
 		LoadAddonFile("src/Capture.lua", ns)
+		LoadAddonFile("src/Tooltip.lua", ns)
 		return ns
 	end
 
@@ -151,6 +152,32 @@ describe("Capture glue", function()
 			assert.equal("Bob", ns.Toast.nameLine({ name = "Bob", classification = "elite", class = "ROGUE" }))
 			assert.equal("Wolf", ns.Toast.nameLine({ name = "Wolf", classification = "normal" }))
 			assert.equal("Boss", ns.Toast.rarityLabel("worldboss"))
+		end)
+	end)
+
+	describe("Tooltip", function()
+		it("builds the two lines", function()
+			local ns = load()
+			local soul = { name = "Hogger", color = "ffcc33", zone = "Elwynn Forest", time = 5 }
+			local first, second = ns.Tooltip.lines(soul, function(fmt, t) return fmt .. t end)
+			assert.equal("Soul of |cffffcc33Hogger|r", first)
+			assert.equal("Elwynn Forest \194\183 %d %b %Y5", second)
+		end)
+
+		it("adds lines only for a named shard", function()
+			local ns = load()
+			_G.C_Container = { GetContainerItemID = function(_, slot) return slot == 3 and 8 or 6265 end }
+			_G.date = function() return "10 Nov 2026" end
+			ns.db = { shardSlots = { ["0:1"] = { name = "Wolf", zone = "Z", time = 1 }, ["0:2"] = false } }
+			local lines = {}
+			local tip = { AddLine = function(_, text) lines[#lines + 1] = text end, Show = function() end }
+			ns.Tooltip.onSetBagItem(tip, 0, 1)
+			assert.equal(2, #lines)
+			lines = {}
+			ns.Tooltip.onSetBagItem(tip, 0, 2) -- shard with no soul
+			ns.Tooltip.onSetBagItem(tip, 0, 3) -- not a shard
+			ns.Tooltip.onSetBagItem(tip, 1, 1) -- unknown slot
+			assert.equal(0, #lines)
 		end)
 	end)
 end)
