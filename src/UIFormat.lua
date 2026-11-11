@@ -156,17 +156,22 @@ end
 function F.mobRows(rows)
 	local out = {}
 	for _, row in ipairs(rows) do
-		local style = STYLES[row.classification]
-		local text = row.name
-		if style and style.mark then
-			text = text .. " " .. style.mark
+		if row.unknown then
+			-- Hidden-name catches: muted, no detail pane (no value, not clickable).
+			out[#out + 1] = { text = row.name, color = C.MUTED, right = F.countText(row.count) }
+		else
+			local style = STYLES[row.classification]
+			local text = row.name
+			if style and style.mark then
+				text = text .. " " .. style.mark
+			end
+			out[#out + 1] = {
+				text = text,
+				color = row.highlight and C.GREEN or (style and style.color) or C.TEXT,
+				right = F.countText(row.count),
+				value = row.name,
+			}
 		end
-		out[#out + 1] = {
-			text = text,
-			color = row.highlight and C.GREEN or (style and style.color) or C.TEXT,
-			right = F.countText(row.count),
-			value = row.name,
-		}
 	end
 	return out
 end

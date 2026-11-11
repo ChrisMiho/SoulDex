@@ -107,6 +107,12 @@ describe("UIFormat", function()
 			assert.equal("Wolf", rows[4].value)
 		end)
 
+		it("draws the Unknown soul row muted and not clickable", function()
+			local rows = F.mobRows({ { name = "Unknown soul", count = 3, unknown = true } })
+			assert.same({ text = "Unknown soul", color = F.COLORS.MUTED, right = "\195\1513" }, rows[1])
+			assert.is_nil(rows[1].value)
+		end)
+
 		it("names classes in their colours", function()
 			local rows = F.classRows({ { class = "ROGUE", count = 6 }, { class = "UNKNOWN", count = 1 } }, "ROGUE",
 				{ ROGUE = { r = 1, g = 0.96, b = 0.41 } }, { ROGUE = "Rogue" })

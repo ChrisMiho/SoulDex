@@ -42,10 +42,14 @@ function View.places(dex)
 			counts[zone] = (counts[zone] or 0) + 1
 		end
 	end
+	-- A zone with only unknown souls is still listed; its count (unique mobs) is 0.
+	for zone in pairs(db.unknown or {}) do
+		counts[zone] = counts[zone] or 0
+	end
 
 	local groups, names = {}, {}
 	for zone, count in pairs(counts) do
-		local info = db.places[zone]
+		local info = db.places[zone] or (db.unknown and db.unknown[zone])
 		local group = info and info.group or GROUP_FALLBACK
 		if not groups[group] then
 			groups[group] = {}
@@ -84,6 +88,11 @@ function View.mobsAt(dex, place, other)
 	table.sort(rows, function(a, b)
 		return a.name < b.name
 	end)
+	-- Hidden-name catches: one row, always last (spec 5.2).
+	local unknown = dex.db.unknown and dex.db.unknown[place]
+	if unknown then
+		rows[#rows + 1] = { name = "Unknown soul", count = unknown.count, unknown = true }
+	end
 	return rows
 end
 

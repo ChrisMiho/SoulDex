@@ -9,7 +9,7 @@ local methods = {}
 local meta = { __index = methods }
 
 function Dex.new(db)
-	for _, key in ipairs({ "mobs", "places", "players", "raids", "milestones" }) do
+	for _, key in ipairs({ "mobs", "places", "players", "raids", "milestones", "unknown" }) do
 		db[key] = db[key] or {}
 	end
 	return setmetatable({ db = db }, meta)
@@ -118,6 +118,21 @@ function methods:recordRaid(info, ctx, instanceID, npcID)
 	entry.count = entry.count + 1
 	entry.last = ctx.time
 	return { isNew = isNew, points = points, kind = "raid" }
+end
+
+-- A soul whose name the game hid (spec 4.4): counted per zone only. No points, not a
+-- unique mob, not new, so no popup and no milestone progress.
+function methods:recordUnknown(ctx)
+	local db = self.db
+	notePlace(db, ctx)
+	local entry = db.unknown[ctx.zone]
+	if not entry then
+		entry = { count = 0, first = ctx.time, group = ctx.group }
+		db.unknown[ctx.zone] = entry
+	end
+	entry.count = entry.count + 1
+	entry.last = ctx.time
+	return { isNew = false, points = 0, kind = "unknown" }
 end
 
 -- Raid creatures count as mobs too, once per name (spec 4.5).

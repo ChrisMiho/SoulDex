@@ -86,6 +86,23 @@ describe("View", function()
 		it("is empty for an empty dex", function()
 			assert.same({}, View.places(dex))
 		end)
+
+		it("lists a zone with only unknown souls, counting unique mobs (0)", function()
+			dex:recordMob(mob("Wolf"), ctx("Elwynn Forest"))
+			dex:recordUnknown(ctx("Elwynn Forest"))
+			dex:recordUnknown(ctx("Westfall"))
+			local seq = {}
+			for _, r in ipairs(View.places(dex)) do
+				seq[#seq + 1] = r.header or (r.place .. ":" .. r.count)
+			end
+			assert.same({ "Eastern Kingdoms", "Elwynn Forest:1", "Westfall:0" }, seq)
+		end)
+
+		it("copes with a dex table that has no unknown list", function()
+			dex.db.unknown = nil
+			dex:recordMob(mob("Wolf"), ctx("Elwynn Forest"))
+			assert.equal(2, #View.places(dex))
+		end)
 	end)
 
 	describe("mobsAt", function()
@@ -100,6 +117,18 @@ describe("View", function()
 			assert.same({ name = "Boar", count = 1, classification = "elite", highlight = true }, rows[1])
 			assert.same({ name = "Wolf", count = 2, classification = "normal", highlight = false }, rows[2])
 			assert.is_false(View.mobsAt(dex, "Elwynn Forest")[1].highlight)
+		end)
+
+		it("ends with one Unknown soul row for the zone", function()
+			dex:recordMob(mob("Wolf"), ctx("Elwynn Forest"))
+			dex:recordUnknown(ctx("Elwynn Forest"))
+			dex:recordUnknown(ctx("Elwynn Forest"))
+			dex:recordUnknown(ctx("Westfall"))
+			local rows = View.mobsAt(dex, "Elwynn Forest", friend)
+			assert.equal(2, #rows)
+			assert.equal("Wolf", rows[1].name)
+			assert.same({ name = "Unknown soul", count = 2, unknown = true }, rows[2])
+			assert.same({ { name = "Unknown soul", count = 1, unknown = true } }, View.mobsAt(dex, "Westfall"))
 		end)
 	end)
 
