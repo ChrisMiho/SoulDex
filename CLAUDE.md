@@ -9,7 +9,7 @@ chat frame only; the only chat-channel output is guild announcements.
 ## Spec
 
 `docs/superpowers/specs/2026-11-10-soul-dex-design.md` is the owning
-document. A change to behaviour is not done until it agrees with the code.
+document. A change to behaviour is not done until the spec and the code agree.
 
 ## Commands
 
@@ -22,6 +22,8 @@ Run from the repo root. On Windows, `.sh` scripts need Git Bash.
 | Build, zip and install into the game | `scripts/build.sh` |
 | Build and zip only (no game install) | `scripts/build.sh --no-install` |
 
+In game: `/souldex`, `/souldex options`, `/souldex add <name>`, `/souldex remove <name>`.
+
 Lint and tests must pass before you call work done; CI runs both on every push.
 The build output goes to `.release/` (git-ignored). `scripts/build.sh` only
 works in a normal checkout: inside a git worktree the packager stops with
@@ -33,7 +35,29 @@ works in a normal checkout: inside a git worktree the packager stops with
 |------|---------|
 | `SoulDex.toc` | Load order and SavedVariables. Every new `src/` file must be listed here, above `src\Init.lua` |
 | `embeds.xml` | Library includes (LibStub, CallbackHandler, AceComm) |
+| `src/Settings.lua` | Pure: setting defaults and `normalise` |
+| `src/RaidData.lua` | Generated raid creature lists (Questie, GPL-3); do not hand-edit, run `luajit scripts/gen_raids.lua <path>` |
+| `src/Raids.lua` | Pure: raid lookups by NPC id |
+| `src/Points.lua` | Pure: points per catch |
+| `src/Flavour.lua` | Pure: flavour text templates |
+| `src/Dex.lua` | Pure: dex storage, recording, counts |
+| `src/Milestones.lua` | Pure: milestone list and checks |
+| `src/View.lua` | Pure: row/group data for the tabs |
+| `src/Comm.lua` | Pure: encode/decode of friend messages |
+| `src/Friends.lua` | Pure: friends store and leaderboard |
+| `src/Catch.lua` | Pure: matching deaths to shards |
+| `src/Shards.lua` | Pure: bag slot to soul map |
+| `src/Toast.lua` | New-catch popup and sound |
+| `src/Capture.lua` | Game events: tracks units, deaths, bag scans, records catches |
+| `src/Tooltip.lua` | Soul Shard tooltip lines |
+| `src/UIFormat.lua` | UI text and colour helpers |
+| `src/UIList.lua` | Pooled scrolling list component |
+| `src/UI.lua` | Dex window, tabs, panes |
+| `src/UIDetail.lua` | Detail pane content |
+| `src/Options.lua` | Options panel |
+| `src/Net.lua` | Friends network (AceComm), Friends tab |
 | `src/Init.lua` | WoW glue: version, `ns.Print`, ADDON_LOADED, `/souldex` |
+| `scripts/gen_raids.lua` | Generates `src/RaidData.lua` from the Questie NPC database (not shipped) |
 | `spec/` | busted tests, one `<Module>_spec.lua` per module |
 | `scripts/` | Developer scripts (not shipped) |
 | `docs/` | Design specs and plans (not shipped) |
@@ -63,8 +87,9 @@ works in a normal checkout: inside a git worktree the packager stops with
 
 Anything that needs the game client. When a task depends on one of these,
 finish the parts you can test, then list exactly what the user should try in
-game and what they should expect to see. Section 9 of the spec is the full
-list.
+game and what they should expect to see. Section 9 of the spec
+(`docs/superpowers/specs/2026-11-10-soul-dex-design.md`) is the full list; keep it
+up to date.
 
 ## Changes and releases
 

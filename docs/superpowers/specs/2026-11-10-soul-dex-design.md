@@ -1,7 +1,7 @@
 # Soul-Dex — design
 
 Date: 2026-11-10
-Status: awaiting user approval
+Status: approved and built (feat/soul-dex). Deliberate differences from the first draft are marked "(changed during build: ...)".
 
 ## 1. What it is and why
 
@@ -70,9 +70,8 @@ this document are marked **[call]**, and the user should check them.
   else. **[call]**
 - Name in game: **Soul-Dex**. Slash command: **`/souldex`**. **[user]**
   The folder, `.toc` and code name can stay `SoulShardPokeDox` or become
-  `SoulDex`; that's the builder's choice.
-- The project folder is not a git repository yet; the builder sets one up
-  like the sibling addons.
+  `SoulDex`; that's the builder's choice. (Built as `SoulDex`: `SoulDex.toc`,
+  `package-as: SoulDex`, `SoulDexDB`.)
 
 ## 4. Catching
 
@@ -104,6 +103,19 @@ The builder decides how to do this. The design needs:
   position isn't available). **[call]**
 - If no match is found, the shard gets no name and no catch is recorded.
   This must never produce a wrong name.
+- A catch needs the **shard total to rise** between two bag scans (shards
+  gained minus shards that left, never below zero). (changed during build:
+  "no shard, no catch / never a wrong name" outranks never missing a catch.)
+  The one accepted loss: a shard that arrives in the same scan in which
+  another shard is used is missed.
+- Shards that were already in the bags when the addon started, or that can't
+  be matched, are remembered as "seen, no soul" (soulless), so they never get
+  a name later when another shard is used or moves. (changed during build: the
+  slot map stores a soul or `false`.)
+- Login baseline: the first bag scan runs about 1 s after login and records
+  every shard then in the bags as soulless. A shard obtained in that first
+  second is part of the baseline, not a catch. (changed during build: avoids
+  naming old shards on login.)
 
 ### 4.3 Identity
 
@@ -166,9 +178,10 @@ The look was settled through mockups; the final versions are in
 
 ### 5.4 Raids tab
 
-- Left: every raid, always listed, with `caught / total`, or a ✓ when finished.
+- Left: every raid, always listed, with `caught / total`, or a ✓ when finished
+  (drawn as a built-in tick icon; see 5.5).
 - Right: **every** mob in the raid. Uncaught ones show as `? ? ?`. Bosses are
-  marked ☠ even before they're caught, so you know what's left.
+  marked ☠ (a skull icon) even before they're caught, so you know what's left.
 - Raid data is a generated Lua data file built from a public vanilla
   database: NPC ID, name, raid, and whether it's a boss. It should cover every
   mob that can give a shard (gives XP or honour), so 100% is actually
@@ -181,14 +194,28 @@ The look was settled through mockups; the final versions are in
   confirming that NPC IDs in at least one raid match the real client. If a
   caught raid mob's NPC ID isn't in the data, it is still recorded (under
   its raid) so nothing is lost when the data gets fixed. **[call]**
+- Data source (changed during build: the draft left the source to the
+  builder): Questie v11.38.0, `Database/Classic/classicNpcDB.lua`, the last
+  tag that ships the data file. Questie is GPL-3; only NPC IDs, names, raid
+  membership and the boss flag are taken, and the source is named in the
+  header of `src/RaidData.lua` and in the README. The generator is
+  `scripts/gen_raids.lua`. Summoned bosses (e.g. Ragnaros) have no spawn data,
+  so a hand-kept boss list in the generator adds them to their raid. Built
+  counts (mobs / bosses): Zul'Gurub 51/13, Molten Core 27/10, Onyxia 2/1,
+  Blackwing Lair 26/8, AQ20 30/6, AQ40 34/14, Naxxramas 73/20. The boss flag
+  is also set by creature rank, so Eye of C'Thun and The Master's Eye count
+  as bosses.
 
 ### 5.5 Detail pane
 
 - Clicking a name **slides a pane in from the right**, covering the names
   list; the left list stays visible. **[user]**
-- Closed with a small **`◀ Back`** button in the tab style (dark purple,
-  light purple text, brighter on hover) at the top left, or a `✕` at the top
-  right. It must be easy to find without standing out. **[user]**
+- Closed with a small **`« Back`** button in the tab style (dark purple,
+  light purple text, brighter on hover) at the top left, or a `×` at the top
+  right. (changed during build: WoW's default fonts lack ◀, ✕, ★, ☠ and ✓, so
+  Back and close use plain "«" and "×", and the star (elite), skull (boss) and
+  tick (raid done) markers are built-in texture icons. Intent kept: the
+  markers are visible.) It must be easy to find without standing out. **[user]**
 - Mob pane: name, rarity, "Lv 11 Humanoid · Gnoll", the flavour line, then
   caught ×N, first (date and your level), where (coordinates), last, and points.
 - Player pane: class-coloured name, "Lv 38 Orc Rogue", `<Guild>`, sharded ×N,
@@ -212,12 +239,30 @@ Not mocked up. Same two columns. **[user for what; call for layout]**
   **added by name** (saved list, with an add box and a remove option). **[user]**
 - Each shows score, unique mobs, unique players, and raids completed. Sorted
   by score, as a leaderboard.
-- Clicking someone opens **their dex** read-only in the same window, with a
-  visible "Viewing <name>" marker and a way back to yours. Entries they have
-  and you don't are highlighted. **[user]**
+- Clicking someone shows their summary; a **Browse dex** button opens
+  **their dex** read-only in the same window, with a visible "Viewing <name>"
+  marker and a "« My dex" button back to yours. Entries they have and you
+  don't are highlighted green. **[user]**
 - People added by name are contacted directly when they're online. Offline
   people show their last known summary.
 - Not limited to warlocks: anyone running the addon shows up. **[user]**
+- Closing the window while browsing a friend returns you to your own dex the
+  next time it opens. (changed during build: so `/souldex` never opens on
+  someone else's data by surprise.)
+- Network behaviour as built (changed during build: the draft left the
+  protocol to the builder):
+  - Everyone re-broadcasts their summary every 300 s while quiet (heartbeat);
+    someone not heard from for 10 minutes shows as offline.
+  - When a group or guild member we haven't heard from recently announces
+    themselves, we reply with our own summary so they see us at once.
+  - Added friends are whispered; Soul-Dex hides the "No player named ... is
+    currently playing." line for names it whispered itself in the last 5 s,
+    so offline friends cause no chat spam.
+  - A friend's dex is accepted only if we asked for it (within 5 minutes).
+  - A browsed friend's dex carries no dates or coordinates, so its detail
+    panes omit them and its Milestones show nothing earned.
+  - Without AceComm (a dev checkout without `Libs/`) Friends is disabled with
+    one chat line and the tab shows only you.
 
 ## 6. Game layer
 
@@ -280,14 +325,24 @@ text. **[call]**
 
 ## 7. Settings
 
-`/souldex` opens the window. `/souldex options` (or a small gear in the
-window; the builder chooses) opens settings:
+`/souldex` opens the window. `/souldex options` (and a small gear in the
+window) opens settings. `/souldex add <name>` and `/souldex remove <name>`
+manage the Friends list by name; any other word prints the command list.
+The settings:
 
 - New-catch popup on/off
 - New-catch sound on/off
 - Guild announcements on/off
 
 All saved.
+
+## 7a. Code layout
+
+(changed during build: the module list is owned by `CLAUDE.md`, not this
+spec.) Notably the UI is split across `UI.lua` (window, tabs, panes),
+`UIList.lua` (pooled scrolling list), `UIFormat.lua` (text and colour
+helpers) and `UIDetail.lua` (detail pane content), and the Friends network
+glue and tab live in `Net.lua`.
 
 ## 8. Left to the builder
 
@@ -302,14 +357,85 @@ All saved.
 
 ## 9. What only the user can check in game
 
-- Drain Soul a mob to death: a shard appears, the popup shows (first time),
-  and the mob is listed under the right place.
-- Hover that shard: "Soul of <mob>" appears. Move it to another slot: the
-  name follows.
-- Shard a player in PvP: they appear under their class with their details.
-- Kill a raid mob with Drain Soul: it fills its `? ? ?` slot in the Raids tab.
-- In one raid, confirm the NPC IDs in the data match what the client reports
-  (WoW: Forever may differ from Classic Era).
-- Two people with the addon in a party or guild see each other in Friends and
-  can browse each other's dex.
-- Each setting switch silences what it says.
+One list, grouped by feature. Enable script errors first, then `/reload`.
+
+**Startup**
+- No Lua errors and no chat spam after `/reload`.
+- After `/reload` with shards in bags, wait about 1 s: no popups, and existing
+  named shards keep their tooltip lines (all bags 0-4). A shard obtained in the
+  first second after login is not a catch (accepted).
+
+**Catching**
+- Drain Soul a mob to death and get a shard: the popup "NEW SOUL CAUGHT!"
+  appears at top centre (name in rarity colour, zone, "#N here", "+N pts"),
+  a sound plays, it fades after about 4 s; a second quick kill replaces it.
+  The mob is listed under the right place.
+- The same mob name again: no popup or sound. The same mob in another zone:
+  listed there, no popup.
+- A Shadowburn kill that yields a shard counts. A kill whose shard came from
+  elsewhere, or with no Drain Soul/Shadowburn: no catch, no name.
+- Dungeon (party) kills are grouped under "Dungeons". A raid kill fills its
+  slot in the Raids tab and is not listed under Mobs. A PvP Drain Soul kill
+  appears under the player's class with class, race and guild.
+- `/dump SoulDexDB.shardSlots` after catches shows soul tables or `false`.
+
+**Shard tooltip**
+- Hover the new shard: two extra lines, "Soul of <name>" (coloured) and
+  "<zone> · <date>". Old or unmatched shards get no extra lines. Move the
+  shard to another slot and relog: the line follows it.
+
+**Window**
+- `/souldex` opens a small dark-purple window with the score at the top right,
+  a gear and a ×, and tabs Mobs · Players · Raids · Milestones · Friends.
+  `/souldex`, Escape or × closes it.
+- Drag the title bar; `/reload` and reopen: same position and same last tab.
+- Mobs: group headers (Eastern Kingdoms / Kalimdor / Dungeons) with places and
+  counts; elites gold with a star icon, rares silver, world bosses orange with
+  a skull icon. With many rows the wheel scrolls; clicking a place near the
+  bottom of a scrolled left list keeps its scroll, the right list starts at
+  the top, and a new catch moves neither list.
+- Click a mob: a darker pane slides in over the names (about 0.2 s) with name,
+  "Lv 11 Humanoid · Gnoll", flavour line, Caught x N, First, Where, Last and
+  green points. "« Back" (brightens on hover) and × close it; clicking a place
+  or another tab closes it at once.
+- Players: class-coloured groups; the player pane shows class, race, guild,
+  first and last with level, places with coordinates, points.
+- Raids: every raid with caught/total or a tick icon; uncaught mobs show as
+  dim "? ? ?" (bosses with a dark skull) and do nothing on click.
+- Milestones: earned ones white with a date, the rest dimmed with progress.
+  Crossing one prints a chat line; a guild message goes out only for the
+  announce milestones (100 mobs, 25 players, raids), only in a guild with
+  announcements on.
+
+**Settings and commands**
+- `/souldex options` or the gear opens three checkboxes (popup, sound, guild
+  announcements); clicking the label text toggles too. Untick each in turn,
+  `/reload`: still unticked, and the matching behaviour stops.
+- `/souldex help` (or any unknown word) prints the commands.
+
+**Raid data**
+- In a raid, `/dump UnitGUID("target")` on a mob: the sixth dash-separated
+  field of the GUID is the NPC ID and must match that mob's id in
+  `src/RaidData.lua`. Check at least one boss and one trash mob.
+
+**Friends** (two players A and B on a packaged build, same realm)
+- Same guild: within about 5 s of login the Friends tab on both lists both
+  names by score, the local player marked "(you)".
+- Click the other person: Score, Unique mobs, Players, Raids completed, online.
+- A clicks Browse dex: "Asking B..." then B's dex fills every tab, the title
+  reads "Soul-Dex · Viewing B" with a "« My dex" button, and entries B has and
+  A lacks are green. A catch made while browsing does not change the view;
+  "« My dex" returns to A's own dex including it. Close the window while
+  browsing, then `/souldex`: it opens on A's own dex.
+- Not in a guild: a party invite makes each appear within 30 s.
+- Not grouped: typing B's name into "Add..." (Enter), or `/souldex add B`,
+  shows B within about a minute; hovering the row shows a × that removes B
+  (or `/souldex remove B`).
+- An offline or misspelt name causes no "No player named..." spam; the row
+  stays dimmed ("Not heard from yet."). Browsing an offline person shows
+  "No answer from X." after 60 s.
+- B logs out: about 10 minutes later B is dimmed, "offline" and "Last seen
+  <date>". A catch on B updates B's score on A within about 30 s (guild/group)
+  or 60 s (added friend only).
+- A dev checkout without `Libs/`: one chat line "Friends are offline:
+  AceComm-3.0 is missing...", no Lua errors.
