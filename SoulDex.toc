@@ -16,4 +16,5 @@ src\Flavour.lua
 src\Dex.lua
 src\Milestones.lua
 src\Catch.lua
+src\Shards.lua
 src\Init.lua
