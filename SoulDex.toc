@@ -15,6 +15,7 @@ src\Points.lua
 src\Flavour.lua
 src\Dex.lua
 src\Milestones.lua
+src\View.lua
 src\Catch.lua
 src\Shards.lua
 src\Toast.lua
