@@ -14,16 +14,17 @@ local function valid(entry)
 	return type(entry) == "table" and (entry.soul == false or type(entry.soul) == "table")
 end
 
--- map: the saved map; present: readable shard GUIDs now in the bags; baseline: every new
--- GUID is stored as soulless instead of gained (login, bank open, item on the cursor);
--- now: epoch seconds. Shards not present are kept (bank, mailbox, cursor), except that a
--- baseline drops those not seen for FORGET_AFTER.
+-- map: the saved map; present: readable shard GUIDs now in the bags; baseline (quiet):
+-- every new GUID is stored as soulless instead of gained (login, bank open, item on the
+-- cursor, unreadable shard slots); now: epoch seconds; prune: drop shards not seen for
+-- FORGET_AFTER (the login scan only). Shards not present are otherwise kept (bank,
+-- mailbox, cursor).
 -- Returns a new map and the sorted list of new GUIDs, which are left out of the new map
 -- (the caller fills each with Shards.assign, a soul or false).
-function Shards.update(map, present, baseline, now)
+function Shards.update(map, present, baseline, now, prune)
 	local newMap, gained, seenNow = {}, {}, {}
 	for guid, entry in pairs(map) do
-		if valid(entry) and not (baseline and now - (entry.seen or 0) > Shards.FORGET_AFTER) then
+		if valid(entry) and not (prune and now - (entry.seen or 0) > Shards.FORGET_AFTER) then
 			newMap[guid] = entry
 		end
 	end

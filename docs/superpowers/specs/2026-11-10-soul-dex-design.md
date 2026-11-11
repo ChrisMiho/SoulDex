@@ -106,7 +106,11 @@ death detection is used; the capture window below replaces the death queue.)
   creature type and family. For players: name, realm, level, race, class,
   guild. Every value is checked with `issecretvalue` first; a secret field is
   simply left out. If SENT reports a target name that differs from your
-  target's name (a mouseover macro), the name is not trusted.
+  target's name (a mouseover macro), the name is not trusted (Unknown soul).
+  When the channel's cast id doesn't match the SENT's (other, nil or
+  secret), the target is read at channel start and still cross-checked
+  against a SENT of the same spell from under 1 s before; with no such SENT
+  the target is trusted (a channel starts on your target by default).
 - **Capture window.** A Drain Soul channel start opens a capture for that
   target. A **new shard** that appears while the channel runs, or within 3 s
   after it stops, belongs to that target. A capture lives at most 20 s. A
@@ -131,7 +135,10 @@ death detection is used; the capture window below replaces the death queue.)
   `shardSlots` is discarded.) Bags 0 to the last equipped bag are scanned on
   `BAG_UPDATE_DELAYED`, `PLAYER_REGEN_ENABLED` and after each of your spell
   events. While something is on the cursor or the bank is open, new GUIDs
-  are stored as soulless, never named.
+  are stored as soulless, never named. The same applies while any bag slot
+  can't be read (secret item ID, or a shard with a secret or missing GUID),
+  in this scan or the one before: an old shard turning readable must never
+  look new. Only the login scan forgets long-unseen shards.
 - Shards that were already in the bags when the addon started, or that can't
   be matched, are remembered as "seen, no soul" (soulless), so they never get
   a name later. Shards that leave the bags are kept (bank, mailbox); a login
@@ -516,7 +523,7 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
 - A shard refunded by a demon that despawns during a Drain Soul (or within
   3 s after it) would take the drain target's name, and the real shard from
   the kill then stays unnamed.
-- A shard gained while the bank is open or an item is on the cursor is never
-  named.
+- A shard gained while the bank is open or an item is on the cursor, or while
+  any bag slot is unreadable (this scan or the previous one), is never named.
 - A Drain Soul started within 3 s after another one ended on a different
   target, with no shard from the first, leaves the next shard unnamed.

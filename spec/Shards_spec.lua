@@ -58,17 +58,19 @@ describe("Shards", function()
 		assert.equal(1, new.a.seen)
 	end)
 
-	it("a baseline drops shards not seen for 30 days", function()
+	it("only a pruning (login) scan drops shards not seen for 30 days", function()
 		local now = 100 * DAY
 		local map = {
 			old = { soul = soul("Old"), seen = now - 31 * DAY },
 			recent = { soul = soul("Recent"), seen = now - 29 * DAY },
 		}
-		local new = ns.Shards.update(map, {}, true, now)
+		local new = ns.Shards.update(map, {}, true, now, true)
 		assert.is_nil(new.old)
 		assert.equal("Recent", new.recent.soul.name)
-		-- an ordinary scan keeps them
+		-- an ordinary scan and a quiet (bank/cursor) scan keep them
 		assert.is_not_nil(ns.Shards.update(map, {}, false, now).old)
+		assert.is_not_nil(ns.Shards.update(map, {}, true, now).old)
+		assert.is_not_nil(ns.Shards.update(map, {}, true, now, false).old)
 	end)
 
 	it("a malformed saved value counts as unknown", function()

@@ -2,6 +2,8 @@
 -- Every stubbed global is restored after each test.
 
 local SECRET = setmetatable({}, { __tostring = function() return "<secret>" end })
+-- A secret that looks like an ordinary string, so a missing guard would compare or join it.
+local STR_SECRET = "\0secret"
 
 local STUBBED = {
 	"CreateFrame", "UIParent", "hooksecurefunc", "GameTooltip", "C_Container", "date", "time", "GetTime",
@@ -9,7 +11,7 @@ local STUBBED = {
 	"Enum", "C_RestrictedActions", "GetCursorInfo", "UnitName", "UnitGUID", "UnitIsPlayer", "UnitLevel",
 	"UnitClassification", "UnitCreatureType", "UnitCreatureFamily", "UnitClass", "UnitRace", "GetGuildInfo",
 	"GetRealmName", "GetInstanceInfo", "C_Map", "GetRealZoneText", "GetZoneText", "IsInGuild",
-	"SendChatMessage", "PlaySound", "SOUNDKIT", "geterrorhandler", "UNKNOWN", "UNKNOWNOBJECT",
+	"SendChatMessage", "C_ChatInfo", "PlaySound", "SOUNDKIT", "geterrorhandler", "UNKNOWN", "UNKNOWNOBJECT",
 	"NUM_BAG_SLOTS", "NUM_TOTAL_EQUIPPED_BAG_SLOTS", "RAID_CLASS_COLORS",
 }
 
@@ -68,7 +70,7 @@ describe("Capture glue", function()
 		_G.time = function() return world.epoch end
 		_G.GetTime = function() return world.clock end
 		_G.C_Timer = { After = function(_, fn) timers[#timers + 1] = fn end }
-		_G.issecretvalue = function(v) return rawequal(v, SECRET) end
+		_G.issecretvalue = function(v) return rawequal(v, SECRET) or v == STR_SECRET end
 		_G.canaccesstable = function() return true end
 		_G.C_Spell = {
 			GetSpellName = function(id)
@@ -152,6 +154,7 @@ describe("Capture glue", function()
 		_G.GetZoneText = function() return world.zone end
 		_G.IsInGuild = function() return false end
 		_G.SendChatMessage = function() end
+		_G.C_ChatInfo = nil
 		_G.PlaySound = function() end
 		_G.SOUNDKIT = nil
 		_G.geterrorhandler = function() return function(err) error(err, 0) end end
@@ -445,6 +448,138 @@ describe("Capture glue", function()
 			flush()
 			assert.is_not_nil(db.raids[11502])
 			assert.is_nil(db.mobs.Ragnaros)
+		end)
+
+		it("a mouseover SENT whose cast id differs from the channel's still blocks the target's name", function()
+			world.target = HOGGER
+			local _, db = boot()
+			fire("UNIT_SPELLCAST_SENT", "player", "Some Mouseover Mob", "castA", 1120)
+			fire("UNIT_SPELLCAST_CHANNEL_START", "player", "castB", 1120)
+			putShard(1, "NEW")
+			fire("BAG_UPDATE_DELAYED")
+			flush()
+			assert.same({}, db.mobs)
+			assert.equal(1, db.unknown["Elwynn Forest"].count)
+		end)
+
+		it("a mouseover SENT blocks the target's name when the channel's cast id is nil or secret", function()
+			world.target = HOGGER
+			local _, db = boot()
+			fire("UNIT_SPELLCAST_SENT", "player", "Some Mouseover Mob", "castA", 1120)
+			fire("UNIT_SPELLCAST_CHANNEL_START", "player", nil, 1120)
+			putShard(1, "N1")
+			fire("BAG_UPDATE_DELAYED")
+			flush()
+			world.clock = 130
+			fire("UNIT_SPELLCAST_SENT", "player", "Some Mouseover Mob", "castC", 1120)
+			fire("UNIT_SPELLCAST_CHANNEL_START", "player", STR_SECRET, 1120)
+			putShard(2, "N2")
+			fire("BAG_UPDATE_DELAYED")
+			flush()
+			assert.same({}, db.mobs)
+			assert.equal(2, db.unknown["Elwynn Forest"].count)
+		end)
+
+		it("an old SENT (over 1 s) is not used to cross-check; the target is read", function()
+			world.target = HOGGER
+			local _, db = boot()
+			fire("UNIT_SPELLCAST_SENT", "player", "Some Mouseover Mob", "castA", 1120)
+			world.clock = 102
+			fire("UNIT_SPELLCAST_CHANNEL_START", "player", "castB", 1120)
+			putShard(1, "NEW")
+			fire("BAG_UPDATE_DELAYED")
+			flush()
+			assert.is_not_nil(db.mobs.Hogger)
+		end)
+
+		it("a string secret in the target name gives an Unknown soul", function()
+			world.target = { name = STR_SECRET, guid = "Creature-0-1-0-2-448-3" }
+			local _, db = boot()
+			drain("cast1", STR_SECRET)
+			putShard(1, "NEW")
+			fire("BAG_UPDATE_DELAYED")
+			flush()
+			assert.same({}, db.mobs)
+			assert.equal(1, db.unknown["Elwynn Forest"].count)
+		end)
+
+		it("a string secret spell id on a channel start clears the capture", function()
+			world.target = HOGGER
+			local _, db = boot()
+			drain("cast1", "Hogger")
+			fire("UNIT_SPELLCAST_CHANNEL_START", "player", "cast2", STR_SECRET)
+			putShard(1, "NEW")
+			fire("BAG_UPDATE_DELAYED")
+			flush()
+			assert.is_false(db.shardSouls.NEW.soul)
+		end)
+
+		it("a shard unreadable at the baseline is never named when it becomes readable", function()
+			world.bags[0][1] = { id = 6265, guid = STR_SECRET }
+			world.target = HOGGER
+			local _, db = boot()
+			drain("cast1", "Hogger")
+			world.bags[0][1].guid = "OLD" -- the same old shard, now readable
+			fire("BAG_UPDATE_DELAYED")
+			flush()
+			assert.is_false(db.shardSouls.OLD.soul)
+			assert.same({}, db.mobs)
+			-- every slot readable twice in a row: catches work again
+			world.clock = 101
+			fire("BAG_UPDATE_DELAYED")
+			flush()
+			drain("cast2", "Hogger")
+			putShard(2, "NEW")
+			fire("BAG_UPDATE_DELAYED")
+			flush()
+			assert.equal("Hogger", db.shardSouls.NEW.soul.name)
+		end)
+
+		it("a bank-open scan does not forget long-unseen shards; only the login scan does", function()
+			local _, db = boot({ shardSouls = { GONE = { soul = { name = "Wolf" }, seen = world.epoch } } })
+			assert.is_not_nil(db.shardSouls.GONE)
+			world.epoch = world.epoch + 31 * 86400
+			fire("BANKFRAME_OPENED")
+			fire("UNIT_SPELLCAST_CHANNEL_STOP", "player", "x", 686) -- queues a scan
+			flush()
+			assert.is_not_nil(db.shardSouls.GONE)
+		end)
+
+		it("a scan that errors inside the timer goes to the error handler", function()
+			local errors = {}
+			_G.geterrorhandler = function() return function(err) errors[#errors + 1] = err end end
+			local ns = boot()
+			ns.Shards.update = function() error("scan boom") end
+			fire("BAG_UPDATE_DELAYED")
+			assert.has_no.errors(flush)
+			assert.equal(1, #errors)
+			assert.truthy(tostring(errors[1]):find("scan boom", 1, true))
+		end)
+
+		it("announces through C_ChatInfo, and a failing announce can't skip the catch hooks", function()
+			world.target = HOGGER
+			local ns, db = boot({ settings = { popup = false, sound = false, announce = true } })
+			_G.IsInGuild = function() return true end
+			local sentChat, hooked = {}, 0
+			_G.C_ChatInfo = { SendChatMessage = function(text, channel) sentChat[#sentChat + 1] = channel .. ":" .. text end }
+			_G.SendChatMessage = function() error("deprecated") end
+			ns.Milestones.check = function() return { { text = "Big one", announce = true } } end
+			table.insert(ns.onCatch, function() hooked = hooked + 1 end)
+			drain("cast1", "Hogger")
+			putShard(1, "A")
+			fire("BAG_UPDATE_DELAYED")
+			flush()
+			assert.same({ "GUILD:Soul-Dex: Big one!" }, sentChat)
+			assert.equal(1, hooked)
+			-- no C_ChatInfo and a global that errors: the hooks still run, nothing escapes
+			_G.C_ChatInfo = nil
+			world.clock = 110
+			drain("cast2", "Hogger")
+			putShard(2, "B")
+			fire("BAG_UPDATE_DELAYED")
+			assert.has_no.errors(flush)
+			assert.equal(2, hooked)
+			assert.is_not_nil(db.shardSouls.B)
 		end)
 
 		it("the old slot map is discarded and a junk soul map replaced", function()

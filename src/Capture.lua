@@ -25,6 +25,7 @@ local SHADOWBURN_ID = 17877
 local FALLBACK_SOUND = 8959
 local DEFAULT_LAST_BAG = 4
 local SENT_TTL = 30 -- seconds a UNIT_SPELLCAST_SENT reading stays usable
+local SENT_CHECK = 1 -- seconds a SENT target name cross-checks a channel with another cast id
 local BASELINE_DELAY = 1
 local CONTINENT_MAP_TYPE = 2
 local CONTINENT_NAMES = { [1414] = "Kalimdor", [1415] = "Eastern Kingdoms" }
@@ -350,22 +351,27 @@ local function lastBag()
 	return num(NUM_TOTAL_EQUIPPED_BAG_SLOTS) or num(NUM_BAG_SLOTS) or DEFAULT_LAST_BAG
 end
 
--- Readable GUIDs of every Soul Shard in the bags.
+-- Readable GUIDs of every Soul Shard in the bags, and how many slots could not be read
+-- (a secret item ID, or a shard whose GUID is secret or missing).
 function Capture.shardGuids()
-	local guids = {}
+	local guids, unreadable = {}, 0
 	for bag = 0, lastBag() do
 		local slots = num(call(C_Container.GetContainerNumSlots, bag)) or 0
 		for slot = 1, slots do
 			local itemID = call(C_Container.GetContainerItemID, bag, slot)
-			if plainNumber(itemID) and itemID == SHARD_ITEM_ID then
+			if not readable(itemID) then
+				unreadable = unreadable + 1
+			elseif plainNumber(itemID) and itemID == SHARD_ITEM_ID then
 				local guid = Capture.itemGuid(bag, slot)
 				if guid then
 					guids[#guids + 1] = guid
+				else
+					unreadable = unreadable + 1
 				end
 			end
 		end
 	end
-	return guids
+	return guids, unreadable
 end
 
 -- Something on the cursor (or an unreadable answer): new shards are not trusted.
@@ -382,24 +388,43 @@ end
 
 -- Recording ---------------------------------------------------------------------------
 
-local function afterCatch(db, dex, result, entry)
+-- Guild chat through C_ChatInfo when the client has it; never raises (chat lockdown,
+-- deprecated global).
+local function announce(text)
+	local send = (C_ChatInfo and C_ChatInfo.SendChatMessage) or SendChatMessage
+	call(send, text, "GUILD")
+end
+
+local function milestones(db, dex)
 	local settings = db.settings
-	if result.isNew then
-		if settings.popup and ns.Toast then
-			ns.Toast.show(result, entry.info, entry.ctx)
-		end
-		if settings.sound then
-			local kit = SOUNDKIT and SOUNDKIT.UI_EPICLOOT_TOAST or FALLBACK_SOUND
-			pcall(PlaySound, kit)
-		end
-	end
 	for _, m in ipairs(ns.Milestones.check(dex, time())) do
-		ns.Print("Milestone earned: " .. m.text)
-		local inGuild = call(IsInGuild)
-		if m.announce and settings.announce and readable(inGuild) and inGuild then
-			SendChatMessage("Soul-Dex: " .. m.text .. "!", "GUILD")
-		end
+		Capture.protect(errorHandler(), function()
+			ns.Print("Milestone earned: " .. m.text)
+			local inGuild = call(IsInGuild)
+			if m.announce and settings.announce and readable(inGuild) and inGuild then
+				announce("Soul-Dex: " .. m.text .. "!")
+			end
+		end)
 	end
+end
+
+local function popup(db, result, entry)
+	local settings = db.settings
+	if settings.popup and ns.Toast then
+		ns.Toast.show(result, entry.info, entry.ctx)
+	end
+	if settings.sound then
+		local kit = SOUNDKIT and SOUNDKIT.UI_EPICLOOT_TOAST or FALLBACK_SOUND
+		pcall(PlaySound, kit)
+	end
+end
+
+-- Each step is protected: nothing here can skip the catch hooks.
+local function afterCatch(db, dex, result, entry)
+	if result.isNew then
+		Capture.protect(errorHandler(), popup, db, result, entry)
+	end
+	Capture.protect(errorHandler(), milestones, db, dex)
 	Capture.runHooks(ns.onCatch, errorHandler(), result, entry)
 end
 
@@ -472,7 +497,8 @@ function Capture.start(db, dex)
 	local window = ns.Catch.new()
 	local scanned, baselineQueued, scanQueued = false, false, false
 	local bankOpen = false
-	local sent -- { castGUID, kind, info, time } from the last UNIT_SPELLCAST_SENT
+	local sent -- { castGUID, kind, info, targetName, time } from the last UNIT_SPELLCAST_SENT
+	local lastUnreadable = 0 -- unreadable shard slots in the previous scan
 	local names = {
 		drainsoul = C_Spell and str(call(C_Spell.GetSpellName, DRAIN_SOUL_ID)),
 		shadowburn = C_Spell and str(call(C_Spell.GetSpellName, SHADOWBURN_ID)),
@@ -485,8 +511,12 @@ function Capture.start(db, dex)
 		local firstScan = not scanned
 		scanned = true
 		local now = time()
-		local quiet = firstScan or bankOpen or cursorBusy()
-		local map, gained = ns.Shards.update(db.shardSouls, Capture.shardGuids(), quiet, now)
+		local present, unreadable = Capture.shardGuids()
+		-- A shard slot we couldn't read now (or last scan) may hold an old shard that turns
+		-- readable later: no shard is named until two scans in a row read every slot.
+		local quiet = firstScan or bankOpen or cursorBusy() or unreadable > 0 or lastUnreadable > 0
+		lastUnreadable = unreadable
+		local map, gained = ns.Shards.update(db.shardSouls, present, quiet, now, firstScan)
 		local done = {}
 		for _, guid in ipairs(gained) do
 			local soul, after
@@ -513,7 +543,7 @@ function Capture.start(db, dex)
 		scanQueued = true
 		C_Timer.After(0, function()
 			scanQueued = false
-			scanBags()
+			Capture.protect(errorHandler(), scanBags)
 		end)
 	end
 
@@ -523,14 +553,24 @@ function Capture.start(db, dex)
 			return
 		end
 		baselineQueued = true
-		C_Timer.After(BASELINE_DELAY, scanBags)
+		C_Timer.After(BASELINE_DELAY, function()
+			Capture.protect(errorHandler(), scanBags)
+		end)
 	end
 
-	local function sentInfo(castGUID, kind, now)
+	-- The target's details for a channel start / Shadowburn success: the SENT reading
+	-- when the cast ids match; otherwise the target read now, cross-checked against the
+	-- name a SENT of the same spell under SENT_CHECK s ago reported (a mouseover macro
+	-- whose channel event carries another, nil or secret cast id).
+	local function targetInfo(castGUID, kind, now)
 		if sent and sent.kind == kind and castGUID and sent.castGUID == castGUID and now - sent.time <= SENT_TTL then
 			return sent.info
 		end
-		return nil
+		local check
+		if sent and sent.kind == kind and now - sent.time <= SENT_CHECK then
+			check = sent.targetName
+		end
+		return Capture.readUnit("target", check)
 	end
 
 	-- unit, castGUID, spellID as the event gave them; returns kind, castGUID or nil when
@@ -551,7 +591,13 @@ function Capture.start(db, dex)
 	handlers.UNIT_SPELLCAST_SENT = function(unit, targetName, castGUID, spellID)
 		local kind, cast = spellOf(false, unit, castGUID, spellID)
 		if kind then
-			sent = { castGUID = cast, kind = kind, info = Capture.readUnit("target", targetName), time = GetTime() }
+			sent = {
+				castGUID = cast,
+				kind = kind,
+				info = Capture.readUnit("target", targetName),
+				targetName = str(targetName),
+				time = GetTime(),
+			}
 		end
 	end
 
@@ -559,7 +605,7 @@ function Capture.start(db, dex)
 		local kind, cast = spellOf(true, unit, castGUID, spellID)
 		if kind == "drainsoul" then
 			local now = GetTime()
-			local info = sentInfo(cast, kind, now) or Capture.readUnit("target")
+			local info = targetInfo(cast, kind, now)
 			window:startCapture("drainsoul", info, cast, now)
 		end
 		queueScan()
@@ -577,7 +623,7 @@ function Capture.start(db, dex)
 		local kind, cast = spellOf(false, unit, castGUID, spellID)
 		if kind == "shadowburn" then
 			local now = GetTime()
-			local info = sentInfo(cast, kind, now) or Capture.readUnit("target")
+			local info = targetInfo(cast, kind, now)
 			window:startCapture("shadowburn", info, cast, now)
 		end
 		queueScan()

@@ -27,6 +27,7 @@ globals = {
 read_globals = {
 	"Ambiguate",
 	"C_AddOns",
+	"C_ChatInfo",
 	"C_Container",
 	"C_Item",
 	"C_RestrictedActions",
