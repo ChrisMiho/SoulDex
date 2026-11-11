@@ -1,6 +1,10 @@
--- Capture glue: watches unit info, the combat log and the bags, records catches,
+-- Capture glue: watches your Drain Soul / Shadowburn casts and the bags, records catches,
 -- shows the popup and announces milestones. The decision helpers are pure and tested;
 -- the event wiring below them is game code.
+--
+-- WoW: Forever blocks the combat log for addons and may hand back "secret" values: every
+-- value read from the game goes through the readable/plainString/plainNumber checks
+-- before it is compared, indexed, joined or saved.
 --
 -- Hooks (plain lists of functions, so later modules can add their own work):
 --   ns.onLoaded  functions called with (db) at the end of ns.OnLoaded
@@ -19,11 +23,67 @@ local SHARD_ITEM_ID = 6265
 local DRAIN_SOUL_ID = 1120
 local SHADOWBURN_ID = 17877
 local FALLBACK_SOUND = 8959
-local MAX_BAG = 4
+local DEFAULT_LAST_BAG = 4
+local SENT_TTL = 30 -- seconds a UNIT_SPELLCAST_SENT reading stays usable
+local BASELINE_DELAY = 1
 local CONTINENT_MAP_TYPE = 2
 local CONTINENT_NAMES = { [1414] = "Kalimdor", [1415] = "Eastern Kingdoms" }
+local UNKNOWN_SOUL = "Unknown soul"
+
+-- Every rank, so a rank whose name can't be read still counts.
+local DRAIN_SOUL_IDS = { [1120] = true, [8288] = true, [8289] = true, [11675] = true }
+local SHADOWBURN_IDS = {
+	[17877] = true, [18867] = true, [18868] = true, [18869] = true, [18870] = true, [18871] = true,
+}
 
 Capture.SHARD_ITEM_ID = SHARD_ITEM_ID
+Capture.UNKNOWN_SOUL = UNKNOWN_SOUL
+
+-- Secret-value guards -----------------------------------------------------------------
+
+-- False for a secret value. Clients without issecretvalue have no secrets.
+function Capture.readable(v)
+	return not (issecretvalue and issecretvalue(v))
+end
+local readable = Capture.readable
+
+function Capture.plainString(v)
+	return readable(v) and type(v) == "string" and v ~= ""
+end
+local plainString = Capture.plainString
+
+function Capture.plainNumber(v)
+	return readable(v) and type(v) == "number"
+end
+local plainNumber = Capture.plainNumber
+
+function Capture.readableTable(v)
+	return readable(v) and type(v) == "table" and (not canaccesstable or canaccesstable(v))
+end
+local readableTable = Capture.readableTable
+
+local function unpackOk(ok, ...)
+	if ok then
+		return ...
+	end
+end
+
+-- fn(...) in protected mode; nothing when fn is missing or errors.
+function Capture.call(fn, ...)
+	if type(fn) ~= "function" then
+		return nil
+	end
+	return unpackOk(pcall(fn, ...))
+end
+local call = Capture.call
+
+local function str(v)
+	return plainString(v) and v or nil
+end
+
+local function num(v)
+	return plainNumber(v) and v or nil
+end
 
 -- Pure helpers ---------------------------------------------------------------
 
@@ -82,6 +142,28 @@ function Capture.splitName(full, fallbackRealm)
 	return full, fallbackRealm
 end
 
+-- "drainsoul", "shadowburn" or nil for a spell ID. names: { drainsoul = <name>,
+-- shadowburn = <name> } (either may be nil); nameOf(id) gives a spell's name or nil.
+function Capture.spellKind(spellID, nameOf, names)
+	if DRAIN_SOUL_IDS[spellID] then
+		return "drainsoul"
+	end
+	if SHADOWBURN_IDS[spellID] then
+		return "shadowburn"
+	end
+	local name = nameOf and nameOf(spellID)
+	if name == nil then
+		return nil
+	end
+	if names.drainsoul and name == names.drainsoul then
+		return "drainsoul"
+	end
+	if names.shadowburn and name == names.shadowburn then
+		return "shadowburn"
+	end
+	return nil
+end
+
 local function hex(r, g, b)
 	local function byte(v)
 		return math.floor(v * 255 + 0.5)
@@ -110,14 +192,14 @@ function Capture.colorFor(info, classColors)
 	return RARITY_COLORS[info.classification] or NORMAL_COLOR
 end
 
--- Records a matched candidate { guid, info } into the dex. Returns result, kind (or nil if
--- the candidate can't be recorded). ctx must already hold time, myLevel, zone, group, x, y.
+-- Records a captured target { guid, info } into the dex. Returns result, kind (or nil if
+-- it can't be recorded). ctx must already hold time, myLevel, zone, group, x, y.
 function Capture.recordCatch(dex, cand, ctx, instanceType, instanceID)
 	local info = cand.info
-	if not info or not info.name or not ctx.zone then
+	if not info or not info.name or info.unknown or not ctx.zone then
 		return nil
 	end
-	if Capture.isPlayerGuid(cand.guid) then
+	if info.isPlayer or Capture.isPlayerGuid(cand.guid) then
 		return dex:recordPlayer(info, ctx), "player"
 	end
 	if instanceType == "raid" then
@@ -152,68 +234,153 @@ function Capture.runHooks(hooks, handler, ...)
 	end
 end
 
--- Game wiring ------------------------------------------------------------------
+-- Game reads (each value checked) ----------------------------------------------------------
 
-local function unitInfo(unit)
+local function errorHandler()
+	local handler = call(geterrorhandler)
+	if type(handler) == "function" then
+		return handler
+	end
+	return function() end
+end
+
+local function isUnknownName(name)
+	return not plainString(name) or (UNKNOWN ~= nil and name == UNKNOWN)
+		or (UNKNOWNOBJECT ~= nil and name == UNKNOWNOBJECT)
+end
+
+-- The unit's details. A hidden or unknown name gives { unknown = true, isPlayer, guid }.
+-- sentName: the target name UNIT_SPELLCAST_SENT reported, when readable: if it differs
+-- from the unit's name the spell went elsewhere (a mouseover macro), so the name is
+-- not trusted.
+function Capture.readUnit(unit, sentName)
+	local guid = str(call(UnitGUID, unit))
+	local isPlayer = call(UnitIsPlayer, unit)
+	if readable(isPlayer) and isPlayer ~= nil then
+		isPlayer = isPlayer and true or false
+	else
+		isPlayer = nil
+	end
+	if isPlayer == nil and guid then
+		isPlayer = Capture.isPlayerGuid(guid)
+	end
+	local name, realm = call(UnitName, unit)
+	if isUnknownName(name) then
+		return { unknown = true, isPlayer = isPlayer, guid = guid }
+	end
+	if plainString(sentName) then
+		local full = plainString(realm) and (name .. "-" .. realm) or name
+		if sentName ~= name and sentName ~= full then
+			return { unknown = true, isPlayer = isPlayer, guid = guid }
+		end
+	end
 	local info = {
-		name = UnitName(unit),
-		level = UnitLevel(unit),
-		classification = UnitClassification(unit),
-		creatureType = UnitCreatureType(unit),
-		family = UnitCreatureFamily(unit),
+		name = name,
+		guid = guid,
+		isPlayer = isPlayer,
+		level = num(call(UnitLevel, unit)),
+		classification = str(call(UnitClassification, unit)),
+		creatureType = str(call(UnitCreatureType, unit)),
+		family = str(call(UnitCreatureFamily, unit)),
 	}
 	if info.level and info.level < 1 then
 		info.level = nil -- "??" skull level
 	end
-	if UnitIsPlayer(unit) then
-		local _, realm = UnitName(unit)
-		info.realm = (realm and realm ~= "") and realm or GetRealmName()
-		info.guild = GetGuildInfo(unit)
-		local _, classToken = UnitClass(unit)
-		info.class = classToken
-		info.race = UnitRace(unit)
+	if isPlayer then
+		local bare, fromName = Capture.splitName(name, str(realm))
+		info.name = bare
+		info.realm = fromName or str(call(GetRealmName))
+		info.guild = str(call(GetGuildInfo, unit))
+		local _, classToken = call(UnitClass, unit)
+		info.class = str(classToken)
+		info.race = str(call(UnitRace, unit))
 	end
 	return info
 end
 
-local function noteUnit(matcher, unit)
-	if not UnitExists(unit) then
-		return
+local function mapInfo(id)
+	local info = C_Map and call(C_Map.GetMapInfo, id)
+	if not readableTable(info) then
+		return nil
 	end
-	local guid = UnitGUID(unit)
-	if guid and guid ~= UnitGUID("player") then
-		matcher:noteUnit(guid, unitInfo(unit), GetTime())
-	end
+	return { mapType = num(info.mapType), parentMapID = num(info.parentMapID), name = str(info.name) }
 end
 
-local function buildContext()
-	local _, instanceType, _, _, _, _, _, instanceID = GetInstanceInfo()
-	local mapID = C_Map.GetBestMapForUnit("player")
-	local continent = mapID and Capture.continentOf(mapID, C_Map.GetMapInfo)
-	local zone = GetRealZoneText()
-	if not zone or zone == "" then
-		zone = GetZoneText()
-	end
-	if not zone or zone == "" then
-		zone = "Unknown"
-	end
+-- Where and when: { time, myLevel, zone, group, x, y }, instance type and ID.
+function Capture.buildContext()
+	local _, instanceType, _, _, _, _, _, instanceID = call(GetInstanceInfo)
+	instanceType, instanceID = str(instanceType), num(instanceID)
+	local mapID = C_Map and num(call(C_Map.GetBestMapForUnit, "player"))
+	local continent = mapID and Capture.continentOf(mapID, mapInfo)
+	local zone = str(call(GetRealZoneText)) or str(call(GetZoneText)) or "Unknown"
 	local ctx = {
 		time = time(),
-		myLevel = UnitLevel("player"),
+		myLevel = num(call(UnitLevel, "player")),
 		zone = zone,
 		group = Capture.groupFor(instanceType, continent),
 	}
+	if instanceType == "raid" then
+		ctx.group = "Raids"
+	end
 	if instanceType == "none" and mapID then
-		local pos = C_Map.GetPlayerMapPosition(mapID, "player")
-		if pos then
-			local x, y = pos:GetXY()
-			if x and y and (x ~= 0 or y ~= 0) then
+		local pos = call(C_Map.GetPlayerMapPosition, mapID, "player")
+		if readableTable(pos) then
+			local x, y = call(pos.GetXY, pos)
+			if plainNumber(x) and plainNumber(y) and (x ~= 0 or y ~= 0) then
 				ctx.x, ctx.y = x * 100, y * 100
 			end
 		end
 	end
 	return ctx, instanceType, instanceID
 end
+
+-- The readable GUID of the item in a bag slot, or nil.
+function Capture.itemGuid(bag, slot)
+	if not (C_Item and ItemLocation) then
+		return nil
+	end
+	local location = call(ItemLocation.CreateFromBagAndSlot, ItemLocation, bag, slot)
+	if not location then
+		return nil
+	end
+	return str(call(C_Item.GetItemGUID, location))
+end
+
+local function lastBag()
+	return num(NUM_TOTAL_EQUIPPED_BAG_SLOTS) or num(NUM_BAG_SLOTS) or DEFAULT_LAST_BAG
+end
+
+-- Readable GUIDs of every Soul Shard in the bags.
+function Capture.shardGuids()
+	local guids = {}
+	for bag = 0, lastBag() do
+		local slots = num(call(C_Container.GetContainerNumSlots, bag)) or 0
+		for slot = 1, slots do
+			local itemID = call(C_Container.GetContainerItemID, bag, slot)
+			if plainNumber(itemID) and itemID == SHARD_ITEM_ID then
+				local guid = Capture.itemGuid(bag, slot)
+				if guid then
+					guids[#guids + 1] = guid
+				end
+			end
+		end
+	end
+	return guids
+end
+
+-- Something on the cursor (or an unreadable answer): new shards are not trusted.
+local function cursorBusy()
+	if type(GetCursorInfo) ~= "function" then
+		return false
+	end
+	local ok, what = pcall(GetCursorInfo)
+	if not ok then
+		return false
+	end
+	return not readable(what) or what ~= nil
+end
+
+-- Recording ---------------------------------------------------------------------------
 
 local function afterCatch(db, dex, result, entry)
 	local settings = db.settings
@@ -228,149 +395,232 @@ local function afterCatch(db, dex, result, entry)
 	end
 	for _, m in ipairs(ns.Milestones.check(dex, time())) do
 		ns.Print("Milestone earned: " .. m.text)
-		if m.announce and settings.announce and IsInGuild() then
+		local inGuild = call(IsInGuild)
+		if m.announce and settings.announce and readable(inGuild) and inGuild then
 			SendChatMessage("Soul-Dex: " .. m.text .. "!", "GUILD")
 		end
 	end
-	Capture.runHooks(ns.onCatch, geterrorhandler(), result, entry)
+	Capture.runHooks(ns.onCatch, errorHandler(), result, entry)
 end
 
-local function fillPlayerInfo(cand)
-	if Capture.isPlayerGuid(cand.guid) then
-		local _, classToken, race = GetPlayerInfoByGUID(cand.guid)
-		local info = cand.info
-		info.class = info.class or classToken
-		info.race = info.race or race
-		local name, realm = Capture.splitName(info.name, info.realm)
-		info.name = name
-		info.realm = (realm and realm ~= "") and realm or GetRealmName()
+-- Records the capture and returns the soul to remember for its shard (or nil), plus the
+-- work for afterCatch (run by the caller once the map is saved).
+function Capture.record(dex, capture)
+	local info = capture.info
+	local ctx, instanceType, instanceID = Capture.buildContext()
+	if info.unknown then
+		local result = dex:recordUnknown(ctx)
+		local soul = { name = UNKNOWN_SOUL, unknown = true, zone = ctx.zone, time = ctx.time }
+		return soul, { result = result, entry = { info = info, ctx = ctx, kind = "unknown" } }
 	end
-end
-
--- Records the candidate and returns the soul to remember for its shard, or nil,
--- plus the entry for afterCatch (run by the caller once the map is saved).
-local function record(dex, cand)
-	fillPlayerInfo(cand)
-	local ctx, instanceType, instanceID = buildContext()
-	local result, kind = Capture.recordCatch(dex, cand, ctx, instanceType, instanceID)
+	local result, kind = Capture.recordCatch(dex, { guid = info.guid, info = info }, ctx, instanceType, instanceID)
 	if not result then
 		return nil
 	end
 	local soul = {
-		name = cand.info.name,
-		color = Capture.colorFor(cand.info, RAID_CLASS_COLORS),
+		name = info.name,
+		color = Capture.colorFor(info, RAID_CLASS_COLORS),
 		zone = ctx.zone,
 		time = ctx.time,
 	}
-	return soul, { result = result, entry = { info = cand.info, ctx = ctx, kind = kind } }
+	return soul, { result = result, entry = { info = info, ctx = ctx, kind = kind } }
 end
 
-local function shardSlots()
-	local slots = {}
-	for bag = 0, MAX_BAG do
-		for slot = 1, C_Container.GetContainerNumSlots(bag) do
-			if C_Container.GetContainerItemID(bag, slot) == SHARD_ITEM_ID then
-				slots[#slots + 1] = bag .. ":" .. slot
-			end
+-- Event wiring ------------------------------------------------------------------------------
+
+local UNIT_EVENTS = {
+	"UNIT_SPELLCAST_SENT",
+	"UNIT_SPELLCAST_CHANNEL_START",
+	"UNIT_SPELLCAST_CHANNEL_STOP",
+	"UNIT_SPELLCAST_SUCCEEDED",
+}
+local EVENTS = {
+	"PLAYER_ENTERING_WORLD",
+	"BAG_UPDATE_DELAYED",
+	"PLAYER_REGEN_ENABLED",
+	"BANKFRAME_OPENED",
+	"BANKFRAME_CLOSED",
+}
+
+-- Registers each event on its own, so one the client refuses can't stop the rest.
+-- Returns the names that failed.
+function Capture.register(frame, events, unitEvents)
+	local failed = {}
+	for _, event in ipairs(events) do
+		if not pcall(frame.RegisterEvent, frame, event) then
+			failed[#failed + 1] = event
 		end
 	end
-	return slots
+	for _, event in ipairs(unitEvents) do
+		local ok
+		if frame.RegisterUnitEvent then
+			ok = pcall(frame.RegisterUnitEvent, frame, event, "player")
+		else
+			ok = pcall(frame.RegisterEvent, frame, event)
+		end
+		if not ok then
+			failed[#failed + 1] = event
+		end
+	end
+	return failed
 end
 
-function Capture.start(db)
-	local dex = ns.Dex.new(db)
+-- dex: the Dex on db (ns.dex). Returns the event handler table (for tests).
+function Capture.start(db, dex)
+	dex = dex or ns.dex or ns.Dex.new(db)
 	ns.dex = dex
-	local matcher = ns.Catch.new()
-	local scanned = false -- the baseline scan has run
-	local scheduled = false
-	local drainSoul, shadowburn = GetSpellInfo(DRAIN_SOUL_ID), GetSpellInfo(SHADOWBURN_ID)
+	local window = ns.Catch.new()
+	local scanned, baselineQueued, scanQueued = false, false, false
+	local bankOpen = false
+	local sent -- { castGUID, kind, info, time } from the last UNIT_SPELLCAST_SENT
+	local names = {
+		drainsoul = C_Spell and str(call(C_Spell.GetSpellName, DRAIN_SOUL_ID)),
+		shadowburn = C_Spell and str(call(C_Spell.GetSpellName, SHADOWBURN_ID)),
+	}
+	local function nameOf(id)
+		return C_Spell and str(call(C_Spell.GetSpellName, id))
+	end
 
 	local function scanBags()
 		local firstScan = not scanned
 		scanned = true
-		local newMap, gained = ns.Shards.update(db.shardSlots, shardSlots(), firstScan)
+		local now = time()
+		local quiet = firstScan or bankOpen or cursorBusy()
+		local map, gained = ns.Shards.update(db.shardSouls, Capture.shardGuids(), quiet, now)
 		local done = {}
-		for _, slot in ipairs(gained) do
-			local cand = matcher:takeCandidate(GetTime())
+		for _, guid in ipairs(gained) do
 			local soul, after
-			if cand then
-				soul, after = record(dex, cand)
+			local capture = window:take(GetTime())
+			if capture then
+				soul, after = Capture.record(dex, capture)
 			end
-			newMap = ns.Shards.assign(newMap, slot, soul or false)
+			map = ns.Shards.assign(map, guid, soul or false, now)
 			if after then
 				done[#done + 1] = after
 			end
 		end
-		db.shardSlots = newMap
+		db.shardSouls = map
 		-- Saved first: nothing below can lose a catch.
 		for _, d in ipairs(done) do
-			Capture.protect(geterrorhandler(), afterCatch, db, dex, d.result, d.entry)
+			Capture.protect(errorHandler(), afterCatch, db, dex, d.result, d.entry)
 		end
+	end
+
+	local function queueScan()
+		if not scanned or scanQueued then
+			return
+		end
+		scanQueued = true
+		C_Timer.After(0, function()
+			scanQueued = false
+			scanBags()
+		end)
 	end
 
 	-- The baseline waits a second after login so every bag has reported its slots.
 	local function onEnterWorld()
-		if scanned or scheduled then
+		if scanned or baselineQueued then
 			return
 		end
-		scheduled = true
-		C_Timer.After(1, scanBags)
+		baselineQueued = true
+		C_Timer.After(BASELINE_DELAY, scanBags)
 	end
 
-	local function onBagUpdate()
-		if scanned then
-			scanBags()
+	local function sentInfo(castGUID, kind, now)
+		if sent and sent.kind == kind and castGUID and sent.castGUID == castGUID and now - sent.time <= SENT_TTL then
+			return sent.info
+		end
+		return nil
+	end
+
+	-- unit, castGUID, spellID as the event gave them; returns kind, castGUID or nil when
+	-- the event is unreadable (after telling the window).
+	local function spellOf(isChannelStart, unit, castGUID, spellID)
+		if not readable(unit) or not readable(spellID) then
+			window:restricted(isChannelStart, GetTime())
+			return nil
+		end
+		if unit ~= "player" or not plainNumber(spellID) then
+			return nil
+		end
+		return Capture.spellKind(spellID, nameOf, names), str(castGUID)
+	end
+
+	local handlers = {}
+
+	handlers.UNIT_SPELLCAST_SENT = function(unit, targetName, castGUID, spellID)
+		local kind, cast = spellOf(false, unit, castGUID, spellID)
+		if kind then
+			sent = { castGUID = cast, kind = kind, info = Capture.readUnit("target", targetName), time = GetTime() }
 		end
 	end
 
-	local function combatLog()
-		local _, sub, _, sourceGUID, _, _, _, destGUID, destName, _, _, _, spellName = CombatLogGetCurrentEventInfo()
-		local now = GetTime()
-		if sub == "UNIT_DIED" or sub == "PARTY_KILL" then
-			matcher:noteDeath(destGUID, destName, now)
-			return
+	handlers.UNIT_SPELLCAST_CHANNEL_START = function(unit, castGUID, spellID)
+		local kind, cast = spellOf(true, unit, castGUID, spellID)
+		if kind == "drainsoul" then
+			local now = GetTime()
+			local info = sentInfo(cast, kind, now) or Capture.readUnit("target")
+			window:startCapture("drainsoul", info, cast, now)
 		end
-		if sourceGUID ~= UnitGUID("player") then
-			return
-		end
-		local kind
-		if spellName == drainSoul then
-			kind = "drainsoul"
-		elseif spellName == shadowburn then
-			kind = "shadowburn"
-		else
-			return
-		end
-		if sub == "SPELL_AURA_APPLIED" or sub == "SPELL_AURA_REFRESH" then
-			matcher:noteAura(destGUID, kind, now)
-		elseif sub == "SPELL_AURA_REMOVED" then
-			matcher:noteAuraGone(destGUID, kind, now)
-		end
+		queueScan()
 	end
 
-	local handlers = {
-		PLAYER_TARGET_CHANGED = function() noteUnit(matcher, "target") end,
-		UPDATE_MOUSEOVER_UNIT = function() noteUnit(matcher, "mouseover") end,
-		NAME_PLATE_UNIT_ADDED = function(unit) noteUnit(matcher, unit) end,
-		COMBAT_LOG_EVENT_UNFILTERED = combatLog,
-		BAG_UPDATE_DELAYED = onBagUpdate,
-		PLAYER_ENTERING_WORLD = onEnterWorld,
-	}
+	handlers.UNIT_SPELLCAST_CHANNEL_STOP = function(unit, castGUID, spellID)
+		local kind, cast = spellOf(false, unit, castGUID, spellID)
+		if kind == "drainsoul" then
+			window:channelStopped(cast, GetTime())
+		end
+		queueScan()
+	end
+
+	handlers.UNIT_SPELLCAST_SUCCEEDED = function(unit, castGUID, spellID)
+		local kind, cast = spellOf(false, unit, castGUID, spellID)
+		if kind == "shadowburn" then
+			local now = GetTime()
+			local info = sentInfo(cast, kind, now) or Capture.readUnit("target")
+			window:startCapture("shadowburn", info, cast, now)
+		end
+		queueScan()
+	end
+
+	handlers.PLAYER_ENTERING_WORLD = onEnterWorld
+	handlers.BAG_UPDATE_DELAYED = queueScan
+	handlers.PLAYER_REGEN_ENABLED = queueScan
+	handlers.BANKFRAME_OPENED = function()
+		bankOpen = true
+	end
+	handlers.BANKFRAME_CLOSED = function()
+		bankOpen = false
+		queueScan()
+	end
+
 	local frame = CreateFrame("Frame")
-	for event in pairs(handlers) do
-		frame:RegisterEvent(event)
-	end
 	frame:SetScript("OnEvent", function(_, event, ...)
-		handlers[event](...)
+		local fn = handlers[event]
+		if fn then
+			Capture.protect(errorHandler(), fn, ...)
+		end
 	end)
+	local failed = Capture.register(frame, EVENTS, UNIT_EVENTS)
+	if #failed > 0 and ns.Print then
+		ns.Print("The game refused some events (" .. table.concat(failed, ", ") .. "); catching may miss souls.")
+	end
+	return handlers
 end
 
 function ns.OnLoaded(db)
 	db.settings = ns.Settings.normalise(db.settings)
-	db.shardSlots = db.shardSlots or {}
-	ns.db = db
-	Capture.start(db)
-	for _, fn in ipairs(ns.onLoaded) do
-		fn(db)
+	db.shardSlots = nil -- slot map from an unreleased build; souls are keyed by item GUID now
+	if type(db.shardSouls) ~= "table" then
+		db.shardSouls = {}
 	end
+	ns.db = db
+	ns.dex = ns.Dex.new(db)
+	Capture.protect(function(err)
+		if ns.Print then
+			ns.Print("Catching could not start: " .. tostring(err))
+		end
+		errorHandler()(err)
+	end, Capture.start, db, ns.dex)
+	Capture.runHooks(ns.onLoaded, errorHandler(), db)
 end

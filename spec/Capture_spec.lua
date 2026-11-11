@@ -1,29 +1,169 @@
-local function frameStub()
-	local f = {}
-	return setmetatable(f, {
-		__index = function()
-			return function() return f end
-		end,
-	})
-end
+-- Capture glue and the shard tooltip, loaded with stubbed WoW globals.
+-- Every stubbed global is restored after each test.
+
+local SECRET = setmetatable({}, { __tostring = function() return "<secret>" end })
+
+local STUBBED = {
+	"CreateFrame", "UIParent", "hooksecurefunc", "GameTooltip", "C_Container", "date", "time", "GetTime",
+	"C_Timer", "issecretvalue", "canaccesstable", "C_Spell", "C_Item", "ItemLocation", "TooltipDataProcessor",
+	"Enum", "C_RestrictedActions", "GetCursorInfo", "UnitName", "UnitGUID", "UnitIsPlayer", "UnitLevel",
+	"UnitClassification", "UnitCreatureType", "UnitCreatureFamily", "UnitClass", "UnitRace", "GetGuildInfo",
+	"GetRealmName", "GetInstanceInfo", "C_Map", "GetRealZoneText", "GetZoneText", "IsInGuild",
+	"SendChatMessage", "PlaySound", "SOUNDKIT", "geterrorhandler", "UNKNOWN", "UNKNOWNOBJECT",
+	"NUM_BAG_SLOTS", "NUM_TOTAL_EQUIPPED_BAG_SLOTS", "RAID_CLASS_COLORS",
+}
 
 describe("Capture glue", function()
-	local saved = {}
-	local names = { "CreateFrame", "UIParent", "hooksecurefunc", "GameTooltip", "GetSpellInfo", "C_Container", "date" }
+	local saved
+	local world -- the fake game state the stubs read
+	local frames, timers, postCalls
+
+	local function frameStub()
+		local f = { events = {}, unitEvents = {} }
+		function f:RegisterEvent(event)
+			if world.refuse[event] then
+				error("blocked")
+			end
+			self.events[event] = true
+		end
+		function f:RegisterUnitEvent(event, unit)
+			if world.refuse[event] then
+				error("blocked")
+			end
+			self.unitEvents[event] = unit
+		end
+		function f:SetScript(_, fn)
+			self.onEvent = fn
+		end
+		frames[#frames + 1] = f
+		return setmetatable(f, {
+			__index = function()
+				return function() return f end
+			end,
+		})
+	end
 
 	before_each(function()
-		for _, k in ipairs(names) do
+		saved = {}
+		for _, k in ipairs(STUBBED) do
 			saved[k] = _G[k]
 		end
-		_G.CreateFrame = frameStub
-		_G.UIParent = frameStub()
+		frames, timers, postCalls = {}, {}, {}
+		world = {
+			clock = 100,
+			epoch = 1000000,
+			refuse = {},
+			bags = { [0] = {} },
+			cursor = nil,
+			target = nil, -- { name, realm, guid, level, classification, creatureType, family, player, class, race, guild }
+			zone = "Elwynn Forest",
+			instanceType = "none",
+			instanceID = 0,
+		}
+		_G.CreateFrame = function() return frameStub() end
+		_G.UIParent = {}
 		_G.hooksecurefunc = function() end
 		_G.GameTooltip = {}
-		_G.GetSpellInfo = function() end
+		_G.date = function() return "10 Nov 2026" end
+		_G.time = function() return world.epoch end
+		_G.GetTime = function() return world.clock end
+		_G.C_Timer = { After = function(_, fn) timers[#timers + 1] = fn end }
+		_G.issecretvalue = function(v) return rawequal(v, SECRET) end
+		_G.canaccesstable = function() return true end
+		_G.C_Spell = {
+			GetSpellName = function(id)
+				return ({ [1120] = "Drain Soul", [17877] = "Shadowburn", [686] = "Shadow Bolt" })[id]
+			end,
+		}
+		_G.ItemLocation = {
+			CreateFromBagAndSlot = function(_, bag, slot) return { bag = bag, slot = slot } end,
+		}
+		_G.C_Item = {
+			GetItemGUID = function(loc)
+				local item = world.bags[loc.bag] and world.bags[loc.bag][loc.slot]
+				return item and item.guid
+			end,
+		}
+		_G.C_Container = {
+			GetContainerNumSlots = function(bag) return world.bags[bag] and 16 or 0 end,
+			GetContainerItemID = function(bag, slot)
+				local item = world.bags[bag] and world.bags[bag][slot]
+				return item and item.id
+			end,
+		}
+		_G.TooltipDataProcessor = {
+			AddTooltipPostCall = function(kind, fn) postCalls[#postCalls + 1] = { kind = kind, fn = fn } end,
+		}
+		_G.Enum = { TooltipDataType = { Item = 0 } }
+		_G.C_RestrictedActions = nil
+		_G.GetCursorInfo = function() return world.cursor end
+		local function t(field)
+			return function(unit)
+				return unit == "target" and world.target and world.target[field] or nil
+			end
+		end
+		_G.UnitName = function(unit)
+			if unit == "target" and world.target then
+				return world.target.name, world.target.realm
+			end
+			if unit == "player" then
+				return "Me"
+			end
+		end
+		_G.UnitGUID = t("guid")
+		_G.UnitIsPlayer = function(unit)
+			if unit == "target" and world.target then
+				return world.target.player == true
+			end
+			return false
+		end
+		_G.UnitLevel = function(unit)
+			if unit == "player" then
+				return 30
+			end
+			return world.target and world.target.level
+		end
+		_G.UnitClassification = t("classification")
+		_G.UnitCreatureType = t("creatureType")
+		_G.UnitCreatureFamily = t("family")
+		_G.UnitClass = function(unit)
+			local c = unit == "target" and world.target and world.target.class
+			return c, c
+		end
+		_G.UnitRace = t("race")
+		_G.GetGuildInfo = t("guild")
+		_G.GetRealmName = function() return "Home" end
+		_G.GetInstanceInfo = function()
+			return "World", world.instanceType, 0, "", 0, 0, false, world.instanceID
+		end
+		_G.C_Map = {
+			GetBestMapForUnit = function() return 1429 end,
+			GetMapInfo = function(id)
+				return ({
+					[1429] = { mapType = 3, parentMapID = 1415, name = "Elwynn Forest" },
+					[1415] = { mapType = 2, parentMapID = 947, name = "Eastern Kingdoms" },
+				})[id]
+			end,
+			GetPlayerMapPosition = function()
+				return { GetXY = function() return 0.25, 0.5 end }
+			end,
+		}
+		_G.GetRealZoneText = function() return world.zone end
+		_G.GetZoneText = function() return world.zone end
+		_G.IsInGuild = function() return false end
+		_G.SendChatMessage = function() end
+		_G.PlaySound = function() end
+		_G.SOUNDKIT = nil
+		_G.geterrorhandler = function() return function(err) error(err, 0) end end
+		_G.UNKNOWN = "Unknown"
+		_G.UNKNOWNOBJECT = "Unknown"
+		_G.NUM_BAG_SLOTS = 4
+		_G.NUM_TOTAL_EQUIPPED_BAG_SLOTS = nil
+		_G.RAID_CLASS_COLORS = nil
 	end)
 
 	after_each(function()
-		for _, k in ipairs(names) do
+		for _, k in ipairs(STUBBED) do
 			_G[k] = saved[k]
 		end
 	end)
@@ -40,11 +180,384 @@ describe("Capture glue", function()
 		return ns
 	end
 
-	it("loads and defines ns.OnLoaded and the hook lists", function()
+	local function fire(event, ...)
+		for _, f in ipairs(frames) do
+			if f.onEvent and (f.events[event] or f.unitEvents[event]) then
+				f.onEvent(f, event, ...)
+			end
+		end
+	end
+
+	local function flush()
+		while #timers > 0 do
+			table.remove(timers, 1)()
+		end
+	end
+
+	local function putShard(slot, guid)
+		world.bags[0][slot] = { id = 6265, guid = guid }
+	end
+
+	-- Loads the addon, runs OnLoaded and the login baseline. Returns ns, db, printed lines.
+	local function boot(db)
+		local ns = load()
+		local printed = {}
+		ns.Print = function(text) printed[#printed + 1] = text end
+		db = db or {}
+		db.settings = db.settings or { popup = false, sound = false, announce = false }
+		ns.OnLoaded(db)
+		fire("PLAYER_ENTERING_WORLD")
+		flush()
+		return ns, db, printed
+	end
+
+	local HOGGER = {
+		name = "Hogger", guid = "Creature-0-1-0-2-448-3", level = 11, classification = "elite",
+		creatureType = "Humanoid", family = nil,
+	}
+
+	local function drain(castGUID, targetName)
+		fire("UNIT_SPELLCAST_SENT", "player", targetName, castGUID, 1120)
+		fire("UNIT_SPELLCAST_CHANNEL_START", "player", castGUID, 1120)
+	end
+
+	local function count(t)
+		local n = 0
+		for _ in pairs(t) do
+			n = n + 1
+		end
+		return n
+	end
+
+	it("loads and defines ns.OnLoaded, the hook lists and the tooltip post-call", function()
 		local ns = load()
 		assert.equal("function", type(ns.OnLoaded))
 		assert.same({}, ns.onCatch)
 		assert.same({}, ns.onLoaded)
+		assert.equal(1, #postCalls)
+		assert.equal(0, postCalls[1].kind)
+	end)
+
+	describe("full catch", function()
+		it("SENT -> CHANNEL_START -> new shard GUID records one mob and its soul", function()
+			putShard(1, "OLD")
+			world.target = HOGGER
+			local ns, db = boot()
+			assert.same({ soul = false, seen = world.epoch }, db.shardSouls.OLD)
+			assert.is_nil(db.shardSlots)
+
+			local caught = {}
+			table.insert(ns.onCatch, function(result, entry) caught[#caught + 1] = { result, entry } end)
+
+			drain("cast1", "Hogger")
+			world.target = nil -- the corpse is gone; the details were read at SENT
+			world.clock = 108
+			fire("UNIT_SPELLCAST_CHANNEL_STOP", "player", "cast1", 1120)
+			putShard(2, "NEW")
+			fire("BAG_UPDATE_DELAYED")
+			flush()
+
+			local mob = db.mobs.Hogger
+			assert.is_not_nil(mob)
+			assert.equal(11, mob.minLevel)
+			assert.equal("elite", mob.classification)
+			assert.equal(1, mob.places["Elwynn Forest"].count)
+			assert.equal(25, mob.places["Elwynn Forest"].x)
+			assert.equal("Eastern Kingdoms", db.places["Elwynn Forest"].group)
+			local soul = db.shardSouls.NEW.soul
+			assert.equal("Hogger", soul.name)
+			assert.equal("ffcc33", soul.color)
+			assert.equal("Elwynn Forest", soul.zone)
+			assert.is_false(db.shardSouls.OLD.soul)
+			assert.equal(1, #caught)
+			assert.equal("mob", caught[1][2].kind)
+			assert.is_true(caught[1][1].isNew)
+		end)
+
+		it("a second new shard under the same capture stays soulless", function()
+			world.target = HOGGER
+			local _, db = boot()
+			drain("cast1", "Hogger")
+			putShard(1, "A")
+			putShard(2, "B")
+			fire("BAG_UPDATE_DELAYED")
+			flush()
+			world.clock = 101
+			putShard(3, "C")
+			fire("BAG_UPDATE_DELAYED")
+			flush()
+			assert.equal(1, db.mobs.Hogger.places["Elwynn Forest"].count)
+			local named = 0
+			for _, entry in pairs(db.shardSouls) do
+				if entry.soul then
+					named = named + 1
+				end
+			end
+			assert.equal(1, named)
+			assert.equal("Hogger", db.shardSouls.A.soul.name) -- the first in sorted order
+		end)
+
+		it("a hidden name records an Unknown soul in the zone", function()
+			world.target = { name = SECRET, guid = SECRET, level = SECRET }
+			local _, db = boot()
+			drain("cast1", SECRET)
+			putShard(1, "NEW")
+			fire("BAG_UPDATE_DELAYED")
+			flush()
+			assert.same({}, db.mobs)
+			assert.equal(1, db.unknown["Elwynn Forest"].count)
+			local soul = db.shardSouls.NEW.soul
+			assert.is_true(soul.unknown)
+			assert.equal("Unknown soul", soul.name)
+		end)
+
+		it("a hidden player name goes to Unknown soul too", function()
+			world.target = { name = "Unknown", player = true }
+			local _, db = boot()
+			drain("cast1", nil)
+			putShard(1, "NEW")
+			fire("BAG_UPDATE_DELAYED")
+			flush()
+			assert.same({}, db.players)
+			assert.equal(1, db.unknown["Elwynn Forest"].count)
+		end)
+
+		it("a PvP kill records the player with class, race, guild and realm", function()
+			world.target = {
+				name = "Bob", realm = "Far", guid = "Player-1-AB", level = 30, player = true,
+				class = "ROGUE", race = "Human", guild = "Stabby",
+			}
+			local _, db = boot()
+			drain("cast1", "Bob-Far")
+			putShard(1, "NEW")
+			fire("BAG_UPDATE_DELAYED")
+			flush()
+			local p = db.players["Bob-Far"]
+			assert.is_not_nil(p)
+			assert.equal("ROGUE", p.class)
+			assert.equal("Human", p.race)
+			assert.equal("Stabby", p.guild)
+		end)
+
+		it("a shard with no capture is soulless and records nothing", function()
+			local _, db = boot()
+			putShard(1, "NEW")
+			fire("BAG_UPDATE_DELAYED")
+			flush()
+			assert.is_false(db.shardSouls.NEW.soul)
+			assert.same({}, db.mobs)
+			assert.same({}, db.unknown)
+		end)
+
+		it("a shard more than 3 s after the channel stopped is soulless", function()
+			world.target = HOGGER
+			local _, db = boot()
+			drain("cast1", "Hogger")
+			fire("UNIT_SPELLCAST_CHANNEL_STOP", "player", "cast1", 1120)
+			world.clock = 103.5
+			putShard(1, "NEW")
+			fire("BAG_UPDATE_DELAYED")
+			flush()
+			assert.is_false(db.shardSouls.NEW.soul)
+			assert.same({}, db.mobs)
+		end)
+
+		it("an unreadable channel start clears the capture", function()
+			world.target = HOGGER
+			local _, db = boot()
+			drain("cast1", "Hogger")
+			fire("UNIT_SPELLCAST_CHANNEL_START", "player", SECRET, SECRET)
+			putShard(1, "NEW")
+			fire("BAG_UPDATE_DELAYED")
+			flush()
+			assert.is_false(db.shardSouls.NEW.soul)
+		end)
+
+		it("a Drain Soul sent at a different unit than the target gives no name", function()
+			world.target = HOGGER
+			local _, db = boot()
+			drain("cast1", "Some Mouseover Mob")
+			putShard(1, "NEW")
+			fire("BAG_UPDATE_DELAYED")
+			flush()
+			assert.same({}, db.mobs)
+			assert.equal(1, db.unknown["Elwynn Forest"].count)
+		end)
+
+		it("reads the target at CHANNEL_START when SENT did not match", function()
+			world.target = HOGGER
+			local _, db = boot()
+			fire("UNIT_SPELLCAST_CHANNEL_START", "player", "cast9", 8288) -- another rank
+			putShard(1, "NEW")
+			fire("BAG_UPDATE_DELAYED")
+			flush()
+			assert.is_not_nil(db.mobs.Hogger)
+		end)
+
+		it("Shadowburn: a shard within 8 s of the cast is named", function()
+			world.target = HOGGER
+			local _, db = boot()
+			fire("UNIT_SPELLCAST_SENT", "player", "Hogger", "sb1", 18867)
+			fire("UNIT_SPELLCAST_SUCCEEDED", "player", "sb1", 18867)
+			world.clock = 104
+			putShard(1, "NEW")
+			fire("BAG_UPDATE_DELAYED")
+			flush()
+			assert.is_not_nil(db.mobs.Hogger)
+		end)
+
+		it("other spells open no capture", function()
+			world.target = HOGGER
+			local _, db = boot()
+			fire("UNIT_SPELLCAST_SENT", "player", "Hogger", "sb1", 686)
+			fire("UNIT_SPELLCAST_SUCCEEDED", "player", "sb1", 686)
+			putShard(1, "NEW")
+			fire("BAG_UPDATE_DELAYED")
+			flush()
+			assert.same({}, db.mobs)
+		end)
+
+		it("new shards while something is on the cursor or the bank is open are soulless", function()
+			world.target = HOGGER
+			local _, db = boot()
+			drain("cast1", "Hogger")
+			world.cursor = "item"
+			putShard(1, "CUR")
+			fire("BAG_UPDATE_DELAYED")
+			flush()
+			assert.is_false(db.shardSouls.CUR.soul)
+			world.cursor = nil
+			fire("BANKFRAME_OPENED")
+			putShard(2, "BANK")
+			fire("BAG_UPDATE_DELAYED")
+			flush()
+			assert.is_false(db.shardSouls.BANK.soul)
+			assert.same({}, db.mobs)
+		end)
+
+		it("files raid kills by NPC id under Raids", function()
+			world.target = { name = "Ragnaros", guid = "Creature-0-1-409-2-11502-3", level = -1, classification = "worldboss" }
+			world.instanceType, world.instanceID, world.zone = "raid", 409, "Molten Core"
+			local _, db = boot()
+			drain("cast1", "Ragnaros")
+			putShard(1, "NEW")
+			fire("BAG_UPDATE_DELAYED")
+			flush()
+			assert.is_not_nil(db.raids[11502])
+			assert.is_nil(db.mobs.Ragnaros)
+		end)
+
+		it("the old slot map is discarded and a junk soul map replaced", function()
+			local _, db = boot({ shardSlots = { ["0:1"] = { name = "Wolf" } }, shardSouls = "junk" })
+			assert.is_nil(db.shardSlots)
+			assert.equal("table", type(db.shardSouls))
+		end)
+
+		it("forgets nothing on a scan before the baseline has run", function()
+			local ns = load()
+			ns.Print = function() end
+			local db = { settings = { popup = false, sound = false, announce = false } }
+			ns.OnLoaded(db)
+			putShard(1, "A")
+			fire("BAG_UPDATE_DELAYED") -- before PLAYER_ENTERING_WORLD + 1 s: ignored
+			assert.equal(0, #timers)
+			assert.equal(0, count(db.shardSouls))
+		end)
+	end)
+
+	describe("startup", function()
+		it("registers the spell events for the player only and never the combat log", function()
+			boot()
+			local f = frames[1]
+			assert.equal("player", f.unitEvents.UNIT_SPELLCAST_SENT)
+			assert.equal("player", f.unitEvents.UNIT_SPELLCAST_CHANNEL_START)
+			assert.is_true(f.events.BAG_UPDATE_DELAYED)
+			assert.is_nil(f.events.COMBAT_LOG_EVENT_UNFILTERED)
+		end)
+
+		it("a refused event does not stop the others; one chat note", function()
+			world.refuse.BANKFRAME_OPENED = true
+			local _, _, printed = boot()
+			assert.is_true(frames[1].events.BAG_UPDATE_DELAYED)
+			assert.equal("player", frames[1].unitEvents.UNIT_SPELLCAST_SUCCEEDED)
+			assert.equal(1, #printed)
+			assert.truthy(printed[1]:find("BANKFRAME_OPENED", 1, true))
+		end)
+
+		it("OnLoaded still runs the on-load hooks when Capture.start errors", function()
+			local ns = load()
+			local printed, ran = {}, {}
+			ns.Print = function(text) printed[#printed + 1] = text end
+			_G.geterrorhandler = function() return function() end end
+			ns.Capture.start = function() error("boom") end
+			table.insert(ns.onLoaded, function(db) ran[#ran + 1] = db end)
+			table.insert(ns.onLoaded, function() ran[#ran + 1] = "second" end)
+			local db = {}
+			ns.OnLoaded(db)
+			assert.equal(2, #ran)
+			assert.equal(db, ran[1])
+			assert.is_not_nil(ns.dex)
+			assert.truthy(printed[1]:find("could not start", 1, true))
+		end)
+	end)
+
+	describe("secret guards", function()
+		it("readUnit returns only readable fields", function()
+			local ns = load()
+			world.target = { name = "Wolf", guid = SECRET, level = SECRET, classification = "normal", family = SECRET }
+			local info = ns.Capture.readUnit("target")
+			assert.equal("Wolf", info.name)
+			assert.is_nil(info.guid)
+			assert.is_nil(info.level)
+			assert.is_nil(info.family)
+			assert.equal("normal", info.classification)
+		end)
+
+		it("readUnit treats a hidden, missing or UNKNOWN name as unknown", function()
+			local ns = load()
+			world.target = { name = SECRET, player = true }
+			assert.same({ unknown = true, isPlayer = true }, ns.Capture.readUnit("target"))
+			world.target = { name = "Unknown" }
+			assert.is_true(ns.Capture.readUnit("target").unknown)
+			world.target = nil
+			assert.is_true(ns.Capture.readUnit("target").unknown)
+		end)
+
+		it("buildContext falls back when zone and map values are secret", function()
+			local ns = load()
+			world.zone = SECRET
+			_G.C_Map.GetBestMapForUnit = function() return SECRET end
+			_G.UnitLevel = function() return SECRET end
+			local ctx = ns.Capture.buildContext()
+			assert.equal("Unknown", ctx.zone)
+			assert.equal("Other", ctx.group)
+			assert.is_nil(ctx.myLevel)
+			assert.is_nil(ctx.x)
+		end)
+
+		it("shardGuids skips secret item IDs and GUIDs", function()
+			local ns = load()
+			world.bags[0][1] = { id = 6265, guid = "A" }
+			world.bags[0][2] = { id = SECRET, guid = "B" }
+			world.bags[0][3] = { id = 6265, guid = SECRET }
+			world.bags[0][4] = { id = 1234, guid = "D" }
+			world.bags[4] = { [16] = { id = 6265, guid = "E" } }
+			assert.same({ "A", "E" }, ns.Capture.shardGuids())
+		end)
+	end)
+
+	describe("spellKind", function()
+		it("knows every rank by id and others by name", function()
+			local ns = load()
+			local names = { drainsoul = "Drain Soul", shadowburn = "Shadowburn" }
+			local function nameOf(id) return ({ [99] = "Drain Soul", [98] = "Shadowburn" })[id] end
+			assert.equal("drainsoul", ns.Capture.spellKind(11675, nameOf, names))
+			assert.equal("shadowburn", ns.Capture.spellKind(18871, nameOf, names))
+			assert.equal("drainsoul", ns.Capture.spellKind(99, nameOf, names))
+			assert.equal("shadowburn", ns.Capture.spellKind(98, nameOf, names))
+			assert.is_nil(ns.Capture.spellKind(686, nameOf, names))
+			assert.is_nil(ns.Capture.spellKind(99, nameOf, {}))
+		end)
 	end)
 
 	describe("npcIdFromGuid", function()
@@ -115,6 +628,12 @@ describe("Capture glue", function()
 			assert.equal("player", kind)
 			assert.is_true(r.isNew)
 		end)
+		it("records a player known only by the isPlayer flag", function()
+			local ns, dex = setup()
+			local cand = { info = { name = "Bob", realm = "R", isPlayer = true } }
+			local _, kind = ns.Capture.recordCatch(dex, cand, ctx, "none")
+			assert.equal("player", kind)
+		end)
 		it("records a raid creature by NPC id", function()
 			local ns, dex = setup()
 			local cand = { guid = "Creature-0-1-409-2-11502-3", info = { name = "Ragnaros" } }
@@ -142,10 +661,10 @@ describe("Capture glue", function()
 			assert.equal("mob", kind)
 			assert.equal(1, r.placeCount)
 		end)
-		it("refuses a candidate without a name", function()
+		it("refuses a candidate without a name, or an unknown one", function()
 			local ns, dex = setup()
-			local cand = { guid = "Creature-0-1-0-2-299-3", info = {} }
-			assert.is_nil(ns.Capture.recordCatch(dex, cand, ctx, "none"))
+			assert.is_nil(ns.Capture.recordCatch(dex, { info = {} }, ctx, "none"))
+			assert.is_nil(ns.Capture.recordCatch(dex, { info = { name = "X", unknown = true } }, ctx, "none"))
 		end)
 	end)
 
@@ -182,6 +701,27 @@ describe("Capture glue", function()
 	end)
 
 	describe("Tooltip", function()
+		local function tipStub(extra)
+			local tip = { lines = {} }
+			function tip:AddLine(text) self.lines[#self.lines + 1] = text end
+			tip.Show = function() end
+			tip.IsForbidden = function() return false end
+			for k, v in pairs(extra or {}) do
+				tip[k] = v
+			end
+			return tip
+		end
+
+		local function withSouls(ns)
+			ns.db = {
+				shardSouls = {
+					A = { soul = { name = "Wolf", zone = "Z", time = 1 }, seen = 1 },
+					B = { soul = false, seen = 1 },
+					U = { soul = { name = "Unknown soul", unknown = true, zone = "Z", time = 1 }, seen = 1 },
+				},
+			}
+		end
+
 		it("builds the two lines", function()
 			local ns = load()
 			local soul = { name = "Hogger", color = "ffcc33", zone = "Elwynn Forest", time = 5 }
@@ -190,20 +730,71 @@ describe("Capture glue", function()
 			assert.equal("Elwynn Forest \194\183 %d %b %Y5", second)
 		end)
 
-		it("adds lines only for a named shard", function()
+		it("shows an unknown soul in grey", function()
 			local ns = load()
-			_G.C_Container = { GetContainerItemID = function(_, slot) return slot == 3 and 8 or 6265 end }
-			_G.date = function() return "10 Nov 2026" end
-			ns.db = { shardSlots = { ["0:1"] = { name = "Wolf", zone = "Z", time = 1 }, ["0:2"] = false } }
-			local lines = {}
-			local tip = { AddLine = function(_, text) lines[#lines + 1] = text end, Show = function() end }
+			local first = ns.Tooltip.lines({ name = "Unknown soul", unknown = true, zone = "Z" })
+			assert.equal("|cff9d9d9dUnknown soul|r", first)
+		end)
+
+		it("adds lines only for a named shard, found by the data GUID", function()
+			local ns = load()
+			withSouls(ns)
+			local tip = tipStub()
+			ns.Tooltip.onItem(tip, { id = 6265, guid = "A" })
+			assert.equal(2, #tip.lines)
+			assert.equal("Soul of |cffffffffWolf|r", tip.lines[1])
+			tip = tipStub()
+			ns.Tooltip.onItem(tip, { id = 6265, guid = "B" }) -- soulless
+			ns.Tooltip.onItem(tip, { id = 6265, guid = "ZZZ" }) -- never seen
+			ns.Tooltip.onItem(tip, { id = 1234, guid = "A" }) -- not a shard
+			ns.Tooltip.onItem(tip, { id = SECRET, guid = "A" })
+			ns.Tooltip.onItem(tip, SECRET)
+			assert.equal(0, #tip.lines)
+			ns.Tooltip.onItem(tip, { id = 6265, guid = "U" })
+			assert.equal("|cff9d9d9dUnknown soul|r", tip.lines[1])
+		end)
+
+		it("finds the GUID from the bag slot when the data GUID is secret", function()
+			local ns = load()
+			withSouls(ns)
+			world.bags[0][5] = { id = 6265, guid = "A" }
+			local tip = tipStub({
+				GetPrimaryTooltipInfo = function()
+					return { getterName = "GetBagItem", getterArgs = { 0, 5 } }
+				end,
+			})
+			ns.Tooltip.onItem(tip, { id = 6265, guid = SECRET })
+			assert.equal(2, #tip.lines)
+		end)
+
+		it("leaves forbidden or protected tooltips alone", function()
+			local ns = load()
+			withSouls(ns)
+			local tip = tipStub({ IsForbidden = function() return true end })
+			ns.Tooltip.onItem(tip, { id = 6265, guid = "A" })
+			assert.equal(0, #tip.lines)
+			_G.C_RestrictedActions = { CheckAllowProtectedFunctions = function() return false end }
+			tip = tipStub()
+			ns.Tooltip.onItem(tip, { id = 6265, guid = "A" })
+			assert.equal(0, #tip.lines)
+		end)
+
+		it("falls back to SetBagItem without TooltipDataProcessor", function()
+			_G.TooltipDataProcessor = nil
+			local hooked
+			_G.hooksecurefunc = function(_, method) hooked = method end
+			local ns = load()
+			assert.equal("SetBagItem", hooked)
+			withSouls(ns)
+			world.bags[0][1] = { id = 6265, guid = "A" }
+			world.bags[0][2] = { id = 6265, guid = "B" }
+			local tip = tipStub()
 			ns.Tooltip.onSetBagItem(tip, 0, 1)
-			assert.equal(2, #lines)
-			lines = {}
-			ns.Tooltip.onSetBagItem(tip, 0, 2) -- shard with no soul
-			ns.Tooltip.onSetBagItem(tip, 0, 3) -- not a shard
-			ns.Tooltip.onSetBagItem(tip, 1, 1) -- unknown slot
-			assert.equal(0, #lines)
+			assert.equal(2, #tip.lines)
+			tip = tipStub()
+			ns.Tooltip.onSetBagItem(tip, 0, 2)
+			ns.Tooltip.onSetBagItem(tip, 0, 3)
+			assert.equal(0, #tip.lines)
 		end)
 	end)
 end)
