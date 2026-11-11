@@ -120,11 +120,18 @@ function Capture.recordCatch(dex, cand, ctx, instanceType, instanceID)
 	if Capture.isPlayerGuid(cand.guid) then
 		return dex:recordPlayer(info, ctx), "player"
 	end
-	if instanceType == "raid" and instanceID then
+	if instanceType == "raid" then
 		local npcID = Capture.npcIdFromGuid(cand.guid)
-		if npcID then
+		if instanceID and npcID and ns.Raids.byInstance(instanceID) then
 			return dex:recordRaid(info, ctx, instanceID, npcID), "raid"
 		end
+		-- A raid we do not list: a plain mob, under its own "Raids" group.
+		local raidCtx = {}
+		for k, v in pairs(ctx) do
+			raidCtx[k] = v
+		end
+		raidCtx.group = "Raids"
+		return dex:recordMob(info, raidCtx), "mob"
 	end
 	return dex:recordMob(info, ctx), "mob"
 end

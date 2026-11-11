@@ -124,6 +124,17 @@ describe("Capture glue", function()
 			assert.is_not_nil(dex.db.raids[11502])
 			assert.is_nil(dex.db.mobs.Ragnaros)
 		end)
+		it("records a catch in a raid-type instance we do not list as a mob under Raids", function()
+			local ns, dex = setup()
+			local cand = { guid = "Creature-0-1-9999-2-777-3", info = { name = "Odd Beast", classification = "normal" } }
+			local r, kind = ns.Capture.recordCatch(dex, cand, ctx, "raid", 9999)
+			assert.equal("mob", kind)
+			assert.is_true(r.isNew)
+			assert.is_not_nil(dex.db.mobs["Odd Beast"])
+			assert.same({}, dex.db.raids)
+			assert.equal("Raids", dex.db.places["Elwynn Forest"].group)
+			assert.equal("Eastern Kingdoms", ctx.group) -- the caller's ctx is untouched
+		end)
 		it("records everything else as a mob", function()
 			local ns, dex = setup()
 			local cand = { guid = "Creature-0-1-0-2-299-3", info = { name = "Young Wolf", classification = "normal" } }

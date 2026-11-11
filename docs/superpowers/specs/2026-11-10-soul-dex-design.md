@@ -98,6 +98,10 @@ The builder decides how to do this. The design needs:
   players: name, realm, level, race, class, guild.
 - When a shard appears, it is matched to the most recent death in the last
   few seconds of a unit that had your Drain Soul or Shadowburn on it.
+  If several qualify, the newest death wins; older ones stay queued until they
+  expire. A Drain Soul aura counts as live for at most 15 s + 1 s after it was
+  applied or refreshed, even if its removal event was missed. (changed during
+  build: final review - newest death wins, Drain Soul liveness capped at 15 s + 1 s)
 - Recorded with the catch: date and time, your level, the zone (and subzone
   if known), and **your** map coordinates at that moment (the source's own
   position isn't available). **[call]**
@@ -375,6 +379,8 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
   The mob is listed under the right place.
 - The same mob name again: no popup or sound. The same mob in another zone:
   listed there, no popup.
+- Drain Soul mob A, switch to mob B just before A dies, kill B with Drain Soul
+  -> the dex records B only.
 - A Shadowburn kill that yields a shard counts. A kill whose shard came from
   elsewhere, or with no Drain Soul/Shadowburn: no catch, no name.
 - Dungeon (party) kills are grouped under "Dungeons". A raid kill fills its

@@ -21,6 +21,15 @@ describe("Net", function()
 			Net = ns.Net
 		end)
 
+		it("browse status: asking, then still waiting, then no answer", function()
+			assert.equal("asking", Net.browseStage(100, 100))
+			assert.equal("asking", Net.browseStage(100, 159))
+			assert.equal("waiting", Net.browseStage(100, 161))
+			assert.equal("waiting", Net.browseStage(100, 400))
+			assert.equal("expired", Net.browseStage(100, 401))
+			assert.equal("expired", Net.browseStage(nil, 401))
+		end)
+
 		it("broadcasts to the guild and the group", function()
 			assert.same({}, Net.channels(false, false, false))
 			assert.same({ "GUILD" }, Net.channels(true, false, false))

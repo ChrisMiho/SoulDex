@@ -20,6 +20,18 @@ describe("Friends", function()
 		assert.is_nil(Friends.normalise(nil))
 	end)
 
+	it("matches names whose first letter is non-ASCII", function()
+		assert.equal(Friends.normalise("\195\139lric"), Friends.normalise("\195\171lric"))
+		assert.equal(Friends.normalise("\195\171lric-Forever"), Friends.normalise("\195\139LRIC"))
+		assert.equal("\195\139lric", Friends.normalise("\195\171lric"))
+		-- the multiplication sign is not a letter and is left alone
+		assert.equal("\195\151x", Friends.normalise("\195\151X"))
+		local store = {}
+		Friends.add(store, "\195\171lric")
+		Friends.merge(store, "\195\139lric-Forever", { score = 4 }, 10, false)
+		assert.equal(4, store[Friends.normalise("\195\171lric")].summary.score)
+	end)
+
 	it("add then merge keeps added", function()
 		local store = {}
 		Friends.add(store, "bob")

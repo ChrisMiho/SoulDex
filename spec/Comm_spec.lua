@@ -132,6 +132,34 @@ describe("Comm", function()
 		assert.is_nil(d.mobs["Bad\tWolf"])
 	end)
 
+	it("rejects empty names in any record", function()
+		assert.is_nil(Comm.decodeDex("D\t1\nX\t999\t409\t\t1\t1\t0"))
+		assert.is_nil(Comm.decodeDex("D\t1\nP\tBob-R\t\tMAGE\tHuman\t1\t3"))
+		assert.is_nil(Comm.decodeDex("D\t1\nM\t\tnormal\tBeast\tWolf\t1\t2\t1\tZ\tG\t1"))
+		-- a name that is empty once cleaned counts as empty
+		assert.is_nil(Comm.decodeDex("D\t1\nX\t999\t409\t|\t1\t1\t0"))
+		local kind, db = Comm.decode("D\t1\nX\t998\t409\tZed\t1\t1\t0")
+		assert.equal("D", kind)
+		assert.equal("Zed", db.raids[998].name)
+	end)
+
+	it("cleans pipes from every decoded text field", function()
+		local d = Comm.decodeDex(
+			"D\t1\nM\tWo|cffff0000lf\tnor|mal\tBe|ast\tWo|lf\t1\t2\t1\tEl|wynn\tEast|ern\t3"
+			.. "\nP\tBob|-R\tB|ob\tMA|GE\tHu|man\t1\t3"
+			.. "\nX\t5\t409\tLuci|fron\t1\t1\t1")
+		local m = d.mobs["Wocffff0000lf"]
+		assert.equal("normal", m.classification)
+		assert.equal("Beast", m.creatureType)
+		assert.equal("Wolf", m.family)
+		assert.equal(3, m.places["Elwynn"].count)
+		assert.equal("Eastern", d.places["Elwynn"].group)
+		assert.equal("Bob", d.players["Bob-R"].name)
+		assert.equal("MAGE", d.players["Bob-R"].class)
+		assert.equal("Human", d.players["Bob-R"].race)
+		assert.equal("Lucifron", d.raids[5].name)
+	end)
+
 	it("rejects truncated payloads", function()
 		local str = Comm.encodeDex(fakeDb())
 		local cut = str:sub(1, math.floor(#str / 2))

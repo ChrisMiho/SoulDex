@@ -119,6 +119,30 @@ describe("Dex", function()
 		assert.equal(10, dex:score())
 	end)
 
+	it("keeps class, race, guild and level when a repeat catch lacks them", function()
+		local full = { name = "Bob", realm = "Realm", class = "MAGE", race = "Human", guild = "Guild", level = 30 }
+		dex:recordPlayer(full, ctx())
+		dex:recordPlayer({ name = "Bob", realm = "Realm" }, ctx(nil, { time = 3000 }))
+		local p = db.players["Bob-Realm"]
+		assert.equal("MAGE", p.class)
+		assert.equal("Human", p.race)
+		assert.equal("Guild", p.guild)
+		assert.equal(30, p.lastLevel)
+		assert.equal(2, p.count)
+		full.guild, full.level = "Other", 31
+		dex:recordPlayer(full, ctx())
+		assert.equal("Other", p.guild)
+		assert.equal(31, p.lastLevel)
+	end)
+
+	it("uniqueMobs skips entries without a name", function()
+		db.raids[1] = { instanceID = 409, count = 1, points = 1 }
+		db.raids[2] = { name = "Zed", instanceID = 409, count = 1, points = 1 }
+		local ok, n = pcall(dex.uniqueMobs, dex)
+		assert.is_true(ok)
+		assert.equal(1, n)
+	end)
+
 	it("records a raid mob", function()
 		local r = dex:recordRaid(mob("Lucifron", { classification = "elite" }), ctx("Molten Core"), 409, 12118)
 		assert.is_true(r.isNew)

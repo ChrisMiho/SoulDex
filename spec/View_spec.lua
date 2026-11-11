@@ -72,6 +72,17 @@ describe("View", function()
 			}, seq)
 		end)
 
+		it("puts Raids just before Dungeons", function()
+			dex:recordMob(mob("A"), ctx("Zeta", "Dungeons"))
+			dex:recordMob(mob("B"), ctx("Ahn'Qiraj", "Raids"))
+			dex:recordMob(mob("C"), ctx("Zzz", "Other"))
+			local headers = {}
+			for _, r in ipairs(View.places(dex)) do
+				headers[#headers + 1] = r.header
+			end
+			assert.same({ "Other", "Raids", "Dungeons" }, headers)
+		end)
+
 		it("is empty for an empty dex", function()
 			assert.same({}, View.places(dex))
 		end)
@@ -142,6 +153,14 @@ describe("View", function()
 			assert.same({ instanceID = 409, name = "Molten Core", caught = 1, total = 3, done = false }, rows[1])
 			dex:recordRaid(mob("Zed"), ctx("Zul'Gurub", "Dungeons"), 309, 1)
 			assert.is_true(View.raids(dex)[2].done)
+		end)
+
+		it("tolerates an unknown raid mob without a name", function()
+			dex.db.raids[777] = { instanceID = 409, count = 1, points = 1 }
+			dex.db.raids[778] = { name = "Mystery", instanceID = 409, count = 1, points = 1 }
+			local ok, rows = pcall(View.raidMobs, dex, 409, nil)
+			assert.is_true(ok)
+			assert.equal(5, #rows)
 		end)
 
 		it("lists raid mobs with blanks, bosses and unknown mobs last", function()

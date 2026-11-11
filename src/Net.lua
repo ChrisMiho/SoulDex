@@ -19,7 +19,7 @@ local SUMMARY_REPLY_GAP = 10 -- at most one "Q" reply per sender
 local POLL_EVERY = 60 -- ask added friends for a summary
 local LOGIN_DELAY = 5
 local REQUEST_TTL = 300 -- a "D" is only accepted this long after we asked for it
-local ANSWER_WAIT = 60 -- then the Friends tab says nobody answered
+local ANSWER_WAIT = 60 -- then the Friends tab says it is still waiting; at REQUEST_TTL, nobody answered
 local NOT_FOUND_WINDOW = 5 -- hide "No player named ..." this long after whispering them
 
 local GROUP_CHANNELS = { GUILD = true, PARTY = true, RAID = true }
@@ -109,6 +109,18 @@ function Net.notFoundName(msg, fmt)
 	local pattern = fmt:gsub("([%(%)%.%%%+%-%*%?%[%]%^%$])", "%%%1")
 	pattern = pattern:gsub("%%%%s", "(.+)")
 	return msg:match("^" .. pattern .. "$")
+end
+
+-- Where a browse request stands: "asking" until ANSWER_WAIT, "waiting" until the
+-- request's TTL runs out (a late "D" is still accepted), then "expired".
+function Net.browseStage(asked, now)
+	local age = asked and now - asked
+	if not age or age > REQUEST_TTL then
+		return "expired"
+	elseif age > ANSWER_WAIT then
+		return "waiting"
+	end
+	return "asking"
 end
 
 function Net.mySummary(dex)
@@ -415,6 +427,11 @@ function Net.browse(name)
 	refreshFriends()
 	C_Timer.After(ANSWER_WAIT, function()
 		if state.asking == name and state.requests[name] == asked then
+			refreshFriends() -- now reads "Still waiting for <name>'s dex..."
+		end
+	end)
+	C_Timer.After(REQUEST_TTL, function()
+		if state.asking == name and state.requests[name] == asked then
 			state.asking = nil
 			state.noAnswer = name
 			refreshFriends()
@@ -555,7 +572,10 @@ end
 
 local function statusText(name)
 	if state.asking == name then
-		return "Asking " .. name .. "..."
+		if Net.browseStage(state.requests[name], GetTime()) == "asking" then
+			return "Asking " .. name .. "..."
+		end
+		return "Still waiting for " .. name .. "'s dex..."
 	elseif state.noAnswer == name then
 		return "No answer from " .. name .. "."
 	end

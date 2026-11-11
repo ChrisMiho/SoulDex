@@ -81,10 +81,10 @@ function methods:recordPlayer(info, ctx)
 		}
 		db.players[key] = entry
 	end
-	entry.class = info.class
-	entry.race = info.race
-	entry.guild = info.guild
-	entry.lastLevel = info.level
+	entry.class = info.class or entry.class
+	entry.race = info.race or entry.race
+	entry.guild = info.guild or entry.guild
+	entry.lastLevel = info.level or entry.lastLevel
 	entry.count = entry.count + 1
 	entry.last = ctx.time
 	local place = entry.places[ctx.zone]
@@ -128,7 +128,7 @@ function methods:uniqueMobs()
 		n = n + 1
 	end
 	for _, entry in pairs(self.db.raids) do
-		if not seen[entry.name] then
+		if entry.name and not seen[entry.name] then
 			seen[entry.name] = true
 			n = n + 1
 		end

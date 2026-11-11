@@ -50,6 +50,11 @@ local function nilIfEmpty(s)
 	return s
 end
 
+-- A decoded text field: cleaned, and nil when empty.
+local function text(s)
+	return nilIfEmpty(clean(s))
+end
+
 local function versionOk(field)
 	return parseInt(field) == Comm.VERSION
 end
@@ -145,27 +150,29 @@ local function decodeMob(f, db)
 		return false
 	end
 	local minLevel, maxLevel, points, count = parseInt(f[6]), parseInt(f[7]), parseInt(f[8]), parseInt(f[11])
-	if f[2] == "" or not (minLevel and maxLevel and points and count) then
+	local name = text(f[2])
+	if not name or not (minLevel and maxLevel and points and count) then
 		return false
 	end
-	local entry = db.mobs[f[2]]
+	local entry = db.mobs[name]
 	if not entry then
 		entry = {
-			name = f[2],
-			classification = nilIfEmpty(f[3]),
-			creatureType = nilIfEmpty(f[4]),
-			family = nilIfEmpty(f[5]),
+			name = name,
+			classification = text(f[3]),
+			creatureType = text(f[4]),
+			family = text(f[5]),
 			minLevel = minLevel ~= 0 and minLevel or nil,
 			maxLevel = maxLevel ~= 0 and maxLevel or nil,
 			points = points,
 			places = {},
 		}
-		db.mobs[f[2]] = entry
+		db.mobs[name] = entry
 	end
-	if f[9] ~= "" then
-		entry.places[f[9]] = { count = count }
-		if not db.places[f[9]] then
-			db.places[f[9]] = { group = nilIfEmpty(f[10]) }
+	local zone = text(f[9])
+	if zone then
+		entry.places[zone] = { count = count }
+		if not db.places[zone] then
+			db.places[zone] = { group = text(f[10]) }
 		end
 	end
 	return true
@@ -176,13 +183,14 @@ local function decodePlayer(f, db)
 		return false
 	end
 	local count, points = parseInt(f[6]), parseInt(f[7])
-	if f[2] == "" or not (count and points) then
+	local key, name = text(f[2]), text(f[3])
+	if not key or not name or not (count and points) then
 		return false
 	end
-	db.players[f[2]] = {
-		name = nilIfEmpty(f[3]),
-		class = nilIfEmpty(f[4]),
-		race = nilIfEmpty(f[5]),
+	db.players[key] = {
+		name = name,
+		class = text(f[4]),
+		race = text(f[5]),
 		count = count,
 		points = points,
 		places = {},
@@ -195,11 +203,12 @@ local function decodeRaid(f, db)
 		return false
 	end
 	local npcID, instanceID, count, points = parseInt(f[2]), parseInt(f[3]), parseInt(f[5]), parseInt(f[6])
-	if not (npcID and instanceID and count and points) or (f[7] ~= "0" and f[7] ~= "1") then
+	local name = text(f[4])
+	if not name or not (npcID and instanceID and count and points) or (f[7] ~= "0" and f[7] ~= "1") then
 		return false
 	end
 	db.raids[npcID] = {
-		name = nilIfEmpty(f[4]),
+		name = name,
 		instanceID = instanceID,
 		count = count,
 		points = points,

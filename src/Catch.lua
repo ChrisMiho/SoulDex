@@ -9,6 +9,7 @@ ns.Catch = Catch
 Catch.WINDOW = 3 -- seconds from death to shard
 Catch.GRACE = 1 -- aura removed this long before the death still counts
 Catch.SHADOWBURN = 5 -- seconds Shadowburn can precede the death
+Catch.DRAIN_SOUL = 15 -- seconds a Drain Soul channel can last
 Catch.CACHE_TTL = 600 -- drop cached details older than this
 
 local Matcher = {}
@@ -64,7 +65,9 @@ local function qualifies(self, guid, now)
 	end
 	for kind, a in pairs(byKind) do
 		local live = a.gone == nil or now - a.gone <= Catch.GRACE
-		if live and (kind ~= "shadowburn" or now - a.applied <= Catch.SHADOWBURN) then
+		-- A missed removal event must not keep an aura live: cap it at its longest duration.
+			local cap = kind == "shadowburn" and Catch.SHADOWBURN or Catch.DRAIN_SOUL + Catch.GRACE
+			if live and now - a.applied <= cap then
 			return true
 		end
 	end
@@ -123,7 +126,8 @@ end
 
 function Matcher:takeCandidate(now)
 	expire(self, now)
-	return table.remove(self.queue, 1)
+	-- The most recent death wins; older ones stay queued until they expire.
+	return table.remove(self.queue)
 end
 
 function Matcher:hasPending(now)

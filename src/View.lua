@@ -8,6 +8,7 @@ ns.View = View
 
 local GROUP_FIRST = { "Eastern Kingdoms", "Kalimdor" }
 local GROUP_LAST = "Dungeons"
+local GROUP_RAIDS = "Raids"
 local GROUP_FALLBACK = "Other"
 
 local function groupRank(group)
@@ -15,6 +16,9 @@ local function groupRank(group)
 		if group == name then
 			return i
 		end
+	end
+	if group == GROUP_RAIDS then
+		return 999
 	end
 	if group == GROUP_LAST then
 		return 1000
@@ -181,8 +185,9 @@ function View.raidMobs(dex, instanceID, other)
 		end
 	end
 	table.sort(extra, function(a, b)
-		if a.name ~= b.name then
-			return a.name < b.name
+		local an, bn = a.name or "", b.name or ""
+		if an ~= bn then
+			return an < bn
 		end
 		return a.npcID < b.npcID
 	end)

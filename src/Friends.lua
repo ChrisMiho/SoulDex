@@ -7,6 +7,29 @@ ns.Friends = Friends
 
 local ONLINE_WINDOW = 600
 
+-- string.lower/upper only handle ASCII in Lua 5.1, so the Latin-1 Supplement
+-- letters (UTF-8 "\195" + \128-\158 capitals, \160-\190 lowercase; \151 and \183
+-- are the multiplication and division signs) are mapped by hand.
+local function lowerCase(s)
+	s = s:lower()
+	return (s:gsub("\195([\128-\158])", function(b)
+		if b == "\151" then
+			return nil
+		end
+		return "\195" .. string.char(b:byte() + 32)
+	end))
+end
+
+local function upperFirst(s)
+	local lead, second = s:byte(1, 2)
+	if lead == 195 and second and second >= 160 and second <= 190 and second ~= 183 then
+		return "\195" .. string.char(second - 32) .. s:sub(3)
+	end
+	return s:sub(1, 1):upper() .. s:sub(2)
+end
+
+-- The one spelling a name is stored and compared by: realm dropped, first
+-- letter capitalised, the rest lower case (so "ëlric" and "Ëlric" are the same).
 function Friends.normalise(name)
 	if type(name) ~= "string" then
 		return nil
@@ -15,7 +38,7 @@ function Friends.normalise(name)
 	if name == "" then
 		return nil
 	end
-	return name:sub(1, 1):upper() .. name:sub(2):lower()
+	return upperFirst(lowerCase(name))
 end
 
 local function isSeen(entry, now)
