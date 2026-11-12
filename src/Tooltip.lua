@@ -6,7 +6,6 @@ local _, ns = ...
 local Tooltip = {}
 ns.Tooltip = Tooltip
 
-local SHARD_ITEM_ID = 6265
 local UNKNOWN_COLOR = "9d9d9d"
 
 -- The two lines for a soul { name, color, zone, time, unknown }: "Soul of <name>" (or a
@@ -67,7 +66,7 @@ function Tooltip.onItem(tip, data)
 	if not C.readable(forbidden) or forbidden then
 		return
 	end
-	if not C.readableTable(data) or not C.plainNumber(data.id) or data.id ~= SHARD_ITEM_ID then
+	if not C.readableTable(data) or not C.plainNumber(data.id) or data.id ~= ns.Shards.ITEM_ID then
 		return
 	end
 	local R = C_RestrictedActions
@@ -90,7 +89,7 @@ function Tooltip.onSetBagItem(tip, bag, slot)
 		return
 	end
 	local itemID = C.call(C_Container.GetContainerItemID, bag, slot)
-	if not C.plainNumber(itemID) or itemID ~= SHARD_ITEM_ID then
+	if not C.plainNumber(itemID) or itemID ~= ns.Shards.ITEM_ID then
 		return
 	end
 	local soul = soulFor(C.itemGuid(bag, slot))

@@ -79,6 +79,91 @@ local TEMPLATES = {
 	},
 }
 
+-- Lines for one beast family, tried before the creature type's (spec 6.5). Keyed by the
+-- English family name; other client languages fall back to the type's lines.
+local FAMILIES = {
+	Wolf = {
+		"{name} howled at the moon. The moon did not help.",
+		"A wolf of {zone}. The pack will notice the gap.",
+		"{name} was all bark, then all bite, then all shard.",
+	},
+	Spider = {
+		"{name} spun a lovely web in {zone}. Nobody will clean it up now.",
+		"Eight legs, eight eyes, one soul. {name}.",
+		"{name} was more scared of you than you were of it. Correctly.",
+	},
+	Boar = {
+		"{name} charged first and thought never.",
+		"A boar of {zone}. Somebody's dinner, now somebody's shard.",
+		"{name} had tusks, a temper and no plan.",
+	},
+	Cat = {
+		"{name} landed on its feet. Then on its side.",
+		"A cat of {zone}. Nine lives, one shard.",
+		"{name} stalked you for a mile. Bad choice of prey.",
+	},
+	Bear = {
+		"{name} wanted a hug. You wanted a soul.",
+		"A bear of {zone}, now hibernating in your bag.",
+		"{name} was big, brown and briefly furious.",
+	},
+	Raptor = {
+		"{name} was clever enough to open doors. Not shards.",
+		"A raptor of {zone}. It hunted in packs; it was collected alone.",
+		"{name} screeched. The shard did not.",
+	},
+	Crocolisk = {
+		"{name} lay in wait in {zone}. You waited better.",
+		"All teeth and no patience. {name}.",
+		"{name} would have made a lovely pair of boots.",
+	},
+	Bat = {
+		"{name} flapped around {zone} like it owned the place.",
+		"A bat with sonar and no sense. {name}.",
+		"{name} hung upside down. Now it hangs in your bag.",
+	},
+	Owl = {
+		"{name} asked who. You answered.",
+		"A wise owl of {zone}. Not wise enough.",
+		"{name} saw everything coming, except you.",
+	},
+	Gorilla = {
+		"{name} beat its chest. You beat its chest too, sort of.",
+		"A gorilla of {zone}. Strong arms, weak soul.",
+		"{name} threw something at you. You threw a curse back.",
+	},
+	Hyena = {
+		"{name} laughed at you. Who's laughing now?",
+		"A hyena of {zone}. The joke was on it.",
+		"{name} cackled until the shard closed.",
+	},
+	Scorpid = {
+		"{name} had a stinger and a bad attitude.",
+		"A scorpid of {zone}. Pinch, sting, shard.",
+		"{name} raised its tail in warning. Warning ignored.",
+	},
+	Turtle = {
+		"{name} hid in its shell. The shell was not soul-proof.",
+		"A turtle of {zone}. Slow to anger, slower to flee.",
+		"{name} lived a hundred years and met you on the last one.",
+	},
+	["Carrion Bird"] = {
+		"{name} circled the dead of {zone}. Now it is one of them.",
+		"A vulture with ambitions. {name}.",
+		"{name} was waiting for you to drop. Rude.",
+	},
+	Tallstrider = {
+		"{name} had long legs and no reason to stay.",
+		"A tallstrider of {zone}. Tall, striding, shard.",
+		"{name} ran away very fast. Not fast enough.",
+	},
+	Crab = {
+		"{name} scuttled sideways into your bag.",
+		"A crab of {zone}. Snappy to the end.",
+		"{name} was crabby. Understandably.",
+	},
+}
+
 local GENERIC = {
 	"{name} of {zone}. Another soul for the pile.",
 	"{name} has been entered into the Dex. It did not consent.",
@@ -132,7 +217,10 @@ function Flavour.line(name, creatureType, family, zone)
 		zone = present(zone),
 	}
 
-	local candidates = eligible(TEMPLATES[creatureType] or {}, values)
+	local candidates = eligible(values.family and FAMILIES[values.family] or {}, values)
+	if #candidates == 0 then
+		candidates = eligible(TEMPLATES[creatureType] or {}, values)
+	end
 	if #candidates == 0 then
 		candidates = eligible(GENERIC, values)
 	end

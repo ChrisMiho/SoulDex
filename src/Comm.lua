@@ -35,9 +35,10 @@ local function int(n)
 	return string.format("%d", math.floor(tonumber(n) or 0))
 end
 
--- Strict decimal integer, or nil.
+-- Strict non-negative decimal integer of at most 9 digits, or nil. Every number on the
+-- wire is a count, score, level or id, so anything else is junk (or a prank).
 local function parseInt(s)
-	if type(s) ~= "string" or not s:match("^%-?%d+$") then
+	if type(s) ~= "string" or not s:match("^%d+$") or #s > 9 then
 		return nil
 	end
 	return tonumber(s)

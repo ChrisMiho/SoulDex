@@ -2,7 +2,7 @@ describe("UIFormat", function()
 	local F
 
 	before_each(function()
-		F = LoadAddonFile("src/UIFormat.lua", {}).UIFormat
+		F = LoadAddonFile("src/UIFormat.lua", LoadAddonFile("src/View.lua", {})).UIFormat
 	end)
 
 	local function texts(lines)
@@ -221,7 +221,7 @@ describe("UIFormat", function()
 			local lines = F.playerDetailLines({
 				name = "Stabbyface",
 				class = "ROGUE",
-				levelRaceClass = "Lv 38 Orc Rogue",
+				levelRace = "Lv 38 Orc",
 				guild = "Blood Fang",
 				count = 5,
 				first = stamp(2026, 11, 2),
@@ -233,10 +233,10 @@ describe("UIFormat", function()
 					{ zone = "Hillsbrad", x = 52.1, y = 47.3, count = 3 },
 					{ zone = "Arathi", count = 2 },
 				},
-			}, os.date, { ROGUE = { r = 1, g = 0.96, b = 0.41 } })
+			}, os.date, { ROGUE = { r = 1, g = 0.96, b = 0.41 } }, { ROGUE = "Schurke" })
 			assert.same({
 				"Stabbyface",
-				"Lv 38 Orc Rogue",
+				"Lv 38 Orc Schurke", -- the client's class name
 				"<Blood Fang>",
 				"--",
 				"Sharded | \195\1515",
@@ -252,7 +252,7 @@ describe("UIFormat", function()
 		end)
 
 		it("never shows nil for a friend's bare player", function()
-			local lines = F.playerDetailLines({ name = "Stab", levelRaceClass = "", places = {} }, os.date, nil)
+			local lines = F.playerDetailLines({ name = "Stab", levelRace = "", places = {} }, os.date, nil)
 			local d = F.DASH
 			assert.same({ "Stab", "--", "Sharded | " .. d, "First | " .. d, "Last | " .. d }, texts(lines))
 			assert.equal("ffffff", lines[1].color)

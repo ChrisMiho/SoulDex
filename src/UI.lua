@@ -79,7 +79,7 @@ local function detailLines(tab, value)
 		return d and F.mobDetailLines(d)
 	elseif tab == "Players" then
 		local d = View.playerDetail(dex, value)
-		return d and F.playerDetailLines(d, nil, RAID_CLASS_COLORS)
+		return d and F.playerDetailLines(d, nil, RAID_CLASS_COLORS, LOCALIZED_CLASS_NAMES_MALE)
 	elseif tab == "Raids" then
 		local d = View.raidDetail(dex, value)
 		return d and F.mobDetailLines(d)
@@ -146,14 +146,14 @@ local function drawLists(dex, keepLeft, keepRight)
 end
 
 -- The Me tab. Browsing a friend shows their numbers and no rank.
-local function drawMe(dex)
+local function drawMe(dex, keepScroll)
 	local lines
 	if state.owner then
 		lines = ns.View.me(dex, false, nil, 0)
 	else
 		lines = ns.View.me(dex, ns.db and ns.db.friends, ns.Net and ns.Net.me(dex), time())
 	end
-	fullList:set(F.meLines(lines), nil, false)
+	fullList:set(F.meLines(lines), nil, keepScroll)
 end
 
 local function drawFriends()
@@ -197,7 +197,7 @@ draw = function(action)
 	if collection then
 		drawLists(dex, keepLeft, keepRight)
 	elseif tab == "Me" then
-		drawMe(dex)
+		drawMe(dex, keepRight)
 	elseif tab == "Milestones" then
 		fullList:set(F.milestoneRows(ns.Milestones.list(dex)), nil, keepRight)
 	else

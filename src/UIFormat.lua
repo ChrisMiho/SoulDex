@@ -23,8 +23,8 @@ local C = {
 }
 F.COLORS = C
 
-F.DASH = "\226\128\148" -- em dash: a field the dex doesn't have
-local TIMES = "\195\151" -- multiplication sign
+F.DASH = ns.View.DASH
+local TIMES = ns.View.TIMES
 local DOT = " \194\183 "
 
 -- Markers drawn as textures: the game font has no ★ / ☠ / ✓ glyphs.
@@ -88,6 +88,11 @@ end
 
 function F.titleCase(text)
 	return text:sub(1, 1):upper() .. text:sub(2):lower()
+end
+
+-- A class token ("ROGUE") as a name: the client's LOCALIZED_CLASS_NAMES_MALE when given.
+function F.className(class, classNames)
+	return classNames and classNames[class] or F.titleCase(class)
 end
 
 -- Hex class colour from RAID_CLASS_COLORS (or nil).
@@ -179,7 +184,7 @@ end
 function F.classRows(rows, selected, classColors, classNames)
 	local out = {}
 	for _, row in ipairs(rows) do
-		local name = classNames and classNames[row.class] or F.titleCase(row.class)
+		local name = F.className(row.class, classNames)
 		out[#out + 1] = {
 			text = name,
 			color = F.classHex(row.class, classColors) or C.TEXT,
@@ -318,13 +323,15 @@ function F.mobDetailLines(d, fmt)
 	return lines
 end
 
--- Player detail (View.playerDetail).
-function F.playerDetailLines(d, fmt, classColors)
+-- Player detail (View.playerDetail). classNames: LOCALIZED_CLASS_NAMES_MALE (or nil).
+function F.playerDetailLines(d, fmt, classColors, classNames)
 	local lines = {
 		{ text = d.name or F.DASH, color = F.classHex(d.class, classColors) or C.WHITE, big = true },
 	}
-	if d.levelRaceClass and d.levelRaceClass ~= "" then
-		lines[#lines + 1] = { text = d.levelRaceClass, color = C.MUTED }
+	local className = d.class and d.class ~= "" and F.className(d.class, classNames) or nil
+	local levelRaceClass = F.join({ d.levelRace, className }, " ", 2)
+	if levelRaceClass then
+		lines[#lines + 1] = { text = levelRaceClass, color = C.MUTED }
 	end
 	if d.guild and d.guild ~= "" then
 		lines[#lines + 1] = { text = "<" .. d.guild .. ">", color = C.GREEN }

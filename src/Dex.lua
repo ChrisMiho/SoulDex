@@ -10,7 +10,9 @@ local meta = { __index = methods }
 
 function Dex.new(db)
 	for _, key in ipairs({ "mobs", "places", "players", "raids", "milestones", "unknown" }) do
-		db[key] = db[key] or {}
+		if type(db[key]) ~= "table" then
+			db[key] = {} -- missing, or damaged saved data
+		end
 	end
 	return setmetatable({ db = db }, meta)
 end
@@ -19,6 +21,28 @@ local function notePlace(db, ctx)
 	if ctx.zone and not db.places[ctx.zone] then
 		db.places[ctx.zone] = { group = ctx.group }
 	end
+end
+
+local function noteLevel(entry, level)
+	if level then
+		if not entry.minLevel or level < entry.minLevel then
+			entry.minLevel = level
+		end
+		if not entry.maxLevel or level > entry.maxLevel then
+			entry.maxLevel = level
+		end
+	end
+end
+
+-- How many different mobs have been caught in zone.
+local function mobsIn(db, zone)
+	local n = 0
+	for _, entry in pairs(db.mobs) do
+		if entry.places and entry.places[zone] then
+			n = n + 1
+		end
+	end
+	return n
 end
 
 function methods:recordMob(info, ctx)
@@ -43,14 +67,7 @@ function methods:recordMob(info, ctx)
 		db.mobs[info.name] = entry
 	end
 	entry.last = ctx.time
-	if info.level then
-		if not entry.minLevel or info.level < entry.minLevel then
-			entry.minLevel = info.level
-		end
-		if not entry.maxLevel or info.level > entry.maxLevel then
-			entry.maxLevel = info.level
-		end
-	end
+	noteLevel(entry, info.level)
 	local place = entry.places[ctx.zone]
 	if not place then
 		place = { count = 0, first = ctx.time, myLevel = ctx.myLevel, x = ctx.x, y = ctx.y }
@@ -58,7 +75,8 @@ function methods:recordMob(info, ctx)
 	end
 	place.count = place.count + 1
 	place.last = ctx.time
-	return { isNew = isNew, points = points, placeCount = place.count, kind = "mob" }
+	-- placeCount: the zone's unique mob count after this catch (the popup's "#N here").
+	return { isNew = isNew, points = points, placeCount = mobsIn(db, ctx.zone), kind = "mob" }
 end
 
 function methods:recordPlayer(info, ctx)
@@ -93,7 +111,7 @@ function methods:recordPlayer(info, ctx)
 		entry.places[ctx.zone] = place
 	end
 	place.count = place.count + 1
-	return { isNew = isNew, points = points, placeCount = place.count, kind = "player" }
+	return { isNew = isNew, points = points, kind = "player" }
 end
 
 function methods:recordRaid(info, ctx, instanceID, npcID)
@@ -115,6 +133,11 @@ function methods:recordRaid(info, ctx, instanceID, npcID)
 		}
 		db.raids[npcID] = entry
 	end
+	-- Filled on later catches too, for entries saved before these were kept.
+	entry.classification = entry.classification or info.classification
+	entry.creatureType = entry.creatureType or info.creatureType
+	entry.family = entry.family or info.family
+	noteLevel(entry, info.level)
 	entry.count = entry.count + 1
 	entry.last = ctx.time
 	return { isNew = isNew, points = points, kind = "raid" }

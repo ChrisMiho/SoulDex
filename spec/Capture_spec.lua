@@ -284,6 +284,22 @@ describe("Capture glue", function()
 			local _, db = boot()
 			drain("cast1", "Hogger")
 			putShard(1, "A")
+			fire("BAG_UPDATE_DELAYED")
+			flush()
+			world.clock = 101
+			putShard(2, "B")
+			fire("BAG_UPDATE_DELAYED")
+			flush()
+			assert.equal(1, db.mobs.Hogger.places["Elwynn Forest"].count)
+			assert.equal("Hogger", db.shardSouls.A.soul.name)
+			assert.is_false(db.shardSouls.B.soul)
+		end)
+
+		it("two new shards in one scan: neither is named, and the capture is spent", function()
+			world.target = HOGGER
+			local _, db = boot()
+			drain("cast1", "Hogger")
+			putShard(1, "A")
 			putShard(2, "B")
 			fire("BAG_UPDATE_DELAYED")
 			flush()
@@ -291,15 +307,62 @@ describe("Capture glue", function()
 			putShard(3, "C")
 			fire("BAG_UPDATE_DELAYED")
 			flush()
-			assert.equal(1, db.mobs.Hogger.places["Elwynn Forest"].count)
-			local named = 0
-			for _, entry in pairs(db.shardSouls) do
-				if entry.soul then
-					named = named + 1
-				end
+			assert.same({}, db.mobs)
+			assert.is_false(db.shardSouls.A.soul)
+			assert.is_false(db.shardSouls.B.soul)
+			assert.is_false(db.shardSouls.C.soul)
+		end)
+
+		it("a new shard in a quiet scan spends the capture, so a later shard isn't named", function()
+			world.target = HOGGER
+			local _, db = boot()
+			drain("cast1", "Hogger")
+			world.cursor = "item"
+			putShard(1, "KILL")
+			fire("BAG_UPDATE_DELAYED")
+			flush()
+			world.cursor = nil
+			world.clock = 102
+			putShard(2, "TRADED")
+			fire("BAG_UPDATE_DELAYED")
+			flush()
+			assert.is_false(db.shardSouls.KILL.soul)
+			assert.is_false(db.shardSouls.TRADED.soul)
+			assert.same({}, db.mobs)
+		end)
+
+		it("new shards while the mail, trade or vendor window is open are soulless", function()
+			world.target = HOGGER
+			local _, db = boot()
+			local slot = 0
+			for _, pair in ipairs({ { "MAIL_SHOW", "MAIL_CLOSED" }, { "TRADE_SHOW", "TRADE_CLOSED" },
+				{ "MERCHANT_SHOW", "MERCHANT_CLOSED" } }) do
+				world.clock = world.clock + 30
+				drain("cast" .. pair[1], "Hogger")
+				fire(pair[1])
+				slot = slot + 1
+				putShard(slot, pair[1])
+				fire("BAG_UPDATE_DELAYED")
+				flush()
+				fire(pair[2])
+				flush()
+				assert.is_false(db.shardSouls[pair[1]].soul)
 			end
-			assert.equal(1, named)
-			assert.equal("Hogger", db.shardSouls.A.soul.name) -- the first in sorted order
+			assert.same({}, db.mobs)
+		end)
+
+		it("a shard is saved even when recording its catch errors", function()
+			world.target = HOGGER
+			local errors = {}
+			local ns, db = boot()
+			_G.geterrorhandler = function() return function(err) errors[#errors + 1] = err end end
+			ns.dex.recordMob = function() error("boom", 0) end
+			drain("cast1", "Hogger")
+			putShard(1, "NEW")
+			fire("BAG_UPDATE_DELAYED")
+			flush()
+			assert.is_false(db.shardSouls.NEW.soul)
+			assert.same({ "boom" }, errors)
 		end)
 
 		it("a hidden name records an Unknown soul in the zone", function()
@@ -496,6 +559,23 @@ describe("Capture glue", function()
 			fire("BAG_UPDATE_DELAYED")
 			flush()
 			assert.is_not_nil(db.mobs.Hogger)
+		end)
+
+		it("a secret SENT target name gives an Unknown soul, even with a readable target", function()
+			world.target = HOGGER
+			local _, db = boot()
+			drain("cast1", STR_SECRET)
+			putShard(1, "N1")
+			fire("BAG_UPDATE_DELAYED")
+			flush()
+			world.clock = 130
+			fire("UNIT_SPELLCAST_SENT", "player", SECRET, "castA", 1120)
+			fire("UNIT_SPELLCAST_CHANNEL_START", "player", "castB", 1120)
+			putShard(2, "N2")
+			fire("BAG_UPDATE_DELAYED")
+			flush()
+			assert.same({}, db.mobs)
+			assert.equal(2, db.unknown["Elwynn Forest"].count)
 		end)
 
 		it("a string secret in the target name gives an Unknown soul", function()
@@ -736,16 +816,6 @@ describe("Capture glue", function()
 		end)
 	end)
 
-	it("splits Name-Realm", function()
-		local ns = load()
-		local name, realm = ns.Capture.splitName("Bob-Realm One", "Home")
-		assert.equal("Bob", name)
-		assert.equal("Realm One", realm)
-		name, realm = ns.Capture.splitName("Bob", "Home")
-		assert.equal("Bob", name)
-		assert.equal("Home", realm)
-	end)
-
 	it("colours players by class and mobs by rarity", function()
 		local ns = load()
 		local classColors = { ROGUE = { r = 1, g = 0.96, b = 0.41 } }
@@ -787,13 +857,13 @@ describe("Capture glue", function()
 		it("records a catch in a raid-type instance we do not list as a mob under Raids", function()
 			local ns, dex = setup()
 			local cand = { guid = "Creature-0-1-9999-2-777-3", info = { name = "Odd Beast", classification = "normal" } }
-			local r, kind = ns.Capture.recordCatch(dex, cand, ctx, "raid", 9999)
+			local raidCtx = { time = 100, myLevel = 20, zone = "Odd Keep", group = "Raids" }
+			local r, kind = ns.Capture.recordCatch(dex, cand, raidCtx, "raid", 9999)
 			assert.equal("mob", kind)
 			assert.is_true(r.isNew)
 			assert.is_not_nil(dex.db.mobs["Odd Beast"])
 			assert.same({}, dex.db.raids)
-			assert.equal("Raids", dex.db.places["Elwynn Forest"].group)
-			assert.equal("Eastern Kingdoms", ctx.group) -- the caller's ctx is untouched
+			assert.equal("Raids", dex.db.places["Odd Keep"].group)
 		end)
 		it("records everything else as a mob", function()
 			local ns, dex = setup()

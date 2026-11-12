@@ -40,10 +40,6 @@ function Pane:close(instant)
 	end
 end
 
-function Pane:isOpen()
-	return self.frame:IsShown() and self.target == 0
-end
-
 local function backButton(parent, onClick)
 	local UI = ns.UI
 	local C = ns.UIFormat.COLORS

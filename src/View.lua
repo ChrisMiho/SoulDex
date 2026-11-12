@@ -6,6 +6,9 @@ local _, ns = ...
 local View = {}
 ns.View = View
 
+View.DASH = "\226\128\148" -- em dash: a field the dex doesn't have
+View.TIMES = "\195\151" -- multiplication sign
+
 local GROUP_FIRST = { "Eastern Kingdoms", "Kalimdor" }
 local GROUP_LAST = "Dungeons"
 local GROUP_RAIDS = "Raids"
@@ -244,6 +247,8 @@ function View.mobDetail(dex, name, place)
 	if not mob then
 		return nil
 	end
+	-- The flavour line uses the first place on purpose, so it stays the same whichever
+	-- place is selected (spec 6.5).
 	local firstZone = firstPlace(mob)
 	place = place or firstZone
 	local record = mob.places and mob.places[place]
@@ -267,10 +272,6 @@ function View.mobDetail(dex, name, place)
 	}
 end
 
-local function titleCase(text)
-	return (text:sub(1, 1):upper() .. text:sub(2):lower())
-end
-
 function View.playerDetail(dex, key)
 	local player = dex.db.players[key]
 	if not player then
@@ -282,9 +283,6 @@ function View.playerDetail(dex, key)
 	end
 	if player.race and player.race ~= "" then
 		parts[#parts + 1] = player.race
-	end
-	if player.class and player.class ~= "" then
-		parts[#parts + 1] = titleCase(player.class)
 	end
 
 	local places = {}
@@ -301,7 +299,7 @@ function View.playerDetail(dex, key)
 	return {
 		name = player.name,
 		class = player.class,
-		levelRaceClass = table.concat(parts, " "),
+		levelRace = table.concat(parts, " "), -- the UI adds the class name in the client's language
 		guild = player.guild,
 		count = player.count,
 		first = player.first,
@@ -323,9 +321,9 @@ function View.raidDetail(dex, npcID)
 	return {
 		name = entry.name,
 		classification = entry.classification,
-		levelText = nil,
-		typeText = "",
-		flavour = ns.Flavour.line(entry.name, nil, nil, zone),
+		levelText = levelText(entry.minLevel, entry.maxLevel),
+		typeText = typeText(entry.creatureType, entry.family),
+		flavour = ns.Flavour.line(entry.name, entry.creatureType, entry.family, zone),
 		place = zone,
 		count = entry.count,
 		first = entry.first,
@@ -347,8 +345,7 @@ local function thousands(n)
 	return text
 end
 
-local DASH = "\226\128\148" -- em dash, as UIFormat.DASH
-local TIMES = "\195\151"
+local DASH, TIMES = View.DASH, View.TIMES
 
 -- The key with the highest count; ties go to the alphabetically first key.
 local function topOf(counts)

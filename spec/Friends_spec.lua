@@ -89,7 +89,7 @@ describe("Friends", function()
 		assert.equal(3, store.Zed.summary.score)
 	end)
 
-	it("remove deletes only added people who are not currently seen", function()
+	it("remove deletes everyone except an added person who is online (only un-added)", function()
 		local store = {}
 		Friends.add(store, "bob")
 		Friends.merge(store, "bob", sum(1), 100, false)
@@ -103,8 +103,27 @@ describe("Friends", function()
 		assert.is_false(store.Amy.added)
 
 		Friends.merge(store, "cat", sum(1), 1000, true)
-		Friends.remove(store, "cat", 5000)
+		Friends.remove(store, "cat", 1100)
+		assert.is_nil(store.Cat) -- never added: gone even while online
+	end)
+
+	it("purge drops people not added and not kept", function()
+		local store = {}
+		Friends.add(store, "ann")
+		Friends.merge(store, "bob", sum(1), 100, true)
+		Friends.merge(store, "cat", sum(1), 100, true)
+		assert.equal(1, Friends.purge(store, { Cat = true }))
+		assert.is_not_nil(store.Ann)
+		assert.is_nil(store.Bob)
 		assert.is_not_nil(store.Cat)
+	end)
+
+	it("the leaderboard sorts when your name is unreadable", function()
+		local store = {}
+		Friends.merge(store, "bob", sum(0), 900, true)
+		local ok, rows = pcall(Friends.leaderboard, store, { name = nil, summary = sum(0) }, 1000)
+		assert.is_true(ok)
+		assert.equal(2, #rows)
 	end)
 
 	it("orders the leaderboard and flags me", function()

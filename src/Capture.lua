@@ -10,7 +10,8 @@
 --   ns.onLoaded  functions called with (db) at the end of ns.OnLoaded
 --   ns.onCatch   functions called with (result, entry) after every recorded catch, where
 --                result is the Dex.record* result ({ isNew, points, placeCount, kind })
---                and entry is { info = <mob/player info>, ctx = <catch context>, kind = <result.kind> }
+--                and entry is { info = <mob/player info>, ctx = <catch context>, kind = <result.kind>,
+--                color = <soul hex colour, or nil for an unknown soul> }
 local _, ns = ...
 
 local Capture = {}
@@ -19,7 +20,7 @@ ns.Capture = Capture
 ns.onLoaded = ns.onLoaded or {}
 ns.onCatch = ns.onCatch or {}
 
-local SHARD_ITEM_ID = 6265
+local SHARD_ITEM_ID = ns.Shards.ITEM_ID
 local DRAIN_SOUL_ID = 1120
 local SHADOWBURN_ID = 17877
 local FALLBACK_SOUND = 8959
@@ -131,18 +132,6 @@ function Capture.groupFor(instanceType, continent)
 	return continent or "Other"
 end
 
--- "Name-Realm" -> name, realm. A bare name keeps the fallback realm.
-function Capture.splitName(full, fallbackRealm)
-	if not full then
-		return nil, fallbackRealm
-	end
-	local name, realm = full:match("^([^-]+)-(.+)$")
-	if name then
-		return name, realm
-	end
-	return full, fallbackRealm
-end
-
 -- "drainsoul", "shadowburn" or nil for a spell ID. names: { drainsoul = <name>,
 -- shadowburn = <name> } (either may be nil); nameOf(id) gives a spell's name or nil.
 function Capture.spellKind(spellID, nameOf, names)
@@ -194,10 +183,11 @@ function Capture.colorFor(info, classColors)
 end
 
 -- Records a captured target { guid, info } into the dex. Returns result, kind (or nil if
--- it can't be recorded). ctx must already hold time, myLevel, zone, group, x, y.
+-- it can't be recorded). ctx must already hold time, myLevel, zone, group, x, y (as
+-- buildContext gives them: a raid-type instance is already grouped under "Raids").
 function Capture.recordCatch(dex, cand, ctx, instanceType, instanceID)
 	local info = cand.info
-	if not info or not info.name or info.unknown or not ctx.zone then
+	if not info or not info.name or info.unknown then
 		return nil
 	end
 	if info.isPlayer or Capture.isPlayerGuid(cand.guid) then
@@ -208,13 +198,7 @@ function Capture.recordCatch(dex, cand, ctx, instanceType, instanceID)
 		if instanceID and npcID and ns.Raids.byInstance(instanceID) then
 			return dex:recordRaid(info, ctx, instanceID, npcID), "raid"
 		end
-		-- A raid we do not list: a plain mob, under its own "Raids" group.
-		local raidCtx = {}
-		for k, v in pairs(ctx) do
-			raidCtx[k] = v
-		end
-		raidCtx.group = "Raids"
-		return dex:recordMob(info, raidCtx), "mob"
+		-- A raid we do not list: a plain mob (ctx.group is already "Raids").
 	end
 	return dex:recordMob(info, ctx), "mob"
 end
@@ -251,9 +235,9 @@ local function isUnknownName(name)
 end
 
 -- The unit's details. A hidden or unknown name gives { unknown = true, isPlayer, guid }.
--- sentName: the target name UNIT_SPELLCAST_SENT reported, when readable: if it differs
--- from the unit's name the spell went elsewhere (a mouseover macro), so the name is
--- not trusted.
+-- sentName: the target name UNIT_SPELLCAST_SENT reported: if it differs from the unit's
+-- name the spell went elsewhere (a mouseover macro), so the name is not trusted. A secret
+-- sentName can't be compared, so it is not trusted either.
 function Capture.readUnit(unit, sentName)
 	local guid = str(call(UnitGUID, unit))
 	local isPlayer = call(UnitIsPlayer, unit)
@@ -266,7 +250,7 @@ function Capture.readUnit(unit, sentName)
 		isPlayer = Capture.isPlayerGuid(guid)
 	end
 	local name, realm = call(UnitName, unit)
-	if isUnknownName(name) then
+	if isUnknownName(name) or (sentName ~= nil and not readable(sentName)) then
 		return { unknown = true, isPlayer = isPlayer, guid = guid }
 	end
 	if plainString(sentName) then
@@ -413,7 +397,7 @@ end
 local function popup(db, result, entry)
 	local settings = db.settings
 	if settings.popup and ns.Toast then
-		ns.Toast.show(result, entry.info, entry.ctx)
+		ns.Toast.show(result, entry.info, entry.ctx, entry.color)
 	end
 	if settings.sound then
 		local kit = SOUNDKIT and SOUNDKIT.UI_EPICLOOT_TOAST or FALLBACK_SOUND
@@ -450,7 +434,7 @@ function Capture.record(dex, capture)
 		zone = ctx.zone,
 		time = ctx.time,
 	}
-	return soul, { result = result, entry = { info = info, ctx = ctx, kind = kind } }
+	return soul, { result = result, entry = { info = info, ctx = ctx, kind = kind, color = soul.color } }
 end
 
 -- Event wiring ------------------------------------------------------------------------------
@@ -467,6 +451,21 @@ local EVENTS = {
 	"PLAYER_REGEN_ENABLED",
 	"BANKFRAME_OPENED",
 	"BANKFRAME_CLOSED",
+	"MAIL_SHOW",
+	"MAIL_CLOSED",
+	"TRADE_SHOW",
+	"TRADE_CLOSED",
+	"MERCHANT_SHOW",
+	"MERCHANT_CLOSED",
+}
+
+-- Windows a shard can arrive from without a kill (bank, mail, trade, vendor buyback):
+-- open event -> its close event.
+local SHARD_SOURCES = {
+	BANKFRAME_OPENED = "BANKFRAME_CLOSED",
+	MAIL_SHOW = "MAIL_CLOSED",
+	TRADE_SHOW = "TRADE_CLOSED",
+	MERCHANT_SHOW = "MERCHANT_CLOSED",
 }
 
 -- Registers each event on its own, so one the client refuses can't stop the rest.
@@ -498,8 +497,8 @@ function Capture.start(db, dex)
 	ns.dex = dex
 	local window = ns.Catch.new()
 	local scanned, baselineQueued, scanQueued = false, false, false
-	local bankOpen = false
-	local sent -- { castGUID, kind, info, targetName, time } from the last UNIT_SPELLCAST_SENT
+	local sourcesOpen = {} -- open SHARD_SOURCES windows, by open event
+	local sent -- { castGUID, kind, info, targetName, targetHidden, time } from the last UNIT_SPELLCAST_SENT
 	local lastUnreadable = 0 -- unreadable shard slots in the previous scan
 	local names = {
 		drainsoul = C_Spell and str(call(C_Spell.GetSpellName, DRAIN_SOUL_ID)),
@@ -509,6 +508,10 @@ function Capture.start(db, dex)
 		return C_Spell and str(call(C_Spell.GetSpellName, id))
 	end
 
+	local function sourceOpen()
+		return next(sourcesOpen) ~= nil
+	end
+
 	local function scanBags()
 		local firstScan = not scanned
 		scanned = true
@@ -516,22 +519,35 @@ function Capture.start(db, dex)
 		local present, unreadable = Capture.shardGuids()
 		-- A shard slot we couldn't read now (or last scan) may hold an old shard that turns
 		-- readable later: no shard is named until two scans in a row read every slot.
-		local quiet = firstScan or bankOpen or cursorBusy() or unreadable > 0 or lastUnreadable > 0
+		local quiet = firstScan or sourceOpen() or cursorBusy() or unreadable > 0 or lastUnreadable > 0
 		lastUnreadable = unreadable
-		local map, gained = ns.Shards.update(db.shardSouls, present, quiet, now, firstScan)
+		local map, gained, quietNew = ns.Shards.update(db.shardSouls, present, quiet, now, firstScan)
+		db.shardSouls = map
+		-- A new shard we won't name may be the kill's own: the capture is spent on it, so it
+		-- can't name a later shard (a trade, a mail) instead. Two new shards at once can't
+		-- be told apart: neither is named.
+		if quietNew > 0 or #gained > 1 then
+			window:take(GetTime())
+		end
 		local done = {}
 		for _, guid in ipairs(gained) do
 			local soul, after
-			local capture = window:take(GetTime())
+			local capture = #gained == 1 and window:take(GetTime())
 			if capture then
-				soul, after = Capture.record(dex, capture)
+				local ok, s, a = pcall(Capture.record, dex, capture)
+				if ok then
+					soul, after = s, a
+				else
+					pcall(errorHandler(), s)
+				end
 			end
+			-- Saved shard by shard, so an error later can't lose this one.
 			map = ns.Shards.assign(map, guid, soul or false, now)
+			db.shardSouls = map
 			if after then
 				done[#done + 1] = after
 			end
 		end
-		db.shardSouls = map
 		-- Saved first: nothing below can lose a catch.
 		for _, d in ipairs(done) do
 			Capture.protect(errorHandler(), afterCatch, db, dex, d.result, d.entry)
@@ -570,6 +586,9 @@ function Capture.start(db, dex)
 		end
 		local check
 		if sent and sent.kind == kind and now - sent.time <= SENT_CHECK then
+			if sent.targetHidden then
+				return { unknown = true } -- a secret SENT name can't vouch for the target
+			end
 			check = sent.targetName
 		end
 		return Capture.readUnit("target", check)
@@ -597,7 +616,8 @@ function Capture.start(db, dex)
 				castGUID = cast,
 				kind = kind,
 				info = Capture.readUnit("target", targetName),
-				targetName = str(targetName),
+				targetName = readable(targetName) and str(targetName) or nil,
+				targetHidden = not readable(targetName),
 				time = GetTime(),
 			}
 		end
@@ -634,12 +654,14 @@ function Capture.start(db, dex)
 	handlers.PLAYER_ENTERING_WORLD = onEnterWorld
 	handlers.BAG_UPDATE_DELAYED = queueScan
 	handlers.PLAYER_REGEN_ENABLED = queueScan
-	handlers.BANKFRAME_OPENED = function()
-		bankOpen = true
-	end
-	handlers.BANKFRAME_CLOSED = function()
-		bankOpen = false
-		queueScan()
+	for openEvent, closeEvent in pairs(SHARD_SOURCES) do
+		handlers[openEvent] = function()
+			sourcesOpen[openEvent] = true
+		end
+		handlers[closeEvent] = function()
+			sourcesOpen[openEvent] = nil
+			queueScan()
+		end
 	end
 
 	local frame = CreateFrame("Frame")

@@ -48,6 +48,22 @@ describe("Flavour", function()
 		end
 	end)
 
+	it("uses family lines for known families, and the type's lines otherwise", function()
+		local families = { "Wolf", "Spider", "Boar", "Cat", "Bear", "Raptor", "Crocolisk", "Bat", "Owl", "Gorilla",
+			"Hyena", "Scorpid", "Turtle", "Carrion Bird", "Tallstrider", "Crab" }
+		local beastLines = {}
+		for i = 1, 40 do
+			beastLines[Flavour.line("Mob" .. i, "Beast", "Some Odd Family", "Zone")] = true
+		end
+		for _, family in ipairs(families) do
+			for i = 1, 10 do
+				local line = Flavour.line("Mob" .. i, "Beast", family, "Zone")
+				clean(line)
+				assert.is_nil(beastLines[line], family .. " used a generic Beast line: " .. line)
+			end
+		end
+	end)
+
 	it("varies between names of the same type", function()
 		local seen, count = {}, 0
 		for i = 1, 20 do

@@ -20,6 +20,7 @@ globals = {
 	"SoulDexDB",
 	"SoulDexFrame",
 	"SoulDexOptionsFrame",
+	"StaticPopupDialogs", -- the Friends tab adds its clean-up dialog
 }
 
 -- WoW API this addon reads. Add each new API here as it is used,
@@ -29,6 +30,7 @@ read_globals = {
 	"C_AddOns",
 	"C_ChatInfo",
 	"C_Container",
+	"C_GuildInfo",
 	"C_Item",
 	"C_RestrictedActions",
 	"C_Spell",
@@ -42,7 +44,10 @@ read_globals = {
 	"ERR_CHAT_PLAYER_NOT_FOUND_S",
 	"GetCursorInfo",
 	"GetGuildInfo",
+	"GetGuildRosterInfo",
 	"GetInstanceInfo",
+	"GetNumGroupMembers",
+	"GetNumGuildMembers",
 	"GetItemIcon",
 	"GetRealZoneText",
 	"GetRealmName",
@@ -65,6 +70,7 @@ read_globals = {
 	"PlaySound",
 	"RAID_CLASS_COLORS",
 	"SOUNDKIT",
+	"StaticPopup_Show",
 	"SendChatMessage",
 	"TooltipDataProcessor",
 	"UIParent",

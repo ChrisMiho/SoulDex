@@ -100,18 +100,34 @@ function Friends.add(store, name)
 	return name
 end
 
--- Deletes an added person who is not currently seen; otherwise just un-adds.
+-- Deletes a person, except an added one who is online right now: they are only
+-- un-added, and stay listed like any guild or group member.
 function Friends.remove(store, name, now)
 	name = Friends.normalise(name)
 	local entry = name and store[name]
 	if not entry then
 		return
 	end
-	if entry.added and not isSeen(entry, now) then
-		store[name] = nil
-	else
+	if entry.added and isSeen(entry, now) then
 		entry.added = false
+	else
+		store[name] = nil
 	end
+end
+
+-- Deletes everyone not added whose name isn't in keep (a set of store keys). Returns
+-- how many were deleted.
+function Friends.purge(store, keep)
+	local gone = {}
+	for name, entry in pairs(store) do
+		if not entry.added and not keep[name] then
+			gone[#gone + 1] = name
+		end
+	end
+	for _, name in ipairs(gone) do
+		store[name] = nil
+	end
+	return #gone
 end
 
 -- Someone outside the store is only kept when found in your group or guild.
@@ -165,7 +181,7 @@ end
 
 function Friends.leaderboard(store, me, now)
 	local rows = {}
-	local myName = Friends.normalise(me.name) or me.name
+	local myName = Friends.normalise(me.name) or me.name or "?" -- "?" while the name is unreadable
 	rows[1] = row(myName, me.summary, { online = true, isMe = true, added = false })
 	for name, entry in pairs(store) do
 		if name ~= myName then

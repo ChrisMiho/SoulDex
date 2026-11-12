@@ -4,7 +4,6 @@ local _, ns = ...
 local Toast = {}
 ns.Toast = Toast
 
-local SHARD_ITEM_ID = 6265
 local WIDTH, HEIGHT = 300, 54
 local SLIDE_IN, HOLD, FADE_OUT = 0.3, 4, 0.5
 local TOP_OFFSET, SLIDE_DISTANCE = -140, 30
@@ -23,8 +22,8 @@ Toast.SHARD_ICON_FILE = "Interface\\Icons\\INV_Misc_Gem_Amethyst_02"
 function Toast.shardIcon(itemApi, legacy)
 	local getter = itemApi and itemApi.GetItemIconByID or legacy
 	if getter then
-		local ok, icon = pcall(getter, SHARD_ITEM_ID)
-		if ok and icon and (not issecretvalue or not issecretvalue(icon)) then
+		local ok, icon = pcall(getter, ns.Shards.ITEM_ID)
+		if ok and icon and ns.Capture.readable(icon) then
 			return icon
 		end
 	end
@@ -106,14 +105,14 @@ local function build()
 	frame:Hide()
 end
 
--- result: Dex.record* result; info: the mob/player details; ctx: catch context (needs zone).
--- A second catch replaces the first.
-function Toast.show(result, info, ctx)
+-- result: Dex.record* result; info: the mob/player details; ctx: catch context (needs zone);
+-- color: the soul's hex colour (the same one its shard tooltip uses). A second catch
+-- replaces the first.
+function Toast.show(result, info, ctx, color)
 	if not frame then
 		build()
 	end
-	local color = ns.Capture and ns.Capture.colorFor(info, RAID_CLASS_COLORS) or "ffffff"
-	frame.name:SetText("|cff" .. color .. Toast.nameLine(info) .. "|r")
+	frame.name:SetText("|cff" .. (color or "ffffff") .. Toast.nameLine(info) .. "|r")
 	frame.sub:SetText(Toast.subtitle(result, ctx.zone))
 	frame.t = 0
 	frame:SetAlpha(0)

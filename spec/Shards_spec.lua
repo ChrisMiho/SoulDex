@@ -45,10 +45,13 @@ describe("Shards", function()
 	end)
 
 	it("a baseline stores new GUIDs as soulless and gains nothing", function()
-		local new, gained = ns.Shards.update({ a = { soul = soul("Wolf"), seen = 1 } }, { "a", "b" }, true, 500)
+		local new, gained, quietNew = ns.Shards.update({ a = { soul = soul("Wolf"), seen = 1 } }, { "a", "b" }, true, 500)
 		assert.same({}, gained)
+		assert.equal(1, quietNew) -- "b" was new; "a" was known
 		assert.equal("Wolf", new.a.soul.name)
 		assert.same({ soul = false, seen = 500 }, new.b)
+		local _, _, none = ns.Shards.update({}, { "c" }, false, 500)
+		assert.equal(0, none)
 	end)
 
 	it("absent shards are kept (bank, mailbox, cursor)", function()

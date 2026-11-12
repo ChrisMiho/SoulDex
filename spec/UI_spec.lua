@@ -4,6 +4,7 @@ describe("UI", function()
 	local STUBBED = {
 		"CreateFrame", "UIParent", "UISpecialFrames", "GameFontNormal", "GameFontHighlightSmall",
 		"RAID_CLASS_COLORS", "SoulDexFrame", "SoulDexOptionsFrame", "date", "UnitName", "time", "LibStub",
+		"StaticPopupDialogs", "StaticPopup_Show",
 	}
 	local saved, created, ns
 
@@ -253,7 +254,10 @@ describe("UI", function()
 		_G.UnitName = function() return "Fel" end
 		_G.time = function() return 5000 end
 		_G.LibStub = nil
-		for _, file in ipairs({ "Comm", "Friends", "Net" }) do
+		local popup
+		_G.StaticPopupDialogs = {}
+		_G.StaticPopup_Show = function(name) popup = name end
+		for _, file in ipairs({ "Comm", "Friends", "Shards", "Capture", "Net" }) do
 			LoadAddonFile("src/" .. file .. ".lua", ns)
 		end
 		local db = loadDb()
@@ -298,6 +302,18 @@ describe("UI", function()
 		end
 		remove.scripts.OnClick(remove)
 		assert.is_false(db.friends.Ann.added) -- seen recently: kept, but no longer added
+
+		-- "Clean up" asks first; accepting drops Ann (no longer added, not in guild or group)
+		local cleanUp = find("Button", function(f)
+			local label = rawget(f, "label")
+			return label and label.text == "Clean up"
+		end)
+		cleanUp.scripts.OnClick(cleanUp)
+		assert.equal("SOULDEX_CLEANUP", popup)
+		assert.is_not_nil(db.friends.Ann)
+		_G.StaticPopupDialogs[popup].OnAccept()
+		assert.is_nil(db.friends.Ann)
+		assert.is_true(db.friends.Bob.added)
 	end)
 
 	it("saves option switches as they are clicked", function()

@@ -18,8 +18,8 @@ local DEX_REPLY_GAP = 30 -- at most one "R" reply per sender
 local SUMMARY_REPLY_GAP = 10 -- at most one "Q" reply per sender
 local POLL_EVERY = 60 -- ask added friends for a summary
 local LOGIN_DELAY = 5
-local REQUEST_TTL = 300 -- a "D" is only accepted this long after we asked for it
-local ANSWER_WAIT = 60 -- then the Friends tab says it is still waiting; at REQUEST_TTL, nobody answered
+local ANSWER_WAIT = 60 -- no dex yet: say so in chat and ask once more
+local REQUEST_TTL = 90 -- still nothing: "No answer from <name>." and a late "D" is ignored
 local NOT_FOUND_WINDOW = 5 -- hide "No player named ..." this long after whispering them
 
 local GROUP_CHANNELS = { GUILD = true, PARTY = true, RAID = true }
@@ -72,7 +72,7 @@ function Net.isMe(sender, myName, second)
 	if a == nil then
 		return false
 	end
-	return a == ns.Friends.normalise(ns.Friends.fullName(myName, second)) or a == ns.Friends.normalise(myName)
+	return a == ns.Friends.normalise(ns.Friends.fullName(myName, second))
 end
 
 -- Someone we haven't heard from lately (or ever): answer their summary with ours.
@@ -92,13 +92,15 @@ function Net.dueQueries(store, now, gap)
 	return out
 end
 
--- A typed name as a store key, or nil when it can't be a character name.
+-- A typed name as a store key, or nil when it can't be a character name. WoW: Forever
+-- names have two words ("Forgot Shards"), so one space between words is kept.
 function Net.cleanName(text)
 	if type(text) ~= "string" then
 		return nil
 	end
-	text = text:match("^%s*(.-)%s*$")
-	if text:find("[%s%d]") then
+	text = text:match("^%s*(.-)%s*$"):gsub("%s+", " ")
+	local _, spaces = text:gsub(" ", "")
+	if spaces > 1 or text:find("%d") then
 		return nil
 	end
 	return ns.Friends.normalise(text)
@@ -115,19 +117,26 @@ function Net.notFoundName(msg, fmt)
 	return msg:match("^" .. pattern .. "$")
 end
 
--- Where a browse request stands: "asking" until ANSWER_WAIT, "waiting" until the
--- request's TTL runs out (a late "D" is still accepted), then "expired".
+-- Where a browse request stands: "asking" until ANSWER_WAIT, "retrying" (asked a second
+-- time) until REQUEST_TTL, then "expired" (a late "D" is ignored).
 function Net.browseStage(asked, now)
 	local age = asked and now - asked
 	if not age or age > REQUEST_TTL then
 		return "expired"
 	elseif age > ANSWER_WAIT then
-		return "waiting"
+		return "retrying"
 	end
 	return "asking"
 end
 
-Net.mySummary = ns.Friends.summaryOf
+-- Drops entries of t (key -> GetTime()) older than age seconds.
+function Net.forgetOlder(t, now, age)
+	for key, at in pairs(t) do
+		if now - at > age then
+			t[key] = nil
+		end
+	end
+end
 
 -- Whether your own row is listed: only once someone else with a summary is on the board
 -- (an added person we haven't heard from yet doesn't count).
@@ -208,7 +217,7 @@ end
 
 -- Game wiring ---------------------------------------------------------------------------
 
-local Friends, Comm = ns.Friends, ns.Comm
+local Friends, Comm, Capture = ns.Friends, ns.Comm, ns.Capture
 
 local state = {
 	enabled = false, -- AceComm found and registered
@@ -223,8 +232,14 @@ local state = {
 	selected = nil, -- leaderboard selection
 }
 
+-- UnitName("player")'s two parts, each nil unless readable.
+local function myParts()
+	local first, second = Capture.call(UnitName, "player")
+	return Capture.plainString(first) and first or nil, Capture.plainString(second) and second or nil
+end
+
 local function myName()
-	return Friends.normalise(Friends.fullName(UnitName("player")))
+	return Friends.normalise(Friends.fullName(myParts()))
 end
 
 -- Your leaderboard entry (shared with the Me tab's rank).
@@ -254,7 +269,7 @@ local function whisper(msg, target, prio)
 end
 
 local function summaryMessage()
-	return Comm.encodeSummary(Net.mySummary(ns.dex))
+	return Comm.encodeSummary(Friends.summaryOf(ns.dex))
 end
 
 local function broadcastNow()
@@ -293,6 +308,11 @@ local function askForSummaries()
 end
 
 local function tick()
+	local now = GetTime()
+	Net.forgetOlder(state.summaryReplies, now, SUMMARY_REPLY_GAP)
+	Net.forgetOlder(state.dexReplies, now, DEX_REPLY_GAP)
+	Net.forgetOlder(state.whispered, now, NOT_FOUND_WINDOW)
+	Net.forgetOlder(state.requests, now, REQUEST_TTL)
 	askForSummaries()
 	if state.enabled and Net.allowed(state.lastBroadcast, GetTime(), HEARTBEAT) then
 		requestBroadcast()
@@ -304,11 +324,8 @@ end
 
 local handlers = {}
 
-function handlers.S(name, _, message, distribution)
-	local summary = Comm.decodeSummary(message)
-	if not summary then
-		return
-	end
+-- Each handler gets (name, target, payload, distribution); payload is Comm.decode's.
+function handlers.S(name, _, summary, distribution)
 	local store, now = ns.db.friends, time()
 	local newcomer = Net.isNewcomer(store[name], now)
 	-- accepts() only lets through group/guild channels and added friends' whispers.
@@ -336,13 +353,13 @@ function handlers.R(name, target)
 	end
 end
 
-function handlers.D(name, _, message)
+-- db is nil when the dex couldn't be read.
+function handlers.D(name, _, db)
 	state.requests[name] = nil
 	if state.asking == name then
 		state.asking = nil
 	end
-	local kind, db = Comm.decode(message)
-	if kind ~= "D" then
+	if not db then
 		ns.Print("Couldn't read " .. name .. "'s dex.")
 		refreshFriends()
 		return
@@ -362,8 +379,8 @@ function Net.OnCommReceived(_, prefix, message, distribution, sender)
 	if prefix ~= Comm.PREFIX or type(message) ~= "string" or type(sender) ~= "string" or not ns.db then
 		return
 	end
-	local target = Ambiguate(sender, "none")
-	if Net.isMe(target, UnitName("player")) then
+	local target = Capture.call(Ambiguate, sender, "none")
+	if not Capture.plainString(target) or Net.isMe(target, myParts()) then
 		return
 	end
 	local name = Friends.normalise(target)
@@ -374,8 +391,14 @@ function Net.OnCommReceived(_, prefix, message, distribution, sender)
 	local entry = ns.db.friends[name]
 	local asked = state.requests[name]
 	local requested = asked ~= nil and GetTime() - asked <= REQUEST_TTL
-	if handlers[kind] and Net.accepts(kind, distribution, entry ~= nil and entry.added, requested) then
-		handlers[kind](name, target, message, distribution)
+	if not handlers[kind] or not Net.accepts(kind, distribution, entry ~= nil and entry.added, requested) then
+		return
+	end
+	local decoded, payload = Comm.decode(message)
+	if decoded == kind then
+		handlers[kind](name, target, payload, distribution)
+	elseif kind == "D" then
+		handlers.D(name, target, nil) -- asked for, but unreadable: say so
 	end
 end
 
@@ -413,13 +436,15 @@ function Net.addFriend(text)
 	refreshFriends()
 end
 
+-- Removes anyone on the Friends tab. Someone you didn't add comes back if they send
+-- their score again from your guild or group.
 function Net.removeFriend(text)
 	if not loaded() then
 		return
 	end
 	local name = Net.cleanName(text)
 	local entry = name and ns.db.friends[name]
-	if not entry or not entry.added then
+	if not entry then
 		ns.Print((name or tostring(text)) .. " isn't on your friends list.")
 		return
 	end
@@ -428,25 +453,66 @@ function Net.removeFriend(text)
 	refreshFriends()
 end
 
--- Asks someone for their dex; "D" opens it (handlers.D).
+-- Names of everyone in your group and guild right now (store keys), as a set.
+local function presentNames()
+	local plain = Capture.plainString
+	local keep = {}
+	local function note(name, second)
+		local key = plain(name) and Friends.normalise(Friends.fullName(name, plain(second) and second or nil))
+		if key then
+			keep[key] = true
+		end
+	end
+	local members = Capture.call(GetNumGroupMembers)
+	local prefix = Capture.call(IsInRaid) == true and "raid" or "party"
+	for i = 1, Capture.plainNumber(members) and members or 0 do
+		note(Capture.call(UnitName, prefix .. i))
+	end
+	local guildSize = Capture.call(GetNumGuildMembers)
+	for i = 1, Capture.plainNumber(guildSize) and guildSize or 0 do
+		note(Capture.call(GetGuildRosterInfo, i))
+	end
+	return keep
+end
+
+-- Drops everyone you haven't added who isn't in your guild or group right now.
+function Net.cleanUp()
+	if not loaded() then
+		return
+	end
+	local removed = Friends.purge(ns.db.friends, presentNames())
+	ns.Print(removed == 1 and "Removed 1 person." or ("Removed " .. removed .. " people."))
+	refreshFriends()
+end
+
+-- Asks someone for their dex; "D" opens it (handlers.D). No answer after ANSWER_WAIT:
+-- one more ask; none by REQUEST_TTL: give up.
 function Net.browse(name)
 	if not state.enabled then
 		ns.Print("Friends need AceComm-3.0 (a packaged build).")
 		return
 	end
 	local asked = GetTime()
-	state.requests[name] = asked
+	state.requests = { [name] = asked } -- a late dex from someone asked earlier is not wanted now
 	state.asking = name
 	state.noAnswer = nil
-	whisper(Comm.encodeRequest("R"), name)
+	local request = Comm.encodeRequest("R")
+	whisper(request, name)
 	refreshFriends()
+	local function stillAsking()
+		return state.asking == name and state.requests[name] == asked
+	end
 	C_Timer.After(ANSWER_WAIT, function()
-		if state.asking == name and state.requests[name] == asked then
-			refreshFriends() -- now reads "Still waiting for <name>'s dex..."
+		if stillAsking() then
+			ns.Print("No answer from " .. name .. " yet, asking again...")
+			whisper(request, name)
+			refreshFriends()
 		end
 	end)
 	C_Timer.After(REQUEST_TTL, function()
-		if state.asking == name and state.requests[name] == asked then
+		if stillAsking() then
+			ns.Print("No answer from " .. name .. ".")
+			state.requests[name] = nil
 			state.asking = nil
 			state.noAnswer = name
 			refreshFriends()
@@ -460,9 +526,12 @@ local BACK_BG, BACK_BORDER, BACK_HOVER = "251b36", "5a4486", "3d2d5c"
 local PANE_BG, DIVIDER = "0d0a14", "3d2d5c"
 local ROW_H, LINE_H, BOX_H, BUTTON_H = 16, 15, 16, 16
 
+local CLEANUP_W = 58
+local CLEANUP_POPUP = "SOULDEX_CLEANUP"
+
 local tab = {} -- frames, built once
 local removeButtons = {} -- leaderboard row -> its "×" button
-local removable = {} -- leaderboard row -> true when it shows an added friend
+local removable = {} -- leaderboard row -> true when it shows a person (not the hint)
 
 local function onRowEnter(row)
 	if removable[row] then
@@ -478,8 +547,8 @@ local function onRowLeave(row)
 	end
 end
 
--- Each pooled leaderboard row gets a hover-only "×" for added people.
-local function decorateRows(added)
+-- Each pooled leaderboard row gets a hover-only "×" that removes that person.
+local function decorateRows()
 	local UI, C = ns.UI, ns.UIFormat.COLORS
 	for _, row in ipairs(tab.list.rows) do
 		local remove = removeButtons[row]
@@ -497,7 +566,7 @@ local function decorateRows(added)
 			row:SetScript("OnLeave", onRowLeave)
 			removeButtons[row] = remove
 		end
-		removable[row] = row.value ~= nil and added[row.value] == true
+		removable[row] = row.value ~= nil
 		remove:Hide()
 	end
 end
@@ -530,7 +599,7 @@ local function buildTab(left, right)
 	tab.list.frame:SetPoint("TOPLEFT", 0, 0)
 
 	local box = CreateFrame("EditBox", nil, left, "BackdropTemplate")
-	box:SetSize(leftW, BOX_H)
+	box:SetSize(leftW - CLEANUP_W - 4, BOX_H)
 	box:SetPoint("BOTTOMLEFT", 0, 0)
 	box:SetAutoFocus(false)
 	box:SetMaxLetters(48)
@@ -561,6 +630,25 @@ local function buildTab(left, right)
 	box:SetScript("OnTextChanged", showHint)
 	tab.box = box
 
+	StaticPopupDialogs[CLEANUP_POPUP] = {
+		text = "Remove everyone you haven't added who isn't in your guild or group right now?\n\n"
+			.. "They come back if they send their score again.",
+		button1 = "Remove",
+		button2 = "Cancel",
+		OnAccept = Net.cleanUp,
+		timeout = 0,
+		whileDead = true,
+		hideOnEscape = true,
+	}
+	tab.cleanUp = backButton(left, "Clean up", CLEANUP_W)
+	tab.cleanUp:SetPoint("BOTTOMRIGHT", 0, 0)
+	tab.cleanUp:SetScript("OnClick", function()
+		if C_GuildInfo and C_GuildInfo.GuildRoster then
+			Capture.call(C_GuildInfo.GuildRoster) -- fresh guild names while the dialog is up
+		end
+		StaticPopup_Show(CLEANUP_POPUP)
+	end)
+
 	tab.info = UI.newList(right, rightW, h - BUTTON_H - 6, LINE_H, true)
 	tab.info.frame:SetPoint("TOPLEFT", 0, 0)
 
@@ -590,7 +678,7 @@ local function statusText(name)
 		if Net.browseStage(state.requests[name], GetTime()) == "asking" then
 			return "Asking " .. name .. "..."
 		end
-		return "Still waiting for " .. name .. "'s dex..."
+		return "Asking " .. name .. " again..."
 	elseif state.noAnswer == name then
 		return "No answer from " .. name .. "."
 	end
@@ -608,18 +696,17 @@ local function drawTab(left, right)
 	end
 	local me = Net.me(dex)
 	-- Your own row is only there to rank you (the Me tab); the list shows other people.
-	local rows, others, byName, added = Friends.leaderboard(db.friends, me, time()), {}, {}, {}
+	local rows, others, byName = Friends.leaderboard(db.friends, me, time()), {}, {}
 	for _, r in ipairs(rows) do
 		if not r.isMe then
 			others[#others + 1] = r
 			byName[r.name] = r
-			added[r.name] = r.added
 		end
 	end
 	local selectedRow = byName[state.selected] or others[1]
 	state.selected = selectedRow and selectedRow.name
 	tab.list:set(Net.leaderRows(rows, state.selected), selectPerson, true)
-	decorateRows(added)
+	decorateRows()
 	tab.info:set(selectedRow and Net.personLines(selectedRow, db.friends[selectedRow.name]) or {}, nil, false)
 	ns.UIList.setShown(tab.browse, selectedRow ~= nil)
 	tab.status:SetText(selectedRow and statusText(selectedRow.name) or "")

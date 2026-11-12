@@ -8,6 +8,7 @@ local _, ns = ...
 local Shards = {}
 ns.Shards = Shards
 
+Shards.ITEM_ID = 6265 -- the Soul Shard item
 Shards.FORGET_AFTER = 30 * 86400 -- a baseline drops shards not seen for 30 days
 
 local function valid(entry)
@@ -19,10 +20,11 @@ end
 -- cursor, unreadable shard slots); now: epoch seconds; prune: drop shards not seen for
 -- FORGET_AFTER (the login scan only). Shards not present are otherwise kept (bank,
 -- mailbox, cursor).
--- Returns a new map and the sorted list of new GUIDs, which are left out of the new map
--- (the caller fills each with Shards.assign, a soul or false).
+-- Returns a new map, the sorted list of new GUIDs, which are left out of the new map
+-- (the caller fills each with Shards.assign, a soul or false), and how many new GUIDs a
+-- baseline stored as soulless.
 function Shards.update(map, present, baseline, now, prune)
-	local newMap, gained, seenNow = {}, {}, {}
+	local newMap, gained, seenNow, quietNew = {}, {}, {}, 0
 	for guid, entry in pairs(map) do
 		if valid(entry) and not (prune and now - (entry.seen or 0) > Shards.FORGET_AFTER) then
 			newMap[guid] = entry
@@ -36,13 +38,14 @@ function Shards.update(map, present, baseline, now, prune)
 				newMap[guid] = { soul = entry.soul, seen = now }
 			elseif baseline then
 				newMap[guid] = { soul = false, seen = now }
+				quietNew = quietNew + 1
 			else
 				gained[#gained + 1] = guid
 			end
 		end
 	end
 	table.sort(gained)
-	return newMap, gained
+	return newMap, gained, quietNew
 end
 
 -- Returns a copy of map with guid set to soulOrFalse, seen now.

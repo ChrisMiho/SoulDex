@@ -107,8 +107,9 @@ death detection is used; the capture window below replaces the death queue.)
   guild. Every value is checked with `issecretvalue` first; a secret field is
   simply left out. If SENT reports a target name that differs from your
   target's name (a mouseover macro), the name is not trusted (Unknown soul).
-  When the channel's cast id doesn't match the SENT's (other, nil or
-  secret), the target is read at channel start and still cross-checked
+  A secret SENT target name can't be compared, so it is not trusted either
+  (Unknown soul). When the channel's cast id doesn't match the SENT's (other,
+  nil or secret), the target is read at channel start and still cross-checked
   against a SENT of the same spell from under 1 s before; with no such SENT
   the target is trusted (a channel starts on your target by default).
 - **Capture window.** A Drain Soul channel start opens a capture for that
@@ -120,10 +121,14 @@ death detection is used; the capture window below replaces the death queue.)
 - One capture names **one** shard (one channel kills one target); further new
   shards in the same window are soulless. If two unused captures on different
   targets are live at once (a new Drain Soul within 3 s of the last one
-  ending), neither names a shard.
+  ending), neither names a shard. Two new shards in the same bag scan can't be
+  told apart: neither is named, and the capture is spent. A new shard stored
+  as soulless by a quiet scan (below) also spends the capture, so it can't
+  name a later shard from a trade or the mailbox instead.
 - **Unknown soul [user].** When the target's name is hidden (secret, empty,
-  or "Unknown"), the catch is recorded as an Unknown soul in that zone
-  (see 4.4). Players whose name is hidden go there too.
+  or "Unknown"), or there is no target name at all (a focus or mouseover
+  macro), the catch is recorded as an Unknown soul in that zone (see 4.4).
+  Players whose name is hidden go there too.
 - Recorded with the catch: date and time, your level, the zone (and subzone
   if known), and **your** map coordinates at that moment (the source's own
   position isn't available). **[call]**
@@ -134,8 +139,10 @@ death detection is used; the capture window below replaces the death queue.)
   moves, bag sorting and banking can't confuse them; the earlier slot map
   `shardSlots` is discarded.) Bags 0 to the last equipped bag are scanned on
   `BAG_UPDATE_DELAYED`, `PLAYER_REGEN_ENABLED` and after each of your spell
-  events. While something is on the cursor or the bank is open, new GUIDs
-  are stored as soulless, never named. The same applies while any bag slot
+  events. While something is on the cursor or the bank, mailbox, trade or
+  vendor window is open, new GUIDs are stored as soulless, never named. The
+  shard map is saved after each shard, and an error while recording one catch
+  leaves its shard soulless without losing the others. The same applies while any bag slot
   can't be read (secret item ID, or a shard with a secret or missing GUID),
   in this scan or the one before: an old shard turning readable must never
   look new. Only the login scan forgets long-unseen shards.
@@ -262,7 +269,10 @@ The look was settled through mockups; the final versions are in
   markers are visible.) It must be easy to find without standing out. **[user]**
 - Mob pane: name, rarity, "Lv 11 Humanoid · Gnoll", the flavour line, then
   caught ×N, first (date and your level), where (coordinates), last, and points.
-- Player pane: class-coloured name, "Lv 38 Orc Rogue", `<Guild>`, sharded ×N,
+  Raid creatures show the same rarity, level and type (older saved entries
+  fill these in on their next catch); "where" is the raid's name.
+- Player pane: class-coloured name, "Lv 38 Orc Rogue" (the class in the
+  client's language), `<Guild>`, sharded ×N,
   first and last (date and their level), then each place with coordinates
   and a count.
 
@@ -281,6 +291,12 @@ Not mocked up. Same two columns. **[user for what; call for layout]**
 
 - Left: Soul-Dex users found in your **party, raid and guild**, plus anyone
   **added by name** (saved list, with an add box and a remove option). **[user]**
+  Names may have two words (WoW: Forever's "Forgot Shards"). Hovering any row
+  shows a × that removes that person: someone never added comes back if they
+  send their score again; an added friend who is online is only un-added.
+  (changed after 1.0.0: the user asked to be able to remove people found in the
+  guild or group.) A **Clean up** button next to the add box asks first, then
+  removes everyone not added who isn't in your guild or group right now.
 - Each shows score, unique mobs, unique players, and raids completed. Sorted
   by score, as a leaderboard. You appear in your ranked place (highlighted,
   "(you)", not selectable) once at least one friend with a summary is listed; your numbers are on
@@ -308,7 +324,15 @@ Not mocked up. Same two columns. **[user for what; call for layout]**
   - Added friends are whispered; Soul-Dex hides the "No player named ... is
     currently playing." line for names it whispered itself in the last 5 s,
     so offline friends cause no chat spam.
-  - A friend's dex is accepted only if we asked for it (within 5 minutes).
+  - Browse dex whispers a request. With no dex after 60 s, a chat line says
+    "No answer from X yet, asking again..." and the request is sent once more;
+    with none after 90 s, "No answer from X." in chat and on the tab, and a dex
+    arriving later is ignored. (changed after 1.0.0, user's call: was a silent
+    5-minute wait.) A friend's dex is accepted only while we are asking that
+    person; browsing someone else drops the earlier request.
+  - Every incoming message is checked against the wire format and version
+    before it is acted on; summary numbers must be whole, non-negative and at
+    most 9 digits.
   - A browsed friend's dex carries no dates or coordinates, so its detail
     panes omit them and its Milestones show nothing earned.
   - Without AceComm (a dev checkout without `Libs/`) Friends is disabled with
@@ -352,7 +376,8 @@ the user agreed to this table as an example]**
 
 - Catching a mob you already have, in a new place, adds it to that place's
   list quietly: no popup, no points. **[call]** "#N here" in the toast is the
-  place's unique count after this catch.
+  place's unique mob count after this catch (an 8th different mob in Elwynn
+  Forest reads "#8 here").
 - On a **first** catch only (mob, player or raid entry), a small purple toast
   slides in near the top of the screen (0.3 s slide, 4 s hold, 0.5 s fade): "NEW SOUL CAUGHT!",
   the name, rarity, place, "#N here", and "+N pts". A short sound plays. **[user]**
@@ -388,7 +413,11 @@ Each mob gets one silly line built from templates using its type, family,
 zone and name, e.g. "A Wolf of Elwynn. Bites first, howls later." **[user]**
 The choice of line is fixed per mob (seeded from its name), so it never
 changes. Templates cover every creature type, with family-specific lines
-where they fit. The wording is the builder's call. Players get no flavour
+where they fit: the common beast families (Wolf, Spider, Boar, Cat, Bear,
+Raptor, Crocolisk, Bat, Owl, Gorilla, Hyena, Scorpid, Turtle, Carrion Bird,
+Tallstrider, Crab) have their own lines; other families, and clients in other
+languages, use the Beast lines. Raid creatures get flavour lines too. The
+wording is the builder's call. Players get no flavour
 text. **[call]**
 
 ## 7. Settings
@@ -466,7 +495,14 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
   each `{ soul = <table or false>, seen = <time> }`; `SoulDexDB.shardSlots`
   is gone.
 - With the bank open, or an item on the cursor, take a shard from a Drain Soul
-  kill: it stays unnamed (accepted).
+  kill: it stays unnamed (accepted). Then, within a few seconds, take a shard
+  from the mailbox or a trade: that one stays unnamed too, never the mob's name.
+- Drain Soul a mob to death with the mailbox, a trade or a vendor window open:
+  the shard stays unnamed (accepted).
+- The popup's "#N here" counts the different mobs you have in that zone: a
+  new 3rd mob in a zone reads "#3 here".
+- Drain Soul a raid creature: its detail pane (Raids tab) shows its rarity
+  (Elite / Boss) and a "Lv 60 Humanoid" style line, if the game gave a level.
 
 **Shard tooltip**
 - Hover the new shard: two extra lines, "Soul of <name>" (coloured) and
@@ -529,10 +565,20 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
 - Not in a guild: a party invite makes each appear within 30 s.
 - Not grouped: typing B's name into "Add..." (Enter), or `/souldex add B`,
   shows B within about a minute; hovering the row shows a × that removes B
-  (or `/souldex remove B`).
+  (or `/souldex remove B`). Do this with B's full two-part name (for example
+  `/souldex add Forgot Shards`): B is added, and B's score appears once B is
+  online. **Please check** that whispers to a two-part name reach B (if not,
+  B never appears; tell the builder).
+- Hover a guild member you never added: a × shows and removes them; they come
+  back on their next score update.
+- Click "Clean up" beside the add box: a dialog asks first; "Remove" drops
+  everyone you didn't add who isn't in your guild or group right now and
+  prints how many; "Cancel" changes nothing.
 - An offline or misspelt name causes no "No player named..." spam; the row
-  stays dimmed ("Not heard from yet."). Browsing an offline person shows
-  "No answer from X." after 60 s.
+  stays dimmed ("Not heard from yet."). Browsing an offline person: after
+  60 s a chat line "No answer from X yet, asking again...", after 90 s
+  "No answer from X." in chat and on the tab.
+- Browse A, then quickly browse B: only B's dex opens, even if A answers late.
 - B logs out: about 10 minutes later B is dimmed, "offline" and "Last seen
   <date>". A catch on B updates B's score on A within about 30 s (guild/group)
   or 60 s (added friend only).
@@ -555,7 +601,11 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
 - A shard refunded by a demon that despawns during a Drain Soul (or within
   3 s after it) would take the drain target's name, and the real shard from
   the kill then stays unnamed.
-- A shard gained while the bank is open or an item is on the cursor, or while
-  any bag slot is unreadable (this scan or the previous one), is never named.
+- A shard gained while the bank, mailbox, trade or vendor window is open or an
+  item is on the cursor, or while any bag slot is unreadable (this scan or the
+  previous one), is never named; nor is a kill shard that arrives in the same
+  bag scan as another new shard.
+- Clean up uses the guild roster the game has cached; if it is stale, a guild
+  member may be removed and comes back on their next score update.
 - A Drain Soul started within 3 s after another one ended on a different
   target, with no shard from the first, leaves the next shard unnamed.

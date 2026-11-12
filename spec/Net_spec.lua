@@ -6,7 +6,10 @@ describe("Net", function()
 			},
 			Print = function() end,
 		}
-		local files = { "Settings", "Raids", "Points", "Flavour", "Dex", "Milestones", "UIFormat", "Comm", "Friends", "Net" }
+		local files = {
+			"Settings", "Raids", "Points", "Flavour", "Dex", "Milestones", "View", "UIFormat", "Comm", "Friends",
+			"Shards", "Capture", "Net",
+		}
 		for _, file in ipairs(files) do
 			LoadAddonFile("src/" .. file .. ".lua", ns)
 		end
@@ -21,13 +24,19 @@ describe("Net", function()
 			Net = ns.Net
 		end)
 
-		it("browse status: asking, then still waiting, then no answer", function()
+		it("browse status: asking, then asking again, then no answer", function()
 			assert.equal("asking", Net.browseStage(100, 100))
 			assert.equal("asking", Net.browseStage(100, 159))
-			assert.equal("waiting", Net.browseStage(100, 161))
-			assert.equal("waiting", Net.browseStage(100, 400))
-			assert.equal("expired", Net.browseStage(100, 401))
-			assert.equal("expired", Net.browseStage(nil, 401))
+			assert.equal("retrying", Net.browseStage(100, 161))
+			assert.equal("retrying", Net.browseStage(100, 190))
+			assert.equal("expired", Net.browseStage(100, 191))
+			assert.equal("expired", Net.browseStage(nil, 191))
+		end)
+
+		it("forgets throttle entries older than their window", function()
+			local t = { Ann = 10, Bob = 95 }
+			Net.forgetOlder(t, 100, 30)
+			assert.same({ Bob = 95 }, t)
 		end)
 
 		it("broadcasts to the guild and the group", function()
@@ -72,6 +81,7 @@ describe("Net", function()
 			assert.is_true(Net.isMe("Forgot Shards", "Forgot", "Shards"))
 			assert.is_true(Net.isMe("forgot shards-91", "Forgot", "Shards"))
 			assert.is_false(Net.isMe("Forgot Other", "Forgot", "Shards"))
+			assert.is_false(Net.isMe("Forgot", "Forgot", "Shards")) -- a one-word player named like your first half
 		end)
 
 		it("treats unknown or long-silent people as newcomers", function()
@@ -94,7 +104,9 @@ describe("Net", function()
 		it("cleans typed names", function()
 			assert.equal("Bob", Net.cleanName("  bob "))
 			assert.equal("Bob", Net.cleanName("BOB-Realm"))
-			assert.is_nil(Net.cleanName("bob smith"))
+			assert.equal("Forgot Shards", Net.cleanName("forgot shards"))
+			assert.equal("Forgot Shards", Net.cleanName(" Forgot   Shards "))
+			assert.is_nil(Net.cleanName("one two three"))
 			assert.is_nil(Net.cleanName("b0b"))
 			assert.is_nil(Net.cleanName(""))
 			assert.is_nil(Net.cleanName(nil))
@@ -162,6 +174,7 @@ describe("Net", function()
 		local STUBBED = {
 			"LibStub", "CreateFrame", "C_Timer", "GetTime", "time", "UnitName", "Ambiguate",
 			"IsInGuild", "IsInRaid", "IsInGroup", "ChatFrame_AddMessageEventFilter", "ERR_CHAT_PLAYER_NOT_FOUND_S",
+			"GetNumGroupMembers", "GetNumGuildMembers", "GetGuildRosterInfo",
 		}
 		local saved, ns, sent, registered, printed, clock, wall, timers, filter, shown
 
@@ -278,6 +291,100 @@ describe("Net", function()
 			assert.is_nil(db.friends.Ann)
 			ns.Net.removeFriend("Nobody")
 			assert.matches("isn't on your friends list", printed[#printed])
+		end)
+
+		it("adds and removes two-part names", function()
+			local db = start()
+			ns.Net.addFriend("forgot shards")
+			assert.is_true(db.friends["Forgot Shards"].added)
+			assert.equal("Forgot Shards", sent[#sent].target)
+			ns.Net.removeFriend("Forgot Shards")
+			assert.is_nil(db.friends["Forgot Shards"])
+		end)
+
+		it("removes a guild member you never added", function()
+			local db = start()
+			ns.Net:OnCommReceived("SoulDex", summary(42), "GUILD", "Bob")
+			ns.Net.removeFriend("Bob")
+			assert.is_nil(db.friends.Bob)
+			assert.equal("Removed Bob.", printed[#printed])
+		end)
+
+		it("clean up keeps added people and anyone in the guild or group", function()
+			local db = start()
+			_G.GetNumGroupMembers = function() return 2 end
+			_G.UnitName = function(unit)
+				if unit == "party1" then
+					return "Pat", "Two"
+				end
+				return "Fel"
+			end
+			_G.GetNumGuildMembers = function() return 1 end
+			_G.GetGuildRosterInfo = function() return "Gil-Realm" end
+			ns.Net.addFriend("Ann")
+			for _, who in ipairs({ "Pat Two", "Gil", "Zed", "Old" }) do
+				ns.Net:OnCommReceived("SoulDex", summary(1), "GUILD", who)
+			end
+			ns.Net.cleanUp()
+			assert.is_not_nil(db.friends.Ann)
+			assert.is_not_nil(db.friends["Pat Two"])
+			assert.is_not_nil(db.friends.Gil)
+			assert.is_nil(db.friends.Zed)
+			assert.is_nil(db.friends.Old)
+			assert.equal("Removed 2 people.", printed[#printed])
+		end)
+
+		it("ignores a request with a bad version or shape", function()
+			start()
+			local before = #sent
+			ns.Net:OnCommReceived("SoulDex", "R\t2", "WHISPER", "Bob")
+			ns.Net:OnCommReceived("SoulDex", "Rxyz", "WHISPER", "Bob")
+			ns.Net:OnCommReceived("SoulDex", "Q", "WHISPER", "Bob")
+			assert.equal(before, #sent)
+		end)
+
+		it("asks again at 60 s and gives up at 90 s", function()
+			start()
+			ns.Net.browse("Bob")
+			local asks = #sent
+			assert.equal(2, #timers)
+			assert.equal(60, timers[1].delay)
+			assert.equal(90, timers[2].delay)
+			clock = clock + 60
+			timers[1].fn()
+			assert.equal(asks + 1, #sent)
+			assert.equal(ns.Comm.encodeRequest("R"), sent[#sent].text)
+			assert.equal("No answer from Bob yet, asking again...", printed[#printed])
+			clock = clock + 30
+			timers[2].fn()
+			assert.equal("No answer from Bob.", printed[#printed])
+			-- a dex arriving after that is ignored
+			local payload = ns.Comm.encodeDex({ mobs = {}, places = {}, players = {}, raids = {} })
+			ns.Net:OnCommReceived("SoulDex", payload, "WHISPER", "Bob")
+			assert.equal(0, #shown)
+		end)
+
+		it("an answer before 60 s stops the retry", function()
+			start()
+			ns.Net.browse("Bob")
+			local payload = ns.Comm.encodeDex({ mobs = {}, places = {}, players = {}, raids = {} })
+			ns.Net:OnCommReceived("SoulDex", payload, "WHISPER", "Bob")
+			local count = #sent
+			timers[1].fn()
+			timers[2].fn()
+			assert.equal(count, #sent)
+			assert.equal(1, #shown)
+		end)
+
+		it("a late dex from someone browsed earlier is ignored", function()
+			start()
+			ns.Net.browse("Ann")
+			ns.Net.browse("Bob")
+			local payload = ns.Comm.encodeDex({ mobs = {}, places = {}, players = {}, raids = {} })
+			ns.Net:OnCommReceived("SoulDex", payload, "WHISPER", "Ann")
+			assert.equal(0, #shown)
+			ns.Net:OnCommReceived("SoulDex", payload, "WHISPER", "Bob")
+			assert.equal("Bob", shown[1].owner)
 		end)
 
 		it("answers a dex request in bulk, once per 30 s", function()
