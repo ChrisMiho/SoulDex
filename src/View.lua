@@ -370,7 +370,8 @@ end
 
 -- Lines of the Me tab: an ordered list of { label, value, color? } (color is a
 -- UIFormat.COLORS key). me = { name, summary } and friendsStore feed the rank line;
--- either may be nil (browsing a friend, Net not loaded), which gives "—".
+-- either may be nil (Net not loaded), which gives "—". friendsStore == false (browsing
+-- a friend's dex) leaves the rank line out.
 -- Zones visited and the top zone count mob, player and unknown catches; raid catches
 -- have no zone, so they only add to Souls taken.
 function View.me(dex, friendsStore, me, now)
@@ -417,7 +418,14 @@ function View.me(dex, friendsStore, me, now)
 
 	local rank = DASH
 	if friendsStore and me and ns.Friends then
-		local rows = ns.Friends.leaderboard(friendsStore, me, now)
+		-- Only people we have numbers for take part in the rank.
+		local heard = {}
+		for name, entry in pairs(friendsStore) do
+			if entry.summary then
+				heard[name] = entry
+			end
+		end
+		local rows = ns.Friends.leaderboard(heard, me, now)
 		if #rows > 1 then
 			for i, r in ipairs(rows) do
 				if r.isMe then
@@ -440,7 +448,9 @@ function View.me(dex, friendsStore, me, now)
 	if unknown > 0 then
 		lines[#lines + 1] = { label = "Unknown souls", value = tostring(unknown) }
 	end
-	lines[#lines + 1] = { label = "Friends rank", value = rank }
+	if friendsStore ~= false then
+		lines[#lines + 1] = { label = "Friends rank", value = rank }
+	end
 	return lines
 end
 

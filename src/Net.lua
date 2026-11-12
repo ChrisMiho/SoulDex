@@ -127,18 +127,17 @@ function Net.browseStage(asked, now)
 	return "asking"
 end
 
-function Net.mySummary(dex)
-	return {
-		score = dex:score(),
-		mobs = dex:uniqueMobs(),
-		players = dex:uniquePlayers(),
-		raids = dex:raidsCompleted(),
-	}
-end
+Net.mySummary = ns.Friends.summaryOf
 
--- Whether your own row is listed: only once someone else is on the board.
+-- Whether your own row is listed: only once someone else with a summary is on the board
+-- (an added person we haven't heard from yet doesn't count).
 function Net.showSelf(rows)
-	return #rows > 1
+	for _, r in ipairs(rows) do
+		if not r.isMe and r.heard then
+			return true
+		end
+	end
+	return false
 end
 
 -- Leaderboard rows (Friends.leaderboard) as UIFormat line descriptors. Your own row keeps
@@ -226,6 +225,11 @@ local state = {
 
 local function myName()
 	return Friends.normalise(Friends.fullName(UnitName("player")))
+end
+
+-- Your leaderboard entry (shared with the Me tab's rank).
+function Net.me(dex)
+	return Friends.me(dex, myName())
 end
 
 local function refreshFriends()
@@ -602,7 +606,7 @@ local function drawTab(left, right)
 	if not dex or not db or not db.friends then
 		return
 	end
-	local me = { name = myName(), summary = Net.mySummary(dex) }
+	local me = Net.me(dex)
 	-- Your own row is only there to rank you (the Me tab); the list shows other people.
 	local rows, others, byName, added = Friends.leaderboard(db.friends, me, time()), {}, {}, {}
 	for _, r in ipairs(rows) do

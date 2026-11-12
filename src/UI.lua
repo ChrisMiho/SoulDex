@@ -145,35 +145,13 @@ local function drawLists(dex, keepLeft, keepRight)
 	rightList:set(rightRows, openDetail, keepRight)
 end
 
--- Your numbers for the leaderboard rank (Friends.leaderboard's `me`), or nil when the
--- Friends module or the character name is not available.
-local function myRow(dex)
-	local Friends = ns.Friends
-	if not Friends or not UnitName then
-		return nil
-	end
-	local name = Friends.normalise(Friends.fullName(UnitName("player")))
-	if not name then
-		return nil
-	end
-	return {
-		name = name,
-		summary = {
-			score = dex:score(),
-			mobs = dex:uniqueMobs(),
-			players = dex:uniquePlayers(),
-			raids = dex:raidsCompleted(),
-		},
-	}
-end
-
 -- The Me tab. Browsing a friend shows their numbers and no rank.
 local function drawMe(dex)
 	local lines
 	if state.owner then
-		lines = ns.View.me(dex, nil, nil, 0)
+		lines = ns.View.me(dex, false, nil, 0)
 	else
-		lines = ns.View.me(dex, ns.db and ns.db.friends, myRow(dex), time())
+		lines = ns.View.me(dex, ns.db and ns.db.friends, ns.Net and ns.Net.me(dex), time())
 	end
 	fullList:set(F.meLines(lines), nil, false)
 end

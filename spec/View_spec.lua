@@ -329,6 +329,35 @@ describe("View", function()
 			assert.equal("Westfall " .. TIMES .. "2", v["Top zone"])
 		end)
 
+		it("handles an older dex without unknown souls or player places", function()
+			local old = ns.Dex.new({
+				mobs = { Wolf = { name = "Wolf", places = { Durotar = { count = 2 } } } },
+				players = { ["Ann-R"] = { name = "Ann", count = 3 } },
+			})
+			old.db.unknown = nil
+			local v = values(View.me(old, nil, nil, 0))
+			assert.equal("5", v["Souls taken"])
+			assert.equal("1", v["Zones visited"])
+			assert.is_nil(v["Unknown souls"])
+		end)
+
+		it("shows no rank line for a browsed dex (no friends or me given)", function()
+			dex:recordMob(mob("Wolf"), ctx("Elwynn Forest"))
+			local v = values(View.me(dex, false, nil, 0))
+			assert.is_nil(v["Friends rank"])
+			assert.equal("Souls taken", View.me(dex, false, nil, 0)[5].label)
+		end)
+
+		it("adds raid catches to Souls taken but not Zones visited", function()
+			dex:recordMob(mob("Wolf"), ctx("Elwynn Forest"))
+			dex:recordRaid(mob("Core Hound"), ctx("Molten Core", "Dungeons"), 409, 11671)
+			dex:recordRaid(mob("Core Hound"), ctx("Molten Core", "Dungeons"), 409, 11671)
+			local v = values(View.me(dex, nil, nil, 0))
+			assert.equal("3", v["Souls taken"])
+			assert.equal("1", v["Zones visited"])
+			assert.equal("Wolf " .. TIMES .. "1", v["Most caught"])
+		end)
+
 		it("ranks you among the friends you have seen", function()
 			dex:recordMob(mob("Wolf"), ctx("Elwynn Forest"))
 			local store = {
@@ -336,6 +365,10 @@ describe("View", function()
 				Bob = { seen = 90, summary = { score = 0 } },
 			}
 			assert.equal("#2 of 3", values(View.me(dex, store, me(dex), 100))["Friends rank"])
+			-- added friends we have not heard from are not ranked
+			store.Cid = { added = true }
+			assert.equal("#2 of 3", values(View.me(dex, store, me(dex), 100))["Friends rank"])
+			assert.equal(DASH, values(View.me(dex, { Cid = { added = true } }, me(dex), 100))["Friends rank"])
 			assert.equal(DASH, values(View.me(dex, {}, me(dex), 100))["Friends rank"])
 			assert.equal(DASH, values(View.me(dex, nil, me(dex), 100))["Friends rank"])
 		end)

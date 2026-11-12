@@ -110,9 +110,9 @@ describe("Net", function()
 		it("formats leaderboard rows", function()
 			local C = ns.UIFormat.COLORS
 			local rows = Net.leaderRows({
-				{ name = "Ann", score = 50, online = true },
+				{ name = "Ann", score = 50, online = true, heard = true },
 				{ name = "Fel", score = 40, online = true, isMe = true },
-				{ name = "Bob", score = 10, online = false },
+				{ name = "Bob", score = 10, online = false, heard = true },
 			}, "Bob")
 			assert.equal(3, #rows)
 			assert.equal("1. Ann", rows[1].text)
@@ -128,7 +128,13 @@ describe("Net", function()
 
 		it("adds a hint when there is nobody but you", function()
 			assert.is_false(Net.showSelf({ { name = "Fel", isMe = true } }))
-			assert.is_true(Net.showSelf({ { name = "Ann" }, { name = "Fel", isMe = true } }))
+			assert.is_true(Net.showSelf({ { name = "Ann", heard = true }, { name = "Fel", isMe = true } }))
+			-- an added person we have not heard from does not count
+			local waiting = { { name = "Cid", heard = false }, { name = "Fel", isMe = true } }
+			assert.is_false(Net.showSelf(waiting))
+			local rows2 = Net.leaderRows(waiting, nil)
+			assert.equal(2, #rows2)
+			assert.truthy(rows2[1].text:find("appear here"))
 			local rows = Net.leaderRows({ { name = "Fel", score = 0, online = true, isMe = true } }, nil)
 			assert.equal(2, #rows)
 			assert.is_nil(rows[1].value)

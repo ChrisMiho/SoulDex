@@ -133,6 +133,21 @@ function Friends.merge(store, sender, summary, now, inGroupOrGuild)
 	return entry
 end
 
+-- The numbers other players see for a dex.
+function Friends.summaryOf(dex)
+	return {
+		score = dex:score(),
+		mobs = dex:uniqueMobs(),
+		players = dex:uniquePlayers(),
+		raids = dex:raidsCompleted(),
+	}
+end
+
+-- Your own leaderboard entry: { name, summary }. name is already a store key.
+function Friends.me(dex, name)
+	return { name = name, summary = Friends.summaryOf(dex) }
+end
+
 local function row(name, summary, extra)
 	summary = summary or {}
 	local r = {
@@ -158,6 +173,7 @@ function Friends.leaderboard(store, me, now)
 				online = isSeen(entry, now),
 				isMe = false,
 				added = entry.added == true,
+				heard = entry.summary ~= nil,
 			})
 		end
 	end

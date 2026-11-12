@@ -161,6 +161,8 @@ describe("UI", function()
 		assert.is_truthy(rowWith("Friends rank"))
 		ns.UI.showDex(ns.Dex.new({}), "Ann") -- browsing: no error, still on Me
 		assert.equal("Me", ns.UI.currentTab())
+		local rank = rowWith("Friends rank") -- pooled rows linger, hidden
+		assert.is_true(rank == nil or rank.shown == false) -- Ann's dex has no rank line
 	end)
 
 	it("keeps the left list's scroll on selection and both on a catch; a tab switch resets", function()
