@@ -59,6 +59,7 @@ describe("UI", function()
 		_G.GameFontNormal, _G.GameFontHighlightSmall = {}, {}
 		_G.RAID_CLASS_COLORS = { ROGUE = { r = 1, g = 0.96, b = 0.41 } }
 		_G.date = os.date
+		_G.time = function() return 5000 end
 
 		ns = {
 			RaidData = {
@@ -125,7 +126,7 @@ describe("UI", function()
 		assert.same({ "SoulDexFrame" }, _G.UISpecialFrames)
 
 		ns.UI.openDetail("Stab-R") -- remembered tab: Players
-		for _, tab in ipairs({ "Mobs", "Raids", "Milestones", "Friends", "Players" }) do
+		for _, tab in ipairs({ "Me", "Mobs", "Raids", "Milestones", "Friends", "Players" }) do
 			ns.UI.selectTab(tab)
 			assert.equal(tab, db.window.tab)
 		end
@@ -137,6 +138,29 @@ describe("UI", function()
 
 		ns.UI.toggle()
 		assert.is_false(frame.shown)
+	end)
+
+	it("draws the Me tab on an empty dex and on a populated one", function()
+		local db = loadDb()
+		ns.dex = ns.Dex.new({})
+		ns.UI.toggle()
+		ns.UI.selectTab("Me")
+		assert.equal("Me", db.window.tab)
+		local function rowWith(text)
+			return find("Button", function(f)
+				local left = rawget(f, "left")
+				return left and left.text == text
+			end)
+		end
+		assert.is_truthy(rowWith("Souls taken"))
+		assert.is_nil(rowWith("Unknown souls"))
+		ns.dex = ns.Dex.new(db)
+		ns.dex:recordUnknown({ time = 5, zone = "Elwynn Forest", group = "Eastern Kingdoms" })
+		ns.onCatch[1]({}, {})
+		assert.is_truthy(rowWith("Unknown souls"))
+		assert.is_truthy(rowWith("Friends rank"))
+		ns.UI.showDex(ns.Dex.new({}), "Ann") -- browsing: no error, still on Me
+		assert.equal("Me", ns.UI.currentTab())
 	end)
 
 	it("keeps the left list's scroll on selection and both on a catch; a tab switch resets", function()

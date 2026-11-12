@@ -5,6 +5,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Me tab: your score, unique mobs, players, raids, souls taken, zones, most-caught mob, top zone and your rank among friends; the Friends tab keeps your row only as a ranked marker, hidden until someone else is listed.
 - Catch the soul behind every Soul Shard: Drain Soul and Shadowburn kills are recorded as mobs, players or raid creatures in your dex.
 - Mobs, Players, Raids and Milestones tabs in a small purple window (`/souldex`), with detail panes, flavour text and a remembered position and tab.
 - Raids tab with a fixed list of every vanilla raid creature (Zul'Gurub, Molten Core, Onyxia, Blackwing Lair, AQ20, AQ40, Naxxramas).

@@ -110,14 +110,15 @@ describe("Net", function()
 		it("formats leaderboard rows", function()
 			local C = ns.UIFormat.COLORS
 			local rows = Net.leaderRows({
-				{ name = "Ann", score = 50, online = true, isMe = false },
+				{ name = "Ann", score = 50, online = true },
 				{ name = "Fel", score = 40, online = true, isMe = true },
-				{ name = "Bob", score = 10, online = false, isMe = false },
+				{ name = "Bob", score = 10, online = false },
 			}, "Bob")
 			assert.equal(3, #rows)
 			assert.equal("1. Ann", rows[1].text)
 			assert.equal("2. Fel (you)", rows[2].text)
 			assert.equal(C.TITLE, rows[2].color)
+			assert.is_nil(rows[2].value)
 			assert.equal(C.DIM, rows[3].color)
 			assert.equal("10", rows[3].right)
 			assert.equal("Bob", rows[3].value)
@@ -125,10 +126,14 @@ describe("Net", function()
 			assert.is_false(rows[1].selected)
 		end)
 
-		it("adds a hint when you are alone on the board", function()
-			local rows = Net.leaderRows({ { name = "Fel", score = 0, online = true, isMe = true } }, "Fel")
+		it("adds a hint when there is nobody but you", function()
+			assert.is_false(Net.showSelf({ { name = "Fel", isMe = true } }))
+			assert.is_true(Net.showSelf({ { name = "Ann" }, { name = "Fel", isMe = true } }))
+			local rows = Net.leaderRows({ { name = "Fel", score = 0, online = true, isMe = true } }, nil)
 			assert.equal(2, #rows)
-			assert.is_nil(rows[2].value)
+			assert.is_nil(rows[1].value)
+			assert.truthy(rows[1].text:find("appear here"))
+			assert.equal("/souldex add <name>", rows[2].text)
 		end)
 
 		it("formats a person's numbers", function()
@@ -144,10 +149,6 @@ describe("Net", function()
 
 			local fresh = Net.personLines({ name = "Cid", score = 0, mobs = 0, players = 0, raids = 0 }, { added = true })
 			assert.equal("Not heard from yet.", fresh[#fresh].text)
-
-			local me = Net.personLines({ name = "Fel", score = 1, mobs = 1, players = 0, raids = 0, isMe = true, online = true })
-			assert.equal("you", me[1].right)
-			assert.equal(6, #me)
 		end)
 	end)
 

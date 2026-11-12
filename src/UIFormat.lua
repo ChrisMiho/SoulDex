@@ -261,6 +261,21 @@ function F.milestoneRows(items, fmt)
 	return out
 end
 
+-- The Me tab's key/value lines (View.me): the same look as the detail pane. A line's
+-- color names a COLORS key for its value.
+function F.meLines(items)
+	local out = {}
+	for i, item in ipairs(items) do
+		out[i] = {
+			text = item.label,
+			color = C.MUTED,
+			right = item.value,
+			rightColor = item.color and C[item.color] or C.TEXT,
+		}
+	end
+	return out
+end
+
 -- Detail pane lines (spec 5.5) -----------------------------------------------------
 -- Any field may be nil (a friend's dex has no dates, coordinates or levels): a
 -- labelled line then shows a dash, an unlabelled one is left out.

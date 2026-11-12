@@ -1,4 +1,4 @@
--- The dex window: title bar, five tabs, two scrolling lists (or one full-width list
+-- The dex window: title bar, six tabs, two scrolling lists (or one full-width list
 -- for Milestones) and the slide-in detail pane (src/UIDetail.lua). Game code; the
 -- row and line contents come from the pure ns.View and ns.UIFormat.
 local _, ns = ...
@@ -19,7 +19,7 @@ local RIGHT_X = LEFT_W + 5 -- right list starts after the divider
 local PANE_X = LEFT_W + 3 -- the detail pane covers the right list
 local LEFT_ROW_H, RIGHT_ROW_H = 16, 17
 
-UI.TABS = { "Mobs", "Players", "Raids", "Milestones", "Friends" }
+UI.TABS = { "Me", "Mobs", "Players", "Raids", "Milestones", "Friends" }
 
 -- Sizes of the two Friends tab frames handed to the builder (see setFriendsTab).
 UI.FRIENDS_LEFT_W, UI.FRIENDS_RIGHT_W, UI.FRIENDS_H = LEFT_W, BODY_W - RIGHT_X, BODY_H
@@ -145,6 +145,39 @@ local function drawLists(dex, keepLeft, keepRight)
 	rightList:set(rightRows, openDetail, keepRight)
 end
 
+-- Your numbers for the leaderboard rank (Friends.leaderboard's `me`), or nil when the
+-- Friends module or the character name is not available.
+local function myRow(dex)
+	local Friends = ns.Friends
+	if not Friends or not UnitName then
+		return nil
+	end
+	local name = Friends.normalise(Friends.fullName(UnitName("player")))
+	if not name then
+		return nil
+	end
+	return {
+		name = name,
+		summary = {
+			score = dex:score(),
+			mobs = dex:uniqueMobs(),
+			players = dex:uniquePlayers(),
+			raids = dex:raidsCompleted(),
+		},
+	}
+end
+
+-- The Me tab. Browsing a friend shows their numbers and no rank.
+local function drawMe(dex)
+	local lines
+	if state.owner then
+		lines = ns.View.me(dex, nil, nil, 0)
+	else
+		lines = ns.View.me(dex, ns.db and ns.db.friends, myRow(dex), time())
+	end
+	fullList:set(F.meLines(lines), nil, false)
+end
+
 local function drawFriends()
 	local builder = state.friendsBuilder
 	setShown(friendsNote, builder == nil)
@@ -178,12 +211,15 @@ draw = function(action)
 	local collection = tab == "Mobs" or tab == "Players" or tab == "Raids"
 	leftList:show(collection)
 	rightList:show(collection)
-	fullList:show(tab == "Milestones")
-	setShown(divider, tab ~= "Milestones")
+	local full = tab == "Milestones" or tab == "Me"
+	fullList:show(full)
+	setShown(divider, not full)
 	setShown(friendsBox, tab == "Friends")
 
 	if collection then
 		drawLists(dex, keepLeft, keepRight)
+	elseif tab == "Me" then
+		drawMe(dex)
 	elseif tab == "Milestones" then
 		fullList:set(F.milestoneRows(ns.Milestones.list(dex)), nil, keepRight)
 	else

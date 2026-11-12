@@ -46,6 +46,7 @@ describe("View", function()
 		LoadAddonFile("src/Dex.lua", ns)
 		LoadAddonFile("src/Flavour.lua", ns)
 		LoadAddonFile("src/Milestones.lua", ns)
+		LoadAddonFile("src/Friends.lua", ns)
 		LoadAddonFile("src/View.lua", ns)
 		View = ns.View
 		dex = ns.Dex.new({})
@@ -250,6 +251,96 @@ describe("View", function()
 		end)
 	end)
 
+	describe("me", function()
+		local DASH = "\226\128\148"
+		local TIMES = "\195\151"
+
+		local function values(lines)
+			local out = {}
+			for _, l in ipairs(lines) do
+				out[l.label] = l.value
+			end
+			return out
+		end
+
+		local function labels(lines)
+			local out = {}
+			for _, l in ipairs(lines) do
+				out[#out + 1] = l.label
+			end
+			return out
+		end
+
+		local function me(d)
+			return {
+				name = "Fel",
+				summary = { score = d:score(), mobs = d:uniqueMobs(), players = d:uniquePlayers(), raids = d:raidsCompleted() },
+			}
+		end
+
+		it("shows dashes for an empty dex and hides Unknown souls", function()
+			local lines = View.me(dex, nil, nil, 100)
+			assert.same({
+				"Score", "Unique mobs", "Players", "Raids completed", "Souls taken",
+				"Zones visited", "Most caught", "Top zone", "Friends rank",
+			}, labels(lines))
+			local v = values(lines)
+			assert.equal("0 pts", v.Score)
+			assert.equal("GREEN", lines[1].color)
+			assert.equal("0", v["Souls taken"])
+			assert.equal("0", v["Zones visited"])
+			assert.equal(DASH, v["Most caught"])
+			assert.equal(DASH, v["Top zone"])
+			assert.equal(DASH, v["Friends rank"])
+		end)
+
+		it("totals souls, zones, the most-caught mob and the top zone", function()
+			dex:recordMob(mob("Wolf"), ctx("Elwynn Forest"))
+			dex:recordMob(mob("Wolf"), ctx("Elwynn Forest"))
+			dex:recordMob(mob("Wolf"), ctx("Westfall"))
+			dex:recordMob(mob("Boar"), ctx("Westfall"))
+			dex:recordPlayer(player("Ann", "ROGUE"), ctx("Westfall"))
+			dex:recordRaid(mob("Core Hound"), ctx("Molten Core", "Dungeons"), 409, 11671)
+			local v = values(View.me(dex, nil, nil, 100))
+			assert.equal("6", v["Souls taken"])
+			assert.equal("2", v["Zones visited"])
+			assert.equal("Wolf " .. TIMES .. "3", v["Most caught"])
+			assert.equal("Westfall " .. TIMES .. "3", v["Top zone"])
+			assert.equal("3", v["Unique mobs"])
+			assert.equal("1", v.Players)
+		end)
+
+		it("breaks ties alphabetically", function()
+			dex:recordMob(mob("Zebra"), ctx("Durotar", "Kalimdor"))
+			dex:recordMob(mob("Aardvark"), ctx("Elwynn Forest"))
+			local v = values(View.me(dex, nil, nil, 100))
+			assert.equal("Aardvark " .. TIMES .. "1", v["Most caught"])
+			assert.equal("Durotar " .. TIMES .. "1", v["Top zone"])
+		end)
+
+		it("counts unknown souls and shows the line only above zero", function()
+			dex:recordMob(mob("Wolf"), ctx("Elwynn Forest"))
+			dex:recordUnknown(ctx("Westfall"))
+			dex:recordUnknown(ctx("Westfall"))
+			local v = values(View.me(dex, nil, nil, 100))
+			assert.equal("3", v["Souls taken"])
+			assert.equal("2", v["Zones visited"])
+			assert.equal("2", v["Unknown souls"])
+			assert.equal("Westfall " .. TIMES .. "2", v["Top zone"])
+		end)
+
+		it("ranks you among the friends you have seen", function()
+			dex:recordMob(mob("Wolf"), ctx("Elwynn Forest"))
+			local store = {
+				Ann = { seen = 90, summary = { score = 500 } },
+				Bob = { seen = 90, summary = { score = 0 } },
+			}
+			assert.equal("#2 of 3", values(View.me(dex, store, me(dex), 100))["Friends rank"])
+			assert.equal(DASH, values(View.me(dex, {}, me(dex), 100))["Friends rank"])
+			assert.equal(DASH, values(View.me(dex, nil, me(dex), 100))["Friends rank"])
+		end)
+	end)
+
 	describe("header", function()
 		it("builds each tab's right side", function()
 			for i = 1, 400 do
@@ -265,6 +356,7 @@ describe("View", function()
 			assert.equal("1/4 \194\183 " .. pts, select(2, View.header(dex, "Raids")))
 			assert.truthy(select(2, View.header(dex, "Milestones")):find("^%d+/%d+ \194\183 "))
 			assert.equal(pts, select(2, View.header(dex, "Friends")))
+			assert.equal(pts, select(2, View.header(dex, "Me")))
 		end)
 
 		it("adds thousands separators", function()

@@ -136,10 +136,20 @@ function Net.mySummary(dex)
 	}
 end
 
--- Leaderboard rows (Friends.leaderboard) as UIFormat line descriptors.
+-- Whether your own row is listed: only once someone else is on the board.
+function Net.showSelf(rows)
+	return #rows > 1
+end
+
+-- Leaderboard rows (Friends.leaderboard) as UIFormat line descriptors. Your own row keeps
+-- its ranked place (highlighted, not selectable) when Net.showSelf, otherwise it is left out
+-- and the help text shows.
 function Net.leaderRows(rows, selected)
 	local C = ns.UIFormat.COLORS
 	local out = {}
+	if not Net.showSelf(rows) then
+		rows = {}
+	end
 	for i, r in ipairs(rows) do
 		local color = C.TEXT
 		if r.isMe then
@@ -152,28 +162,27 @@ function Net.leaderRows(rows, selected)
 			color = color,
 			right = tostring(r.score),
 			rightColor = r.online and C.MUTED or C.DIM,
-			value = r.name,
-			selected = r.name == selected,
+			value = (not r.isMe) and r.name or nil,
+			selected = (not r.isMe) and r.name == selected,
 		}
 	end
-	if #rows <= 1 then
+	if #rows == 0 then
 		out[#out + 1] = {
 			text = "Guild and group members with Soul-Dex appear here.",
 			color = C.MUTED,
 			wrap = true,
 		}
+		out[#out + 1] = { text = "/souldex add <name>", color = C.MUTED }
 	end
 	return out
 end
 
--- The right-hand lines for one leaderboard row. entry: its db.friends entry (nil for you).
+-- The right-hand lines for one leaderboard row. entry: its db.friends entry.
 function Net.personLines(row, entry, fmt)
 	local F = ns.UIFormat
 	local C = F.COLORS
 	local status, statusColor = "online", C.GREEN
-	if row.isMe then
-		status, statusColor = "you", C.TITLE
-	elseif not row.online then
+	if not row.online then
 		status, statusColor = "offline", C.DIM
 	end
 	local function kv(label, value)
@@ -187,15 +196,13 @@ function Net.personLines(row, entry, fmt)
 		kv("Players", tostring(row.players)),
 		kv("Raids completed", tostring(row.raids)),
 	}
-	if not row.isMe then
-		if entry and entry.summary then
-			if not row.online then
-				lines[#lines + 1] = kv("Last seen", F.dateText(entry.seen, fmt) or F.DASH)
-			end
-		else
-			lines[#lines + 1] = { hr = true }
-			lines[#lines + 1] = { text = "Not heard from yet.", color = C.MUTED }
+	if entry and entry.summary then
+		if not row.online then
+			lines[#lines + 1] = kv("Last seen", F.dateText(entry.seen, fmt) or F.DASH)
 		end
+	else
+		lines[#lines + 1] = { hr = true }
+		lines[#lines + 1] = { text = "Not heard from yet.", color = C.MUTED }
 	end
 	return lines
 end
@@ -596,29 +603,22 @@ local function drawTab(left, right)
 		return
 	end
 	local me = { name = myName(), summary = Net.mySummary(dex) }
-	local rows = Friends.leaderboard(db.friends, me, time())
-	local byName, added = {}, {}
+	-- Your own row is only there to rank you (the Me tab); the list shows other people.
+	local rows, others, byName, added = Friends.leaderboard(db.friends, me, time()), {}, {}, {}
 	for _, r in ipairs(rows) do
-		byName[r.name] = r
-		added[r.name] = r.added
-	end
-	local selectedRow = byName[state.selected]
-	if not selectedRow then
-		for _, r in ipairs(rows) do
-			if r.isMe then
-				selectedRow = r
-			end
+		if not r.isMe then
+			others[#others + 1] = r
+			byName[r.name] = r
+			added[r.name] = r.added
 		end
 	end
+	local selectedRow = byName[state.selected] or others[1]
 	state.selected = selectedRow and selectedRow.name
 	tab.list:set(Net.leaderRows(rows, state.selected), selectPerson, true)
 	decorateRows(added)
-	if selectedRow then
-		tab.info:set(Net.personLines(selectedRow, db.friends[selectedRow.name]), nil, false)
-	end
-	local other = selectedRow ~= nil and not selectedRow.isMe
-	ns.UIList.setShown(tab.browse, other)
-	tab.status:SetText(other and statusText(selectedRow.name) or "")
+	tab.info:set(selectedRow and Net.personLines(selectedRow, db.friends[selectedRow.name]) or {}, nil, false)
+	ns.UIList.setShown(tab.browse, selectedRow ~= nil)
+	tab.status:SetText(selectedRow and statusText(selectedRow.name) or "")
 end
 
 -- Start ------------------------------------------------------------------------------------

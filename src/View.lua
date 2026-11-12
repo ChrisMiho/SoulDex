@@ -347,6 +347,103 @@ local function thousands(n)
 	return text
 end
 
+local DASH = "\226\128\148" -- em dash, as UIFormat.DASH
+local TIMES = "\195\151"
+
+-- The key with the highest count; ties go to the alphabetically first key.
+local function topOf(counts)
+	local best, bestCount
+	for key, count in pairs(counts) do
+		if not best or count > bestCount or (count == bestCount and key < best) then
+			best, bestCount = key, count
+		end
+	end
+	return best, bestCount
+end
+
+local function countedText(name, count)
+	if not name then
+		return DASH
+	end
+	return name .. " " .. TIMES .. count
+end
+
+-- Lines of the Me tab: an ordered list of { label, value, color? } (color is a
+-- UIFormat.COLORS key). me = { name, summary } and friendsStore feed the rank line;
+-- either may be nil (browsing a friend, Net not loaded), which gives "—".
+-- Zones visited and the top zone count mob, player and unknown catches; raid catches
+-- have no zone, so they only add to Souls taken.
+function View.me(dex, friendsStore, me, now)
+	local db = dex.db
+	local souls, unknown = 0, 0
+	local mobCounts, zoneCounts = {}, {}
+	local function bump(zone, n)
+		zoneCounts[zone] = (zoneCounts[zone] or 0) + n
+	end
+	for name, mob in pairs(db.mobs) do
+		local total = 0
+		for zone, record in pairs(mob.places or {}) do
+			total = total + record.count
+			bump(zone, record.count)
+		end
+		if total > 0 then
+			mobCounts[name] = total
+		end
+		souls = souls + total
+	end
+	for _, player in pairs(db.players) do
+		souls = souls + (player.count or 0)
+		for zone, record in pairs(player.places or {}) do
+			bump(zone, record.count)
+		end
+	end
+	for _, raid in pairs(db.raids) do
+		souls = souls + (raid.count or 0)
+	end
+	for zone, entry in pairs(db.unknown or {}) do
+		unknown = unknown + entry.count
+		bump(zone, entry.count)
+	end
+	souls = souls + unknown
+
+	local zones = 0
+	for _, n in pairs(zoneCounts) do
+		if n > 0 then
+			zones = zones + 1
+		end
+	end
+	local mobName, mobCount = topOf(mobCounts)
+	local zoneName, zoneCount = topOf(zoneCounts)
+
+	local rank = DASH
+	if friendsStore and me and ns.Friends then
+		local rows = ns.Friends.leaderboard(friendsStore, me, now)
+		if #rows > 1 then
+			for i, r in ipairs(rows) do
+				if r.isMe then
+					rank = "#" .. i .. " of " .. #rows
+				end
+			end
+		end
+	end
+
+	local lines = {
+		{ label = "Score", value = thousands(dex:score()) .. " pts", color = "GREEN" },
+		{ label = "Unique mobs", value = tostring(dex:uniqueMobs()) },
+		{ label = "Players", value = tostring(dex:uniquePlayers()) },
+		{ label = "Raids completed", value = tostring(dex:raidsCompleted()) },
+		{ label = "Souls taken", value = tostring(souls) },
+		{ label = "Zones visited", value = tostring(zones) },
+		{ label = "Most caught", value = countedText(mobName, mobCount) },
+		{ label = "Top zone", value = countedText(zoneName, zoneCount) },
+	}
+	if unknown > 0 then
+		lines[#lines + 1] = { label = "Unknown souls", value = tostring(unknown) }
+	end
+	lines[#lines + 1] = { label = "Friends rank", value = rank }
+	return lines
+end
+
 function View.header(dex, tab)
 	local left = "Soul-Dex \194\183 " .. tab
 	local pts = thousands(dex:score()) .. " pts"

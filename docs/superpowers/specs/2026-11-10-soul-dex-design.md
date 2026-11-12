@@ -198,7 +198,8 @@ The look was settled through mockups; the final versions are in
 - Small, dense window (around 340 px wide in the mockups), dark purple
   warlock palette, movable, position saved, closes with Escape.
 - Title bar: "Soul-Dex · <tab>", plus the total for that tab and the score.
-- Tabs along the bottom: **Mobs · Players · Raids · Milestones · Friends**.
+- Tabs along the bottom: **Me · Mobs · Players · Raids · Milestones · Friends**.
+  (changed during build: user asked for their own stats on a Me tab instead of a row in Friends) Mobs stays the default tab for a fresh character.
 - Each collection tab has the same two columns: a **compact list on the left**
   (no bars) and a **list of names on the right**, each name with `×count`.
 
@@ -274,6 +275,20 @@ with their date, the rest dimmed with how far along you are. Milestones:
 - Unique players: 1, 10, 25, 50, 100. **[call]**
 - Each raid completed, and all raids completed. **[call, follows the raid dex]**
 
+### 5.7a Me tab
+
+(changed during build: user asked for their own stats on a Me tab instead of a row in Friends)
+
+One full-width list of key/value lines, in this order: Score (green), Unique
+mobs, Players, Raids completed, Souls taken (every catch: mobs, players, raids
+and unknown souls), Zones visited (places with a mob, player or unknown catch),
+Most caught (mob name and `×count`, ties alphabetical, a dash when none), Top
+zone (most catches including unknown souls; raid catches have no zone), Unknown
+souls (only above 0) and Friends rank (`#R of N` among you and the friends seen;
+a dash when you are alone). The header's right side is the score. While browsing
+a friend's dex the tab shows their numbers and no rank. Redraws on a catch like
+the other tabs. Pure numbers: `View.me`.
+
 ### 5.7 Friends tab
 
 Not mocked up. Same two columns. **[user for what; call for layout]**
@@ -281,7 +296,10 @@ Not mocked up. Same two columns. **[user for what; call for layout]**
 - Left: Soul-Dex users found in your **party, raid and guild**, plus anyone
   **added by name** (saved list, with an add box and a remove option). **[user]**
 - Each shows score, unique mobs, unique players, and raids completed. Sorted
-  by score, as a leaderboard.
+  by score, as a leaderboard. You appear in your ranked place (highlighted,
+  "(you)", not selectable) once at least one friend is listed; your numbers are on
+  the Me tab (5.7a). (changed during build: user asked for their own stats on a Me tab instead of a row in Friends) With nobody else
+  yet your row is hidden: the left side shows the help text and the right side is empty.
 - Clicking someone shows their summary; a **Browse dex** button opens
   **their dex** read-only in the same window, with a visible "Viewing <name>"
   marker and a "« My dex" button back to yours. Entries they have and you
@@ -308,7 +326,7 @@ Not mocked up. Same two columns. **[user for what; call for layout]**
   - A browsed friend's dex carries no dates or coordinates, so its detail
     panes omit them and its Milestones show nothing earned.
   - Without AceComm (a dev checkout without `Libs/`) Friends is disabled with
-    one chat line and the tab shows only you.
+    one chat line and the tab shows only the help text.
 
 ## 6. Game layer
 
@@ -456,7 +474,7 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
 
 **Window**
 - `/souldex` opens a small dark-purple window with the score at the top right,
-  a gear and a ×, and tabs Mobs · Players · Raids · Milestones · Friends.
+  a gear and a ×, and tabs Me · Mobs · Players · Raids · Milestones · Friends.
   `/souldex`, Escape or × closes it.
 - Drag the title bar; `/reload` and reopen: same position and same last tab.
 - Mobs: group headers (Eastern Kingdoms / Kalimdor / Dungeons) with places and
@@ -488,9 +506,17 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
   field of the GUID is the NPC ID and must match that mob's id in
   `src/RaidData.lua`. Check at least one boss and one trash mob.
 
+**Me tab**
+- Me is the left-most of six tabs and all fit in the window. It lists Score,
+  Unique mobs, Players, Raids completed, Souls taken, Zones visited, Most caught,
+  Top zone, (Unknown souls only if you have any) and Friends rank ("#2 of 3", or
+  a dash with no friends seen). A new catch updates it while open; browsing a
+  friend shows their numbers without a rank.
+
 **Friends** (two players A and B on a packaged build, same realm)
 - Same guild: within about 5 s of login the Friends tab on both lists both
-  names by score, the local player marked "(you)".
+  names by score, you in your ranked place marked "(you)". Alone, your row is
+  hidden, the left side shows the help text and the right side is empty.
 - Click the other person: Score, Unique mobs, Players, Raids completed, online.
 - A clicks Browse dex: "Asking B..." then B's dex fills every tab, the title
   reads "Soul-Dex · Viewing B" with a "« My dex" button, and entries B has and
