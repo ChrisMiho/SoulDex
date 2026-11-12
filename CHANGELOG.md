@@ -5,6 +5,8 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-11
+
 - Friends: hover any row for a × that removes that person, including guild and group members you never added; a new "Clean up" button (with a confirmation) removes everyone you didn't add who isn't in your guild or group.
 - Friends: browsing someone who doesn't answer asks again after 60 s and gives up after 90 s, with a chat line each time.
 - Beasts of the common families (wolves, spiders, boars, cats and more) get their own flavour lines.
