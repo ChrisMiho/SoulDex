@@ -357,11 +357,70 @@ end
 
 -- Recording ---------------------------------------------------------------------------
 
--- Guild chat through C_ChatInfo when the client has it; never raises (chat lockdown,
--- deprecated global).
-local function announce(text)
-	local send = (C_ChatInfo and C_ChatInfo.SendChatMessage) or SendChatMessage
-	call(send, text, "GUILD")
+-- Guild announcements. During a boss encounter (and Mythic+) the game silently drops
+-- addon messages to guild: pcall still succeeds, so the message would just vanish. While
+-- chat is locked (or the answer is secret) messages wait in db.announceQueue, saved over
+-- a reload, and go out when the lockdown ends. A held message expires after an hour.
+
+local QUEUE_MAX = 10
+local QUEUE_TTL = 3600
+
+-- True for a readable true from fn(); a secret answer counts as true when secretIs is.
+local function yes(fn, secretIs)
+	local v = call(fn)
+	if not readable(v) then
+		return secretIs
+	end
+	return v == true
+end
+
+local function chatLocked()
+	return yes(C_ChatInfo and C_ChatInfo.InChatMessagingLockdown, true) or yes(IsEncounterInProgress, true)
+end
+
+-- Guild chat through C_ChatInfo when the client has it; never raises (deprecated global).
+local function send(text)
+	local fn = (C_ChatInfo and C_ChatInfo.SendChatMessage) or SendChatMessage
+	call(fn, text, "GUILD")
+end
+
+-- Keeps the held messages still worth sending, oldest first.
+local function liveQueue(db, now)
+	local kept = {}
+	if type(db.announceQueue) == "table" then
+		for _, item in ipairs(db.announceQueue) do
+			if type(item) == "table" and type(item.text) == "string" and type(item.at) == "number"
+				and now - item.at <= QUEUE_TTL then
+				kept[#kept + 1] = item
+			end
+		end
+	end
+	return kept
+end
+
+-- Sends every held message if chat is open and you're in a guild; drops them all when
+-- announcements are off.
+function Capture.flushAnnouncements(db)
+	local queue = liveQueue(db, time())
+	if not db.settings.announce then
+		queue = {}
+	elseif #queue > 0 and not chatLocked() and yes(IsInGuild, false) then
+		for _, item in ipairs(queue) do
+			send(item.text)
+		end
+		queue = {}
+	end
+	db.announceQueue = queue
+end
+
+local function announce(db, text)
+	local queue = liveQueue(db, time())
+	queue[#queue + 1] = { text = text, at = time() }
+	while #queue > QUEUE_MAX do
+		table.remove(queue, 1)
+	end
+	db.announceQueue = queue
+	Capture.flushAnnouncements(db)
 end
 
 local function milestones(db, dex)
@@ -369,9 +428,8 @@ local function milestones(db, dex)
 	for _, m in ipairs(ns.Milestones.check(dex, time())) do
 		Capture.protect(errorHandler(), function()
 			ns.Print("Milestone earned: " .. m.text)
-			local inGuild = call(IsInGuild)
-			if m.announce and settings.announce and readable(inGuild) and inGuild then
-				announce("Soul-Dex: " .. m.text .. "!")
+			if m.announce and settings.announce then
+				announce(db, "Soul-Dex: " .. m.text .. "!")
 			end
 		end)
 	end
@@ -443,6 +501,11 @@ local EVENTS = {
 	"TRADE_CLOSED",
 	"MERCHANT_SHOW",
 	"MERCHANT_CLOSED",
+}
+-- Chat lockdown ending; newer clients only (see Capture.flushAnnouncements).
+local OPTIONAL_EVENTS = {
+	"ADDON_RESTRICTION_STATE_CHANGED",
+	"ENCOUNTER_END",
 }
 
 -- Windows a shard can arrive from without a kill (bank, mail, trade, vendor buyback):
@@ -637,9 +700,22 @@ function Capture.start(db, dex)
 		queueScan()
 	end
 
-	handlers.PLAYER_ENTERING_WORLD = onEnterWorld
+	local function flushAnnouncements()
+		Capture.protect(errorHandler(), Capture.flushAnnouncements, db)
+	end
+
+	handlers.PLAYER_ENTERING_WORLD = function()
+		onEnterWorld()
+		flushAnnouncements()
+	end
 	handlers.BAG_UPDATE_DELAYED = queueScan
-	handlers.PLAYER_REGEN_ENABLED = queueScan
+	handlers.PLAYER_REGEN_ENABLED = function()
+		queueScan()
+		flushAnnouncements()
+	end
+	-- Optional: an older client without these just waits for combat to end or a reload.
+	handlers.ADDON_RESTRICTION_STATE_CHANGED = flushAnnouncements
+	handlers.ENCOUNTER_END = flushAnnouncements
 	for openEvent, closeEvent in pairs(SHARD_SOURCES) do
 		handlers[openEvent] = function()
 			sourcesOpen[openEvent] = true
@@ -658,6 +734,7 @@ function Capture.start(db, dex)
 		end
 	end)
 	local failed = Capture.register(frame, EVENTS, UNIT_EVENTS)
+	Capture.register(frame, OPTIONAL_EVENTS, {}) -- refusals here are not worth a warning
 	if #failed > 0 and ns.Print then
 		ns.Print("The game refused some events (" .. table.concat(failed, ", ") .. "); catching may miss souls.")
 	end

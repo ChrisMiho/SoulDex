@@ -11,8 +11,8 @@ local STUBBED = {
 	"Enum", "C_RestrictedActions", "GetCursorInfo", "UnitName", "UnitGUID", "UnitIsPlayer", "UnitLevel",
 	"UnitClassification", "UnitCreatureType", "UnitCreatureFamily", "UnitClass", "UnitRace", "GetGuildInfo",
 	"GetRealmName", "GetInstanceInfo", "C_Map", "GetRealZoneText", "GetZoneText", "IsInGuild",
-	"SendChatMessage", "C_ChatInfo", "PlaySound", "SOUNDKIT", "geterrorhandler", "UNKNOWN", "UNKNOWNOBJECT",
-	"NUM_BAG_SLOTS", "NUM_TOTAL_EQUIPPED_BAG_SLOTS", "RAID_CLASS_COLORS",
+	"SendChatMessage", "C_ChatInfo", "IsEncounterInProgress", "PlaySound", "SOUNDKIT", "geterrorhandler",
+	"UNKNOWN", "UNKNOWNOBJECT", "NUM_BAG_SLOTS", "NUM_TOTAL_EQUIPPED_BAG_SLOTS", "RAID_CLASS_COLORS",
 }
 
 describe("Capture glue", function()
@@ -155,6 +155,7 @@ describe("Capture glue", function()
 		_G.IsInGuild = function() return false end
 		_G.SendChatMessage = function() end
 		_G.C_ChatInfo = nil
+		_G.IsEncounterInProgress = function() return false end
 		_G.PlaySound = function() end
 		_G.SOUNDKIT = nil
 		_G.geterrorhandler = function() return function(err) error(err, 0) end end
@@ -666,6 +667,122 @@ describe("Capture glue", function()
 			assert.has_no.errors(flush)
 			assert.equal(2, hooked)
 			assert.is_not_nil(db.shardSouls.B)
+		end)
+
+		describe("announcing during a chat lockdown", function()
+			local sentChat, locked
+
+			-- Boots in a guild with announcements on and one announcing milestone per catch.
+			local function bootGuild(db)
+				sentChat, locked = {}, false
+				_G.IsInGuild = function() return true end
+				_G.C_ChatInfo = {
+					SendChatMessage = function(text, channel) sentChat[#sentChat + 1] = channel .. ":" .. text end,
+					InChatMessagingLockdown = function() return locked end,
+				}
+				db = db or {}
+				db.settings = db.settings or { popup = false, sound = false, announce = true }
+				local ns = boot(db)
+				ns.Milestones.check = function() return { { text = "Completed Molten Core", announce = true } } end
+				return ns, db
+			end
+
+			local function catch(cast, guid)
+				world.target = HOGGER
+				world.clock = world.clock + 10
+				drain(cast, "Hogger")
+				putShard(tonumber(guid:byte()) - 64, guid)
+				fire("BAG_UPDATE_DELAYED")
+				flush()
+			end
+
+			it("holds the message while chat is locked and sends it once the lockdown ends", function()
+				local _, db = bootGuild()
+				locked = true
+				catch("cast1", "A")
+				assert.same({}, sentChat)
+				assert.same({ { text = "Soul-Dex: Completed Molten Core!", at = world.epoch } }, db.announceQueue)
+				fire("ADDON_RESTRICTION_STATE_CHANGED", 5, 2) -- still active: nothing yet
+				assert.same({}, sentChat)
+				locked = false
+				fire("ADDON_RESTRICTION_STATE_CHANGED", 5, 0)
+				assert.same({ "GUILD:Soul-Dex: Completed Molten Core!" }, sentChat)
+				assert.same({}, db.announceQueue)
+				fire("ADDON_RESTRICTION_STATE_CHANGED", 5, 0) -- sent once only
+				assert.equal(1, #sentChat)
+			end)
+
+			it("holds the message during a boss encounter and sends it after combat", function()
+				local _, db = bootGuild()
+				_G.IsEncounterInProgress = function() return true end
+				catch("cast1", "A")
+				assert.same({}, sentChat)
+				_G.IsEncounterInProgress = function() return false end
+				fire("PLAYER_REGEN_ENABLED")
+				flush()
+				assert.same({ "GUILD:Soul-Dex: Completed Molten Core!" }, sentChat)
+				assert.same({}, db.announceQueue)
+			end)
+
+			it("treats a secret lockdown answer as locked", function()
+				local _, db = bootGuild()
+				_G.issecretvalue = function(v) return v == SECRET end
+				locked = SECRET
+				catch("cast1", "A")
+				assert.same({}, sentChat)
+				assert.equal(1, #db.announceQueue)
+			end)
+
+			it("sends a message held over a reload once the world loads", function()
+				bootGuild({ announceQueue = { { text = "Soul-Dex: Completed Molten Core!", at = world.epoch - 60 } } })
+				assert.same({ "GUILD:Soul-Dex: Completed Molten Core!" }, sentChat)
+			end)
+
+			it("throws away junk and messages held for over an hour", function()
+				local _, db = bootGuild({
+					announceQueue = { "junk", { text = "Soul-Dex: Old!", at = world.epoch - 3601 }, { at = 1 } },
+				})
+				assert.same({}, sentChat)
+				assert.same({}, db.announceQueue)
+			end)
+
+			it("drops held messages when announcements are turned off", function()
+				local _, db = bootGuild()
+				locked = true
+				catch("cast1", "A")
+				db.settings.announce = false
+				locked = false
+				fire("ADDON_RESTRICTION_STATE_CHANGED", 5, 0)
+				assert.same({}, sentChat)
+				assert.same({}, db.announceQueue)
+			end)
+
+			it("keeps held messages while not in a guild (the roster may still be loading)", function()
+				local _, db = bootGuild()
+				locked = true
+				catch("cast1", "A")
+				_G.IsInGuild = function() return false end
+				locked = false
+				fire("ADDON_RESTRICTION_STATE_CHANGED", 5, 0)
+				assert.same({}, sentChat)
+				assert.equal(1, #db.announceQueue)
+				_G.IsInGuild = function() return true end
+				fire("PLAYER_REGEN_ENABLED")
+				flush()
+				assert.same({ "GUILD:Soul-Dex: Completed Molten Core!" }, sentChat)
+			end)
+
+			it("keeps at most ten held messages", function()
+				local _, db = bootGuild({ announceQueue = {} })
+				locked = true
+				for i = 1, 12 do
+					db.announceQueue[#db.announceQueue + 1] = { text = "old " .. i, at = world.epoch }
+				end
+				catch("cast1", "A")
+				assert.equal(10, #db.announceQueue)
+				assert.equal("old 4", db.announceQueue[1].text)
+				assert.equal("Soul-Dex: Completed Molten Core!", db.announceQueue[10].text)
+			end)
 		end)
 
 		it("shows the popup and plays the sound a frame after the catch, not during it", function()

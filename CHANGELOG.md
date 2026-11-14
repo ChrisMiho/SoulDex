@@ -5,6 +5,8 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Guild announcements earned during a boss fight are no longer lost: they wait and go out when the fight ends.
+
 ## [1.2.0] - 2026-11-14
 
 - The new-catch popup shows your soul count: "Soul #42".

@@ -415,10 +415,19 @@ the user agreed to this table as an example]**
 ### 6.4 Guild announcements
 
 - **On by default** for big moments only: milestones and raid completions. **[user]**
-  New raid bosses are not announced. **[call]** The small milestones (10 mobs,
-  1 and 10 players) are not announced; announcing starts at 100 unique mobs
-  and 25 unique players. **[call]**
+  New raid bosses are not announced. **[call]** The small milestones (10 and
+  50 mobs, 1 and 10 players) are not announced; announcing starts at 100
+  unique mobs and 25 unique players. **[call]**
 - One switch turns them off. Only sent when you're in a guild.
+- The game silently drops addon guild messages during a boss encounter (and
+  Mythic+), which is exactly when a raid completes. While chat is locked
+  (`C_ChatInfo.InChatMessagingLockdown`, `IsEncounterInProgress`, or a
+  secret answer from either) the message is held in `SoulDexDB.announceQueue`
+  and sent when the lockdown ends (`ADDON_RESTRICTION_STATE_CHANGED`,
+  `ENCOUNTER_END`, leaving combat, or the next login). Held messages survive
+  a reload, wait while you're not in a guild (the roster may still be
+  loading), expire after an hour, are capped at 10, and are dropped if
+  announcements are turned off. **[call]**
 
 ### 6.5 Flavour text
 
@@ -553,6 +562,12 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
   Crossing one prints a chat line; a guild message goes out only for the
   announce milestones (100 mobs, 25 players, raids), only in a guild with
   announcements on.
+- Announcement during a lockdown: `/console addonChatRestrictionsForced 1`,
+  then earn an announce milestone (or a raid completion during a boss
+  fight). Only the "Milestone earned" chat line appears, no guild message.
+  `/console addonChatRestrictionsForced 0` (or kill the boss): the guild
+  message appears once. With it held, `/reload` and turn the restriction
+  off: it still goes out once.
 
 **Settings and commands**
 - `/souldex options` or the gear opens three checkboxes (popup, sound, guild

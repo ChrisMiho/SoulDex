@@ -62,6 +62,7 @@ read_globals = {
 	"issecretvalue",
 	"ItemLocation",
 	"IsInGroup",
+	"IsEncounterInProgress",
 	"IsInGuild",
 	"IsInRaid",
 	"LibStub",
