@@ -1,14 +1,13 @@
-## 💜 Soul-Dex 1.2.0: Every Soul Gets a Number
+## 💜 Soul-Dex 1.2.1: No Boast Left Behind
 
-*The shards whisper. Now they count, too.*
+*A soul captured in front of the raid deserves an audience.*
 
 **What's new**
 
-- **Soul #N.** Every fresh capture tells you how many different souls you've collected: *"Soul #42"*. Mobs, players and raid bosses all count.
-- **`/dex`.** A shorter way to type `/souldex`. `/dex options`, `/dex add` and the rest work the same.
-- **A word at login.** One chat line tells you Soul-Dex is loaded, and which version.
-- **Smoother.** No more stutter on the first popup, and elite, rare and boss colours now match the dex window.
+- **Raid announcements get through.** The game mutes addon guild messages during boss fights, which is exactly when you finish a raid. Soul-Dex now holds the message and sends it as soon as the fight ends.
+- **Safe over a reload.** A held announcement survives `/reload` and logging out, and goes out next time chat is open.
+- **No stale boasting.** Anything held for over an hour is quietly dropped, and turning announcements off clears the queue.
 
-**Install:** download `SoulDex-v1.2.0-forever.zip` below and unzip it into `Interface\AddOns`, replacing your old `SoulDex` folder. **Restart the game fully** this time: this update adds a new file, and `/reload` won't pick it up.
+**Install:** download `SoulDex-v1.2.1-forever.zip` below and unzip it into `Interface\AddOns`, replacing your old `SoulDex` folder, then `/reload`. No new files this time, so no full restart needed.
 
-*Happy draining. The Twisting Nether thanks you for your business.*
+*Go forth and brag. Your guild can't ignore you forever.*
