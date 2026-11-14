@@ -1,0 +1,92 @@
+/* Shared look for the CurseForge images. Colours come from src/UI.lua, src/UIFormat.lua,
+   src/Rarity.lua and src/Toast.lua so the illustrations match the addon. */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; }
+body {
+	background: #0b0811;
+	color: #e8e0f0;
+	font-family: "Palatino Linotype", Palatino, Georgia, serif;
+	overflow: hidden;
+}
+
+/* Backdrop for feature cards */
+.stage {
+	position: relative; width: 1280px; height: 720px; overflow: hidden;
+	background:
+		radial-gradient(ellipse 60% 70% at 72% 50%, #3a1a66 0%, #1a0f2b 45%, #0b0811 80%),
+		#0b0811;
+	display: flex; align-items: center; padding: 0 72px; gap: 56px;
+}
+.stage::before {
+	content: ""; position: absolute; inset: 0; pointer-events: none;
+	background-image: radial-gradient(#ffffff22 1px, transparent 1.4px);
+	background-size: 46px 46px; opacity: .35;
+	mask-image: radial-gradient(ellipse at 70% 50%, #000 0%, transparent 70%);
+}
+.copy { width: 430px; flex-shrink: 0; position: relative; z-index: 1; }
+.kicker { color: #8a72b8; font-size: 18px; letter-spacing: 4px; text-transform: uppercase; margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+.kicker img { width: 34px; height: 34px; }
+.copy h1 { color: #f1e6ff; font-size: 50px; line-height: 1.08; font-weight: bold; margin-bottom: 20px; text-shadow: 0 0 24px #8a3cd666; }
+.copy h1 em { color: #c9a8ff; font-style: normal; }
+.copy p { color: #b9aed0; font-size: 22px; line-height: 1.45; }
+.copy ul { list-style: none; margin-top: 18px; }
+.copy li { color: #d6cbe8; font-size: 20px; line-height: 1.5; padding-left: 26px; position: relative; }
+.copy li::before { content: "◆"; color: #8a5cd0; position: absolute; left: 0; font-size: 14px; top: 4px; }
+.shot { position: relative; z-index: 1; flex: 1; display: flex; justify-content: center; align-items: center; gap: 28px; }
+.note { position: absolute; bottom: 16px; right: 24px; color: #5e5378; font-size: 13px; z-index: 1; }
+
+/* The dex window (scaled up with zoom for a crisp render) */
+.wow { zoom: 2; background: #14101c; border: 1px solid #6b4fa0; border-radius: 3px; color: #e8e0f0; font-family: Georgia, serif; font-size: 11px; padding: 5px 6px; width: 340px; position: relative; overflow: hidden; box-shadow: 0 0 20px #00000099, 0 0 30px #6b4fa044; }
+.wow .title { display: flex; justify-content: space-between; align-items: center; color: #c9a8ff; font-weight: bold; border-bottom: 1px solid #3d2d5c; padding-bottom: 2px; margin-bottom: 3px; font-size: 11.5px; }
+.wow .title .r { font-weight: normal; font-size: 10px; display: flex; gap: 5px; align-items: center; }
+.wow .title .gear { color: #8a72b8; font-size: 11px; }
+.wow .title .x { color: #c9a8ff; }
+.wow .body { display: flex; position: relative; height: 176px; }
+.wow .left { width: 120px; border-right: 1px solid #3d2d5c; padding-right: 4px; }
+.wow .right { flex: 1; padding-left: 4px; position: relative; }
+.wow .full { flex: 1; padding: 0 4px; }
+.wow .hd { color: #8a72b8; font-size: 8.5px; text-transform: uppercase; letter-spacing: 1px; margin: 3px 0 0; }
+.wow .zr { padding: 0 3px; font-size: 10.5px; display: flex; justify-content: space-between; line-height: 16px; }
+.wow .zr.sel { background: #3a2a55; border-radius: 2px; }
+.wow .n { color: #9a8fb0; font-size: 9.5px; }
+.wow .mr { padding: 0 3px; font-size: 10.5px; display: flex; justify-content: space-between; line-height: 17px; border-bottom: 1px solid #1d1629; }
+.wow .mr.hl { background: #2a2040; }
+.wow .unk { color: #4d4360; }
+.wow .done { color: #7dff6a; }
+.wow .elite { color: #ffd25a; }
+.wow .rare { color: #c0c0c0; }
+.wow .boss { color: #ff9a5a; }
+.wow .bossdim { color: #5a3d2e; }
+.wow .muted { color: #9a8fb0; }
+.wow .green { color: #7dff6a; }
+.wow .dim { color: #6e6385; }
+.wow .tabs { display: flex; gap: 2px; margin-top: 3px; }
+.wow .tab { background: #251b36; border: 1px solid #3d2d5c; padding: 0 6px; border-radius: 2px 2px 0 0; font-size: 9.5px; line-height: 15px; color: #e8e0f0; }
+.wow .tab.on { background: #3d2d5c; color: #fff; }
+.pane { position: absolute; top: 0; bottom: 0; left: 121px; right: 0; background: #0d0a14; border-left: 1px solid #8a72b8; padding: 3px 6px; font-size: 10.5px; line-height: 14.5px; }
+.pane .back { display: inline-block; background: #251b36; border: 1px solid #5a4486; color: #c9a8ff; border-radius: 2px; padding: 0 6px; font-size: 9.5px; line-height: 13px; margin-bottom: 3px; }
+.pane .px { position: absolute; top: 2px; right: 6px; color: #c9a8ff; font-size: 11px; }
+.pane .g { color: #9a8fb0; }
+.pane .y { color: #ffd100; font-style: italic; margin: 2px 0; }
+.pane .gr { color: #7dff6a; }
+.pane .kv { display: flex; justify-content: space-between; }
+.pane hr { border: 0; border-top: 1px solid #2d2240; margin: 2px 0; }
+.kvrow { display: flex; justify-content: space-between; line-height: 17px; border-bottom: 1px solid #1d1629; padding: 0 3px; font-size: 10.5px; }
+.kvrow .k { color: #9a8fb0; }
+.me-btn { background: #251b36; border: 1px solid #5a4486; color: #c9a8ff; border-radius: 2px; padding: 0 5px; font-size: 9px; line-height: 12px; margin-right: 5px; font-weight: normal; }
+
+/* New-catch toast (src/Toast.lua) */
+.toast { zoom: 2; width: 300px; background: rgba(20, 16, 28, .95); border: 1px solid #6b4fa0; border-radius: 5px; padding: 7px 10px; font-family: Georgia, serif; color: #fff; box-shadow: 0 0 16px #8a3cd688; display: flex; gap: 9px; align-items: center; }
+.toast .ic { width: 36px; height: 36px; border-radius: 3px; border: 1px solid #000; background: radial-gradient(circle at 40% 35%, #f0d2ff, #9a4ae6 50%, #2a0c4a); flex-shrink: 0; box-shadow: inset 0 0 6px #000; }
+.toast .t { color: #c9a8ff; font-size: 10px; letter-spacing: 1px; }
+.toast .nm { font-size: 13px; }
+.toast .sub { color: #9a8fb0; font-size: 10px; }
+
+/* Bag and tooltip */
+.bag { zoom: 2; background: #1a1a1a; border: 2px solid #555; border-radius: 4px; padding: 5px; display: grid; grid-template-columns: repeat(4, 30px); gap: 3px; width: max-content; }
+.slot { width: 30px; height: 30px; background: #0b0b0b; border: 1px solid #333; border-radius: 3px; }
+.slot.sh { background: radial-gradient(circle at 40% 35%, #f0d2ff, #9a4ae6 50%, #2a0c4a); }
+.slot.hov { outline: 2px solid #ffd100; }
+.tt { zoom: 2; background: rgba(9, 7, 18, .95); border: 1px solid #b0a8c0; border-radius: 4px; padding: 6px 8px; font-family: Georgia, serif; font-size: 11px; color: #fff; width: 190px; line-height: 1.45; }
+.tt .q { color: #ffffff; font-size: 12px; }
+.tt .w { color: #ffd100; }

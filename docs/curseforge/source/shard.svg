@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+	<!-- Soul-Dex shard mark: a faceted soul shard inside an arcane ring. Original art. -->
+	<defs>
+		<radialGradient id="glow" cx="50%" cy="50%" r="50%">
+			<stop offset="0%" stop-color="#b56cff" stop-opacity="0.75"/>
+			<stop offset="55%" stop-color="#6d2bbf" stop-opacity="0.25"/>
+			<stop offset="100%" stop-color="#2a0c4a" stop-opacity="0"/>
+		</radialGradient>
+		<linearGradient id="faceL" x1="0" y1="0" x2="1" y2="1">
+			<stop offset="0%" stop-color="#f1dcff"/>
+			<stop offset="45%" stop-color="#b072f0"/>
+			<stop offset="100%" stop-color="#4a1585"/>
+		</linearGradient>
+		<linearGradient id="faceR" x1="1" y1="0" x2="0" y2="1">
+			<stop offset="0%" stop-color="#9d55e6"/>
+			<stop offset="60%" stop-color="#5a1ea3"/>
+			<stop offset="100%" stop-color="#22083f"/>
+		</linearGradient>
+		<linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
+			<stop offset="0%" stop-color="#d9bcff"/>
+			<stop offset="50%" stop-color="#8a5cd0"/>
+			<stop offset="100%" stop-color="#4b2f80"/>
+		</linearGradient>
+	</defs>
+	<circle cx="100" cy="100" r="96" fill="url(#glow)"/>
+	<circle cx="100" cy="100" r="82" fill="none" stroke="url(#ring)" stroke-width="5"/>
+	<circle cx="100" cy="100" r="72" fill="none" stroke="#6b4fa0" stroke-width="1.5" stroke-dasharray="3 6"/>
+	<!-- four rune notches on the ring -->
+	<g fill="#c9a8ff">
+		<path d="M100 12 l5 8 h-10z"/>
+		<path d="M100 188 l5 -8 h-10z"/>
+		<path d="M12 100 l8 5 v-10z"/>
+		<path d="M188 100 l-8 5 v-10z"/>
+	</g>
+	<!-- the shard -->
+	<g transform="translate(100 100) rotate(-12) translate(-100 -100)">
+		<path d="M100 34 L128 92 L108 166 L100 170 Z" fill="url(#faceR)"/>
+		<path d="M100 34 L72 92 L92 166 L100 170 Z" fill="url(#faceL)"/>
+		<path d="M100 34 L72 92 L100 104 L128 92 Z" fill="#e7cbff" opacity="0.55"/>
+		<path d="M72 92 L100 104 L128 92" fill="none" stroke="#f6eaff" stroke-width="1.5" opacity="0.8"/>
+		<path d="M100 104 L100 170" stroke="#f6eaff" stroke-width="1" opacity="0.45"/>
+		<path d="M100 34 L128 92 L108 166 L100 170 L92 166 L72 92 Z" fill="none" stroke="#2a0c4a" stroke-width="2"/>
+		<circle cx="90" cy="70" r="4" fill="#ffffff" opacity="0.9"/>
+	</g>
+</svg>

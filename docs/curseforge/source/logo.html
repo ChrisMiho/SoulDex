@@ -1,0 +1,32 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Soul-Dex logo</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+	/* Square project avatar. ?s=<px> sets the size, ?mark hides the word (small icons). */
+	:root { --s: 400px; }
+	body { background: #0b0811; }
+	.logo {
+		position: fixed; left: 0; top: 0; width: var(--s); height: var(--s); overflow: hidden;
+		display: flex; flex-direction: column; align-items: center; justify-content: center;
+		background: radial-gradient(circle at 50% 42%, #3d1c6e 0%, #1b0f2e 55%, #0b0811 100%);
+	}
+	.logo img { width: calc(var(--s) * .72); height: calc(var(--s) * .72); margin-top: calc(var(--s) * -.03); filter: drop-shadow(0 0 calc(var(--s) * .04) #9a4ae688); }
+	.logo .word { font-family: "Palatino Linotype", Palatino, Georgia, serif; font-weight: bold; color: #f1e6ff; font-size: calc(var(--s) * .14); line-height: 1; margin-top: calc(var(--s) * -.02); text-shadow: 0 0 calc(var(--s) * .03) #8a3cd6, 0 calc(var(--s) * .006) 0 #2a0c4a; }
+	.logo .word span { color: #c9a8ff; }
+	.logo.mark img { width: calc(var(--s) * .92); height: calc(var(--s) * .92); margin: 0; }
+</style></head>
+<body>
+	<div class="logo" id="logo">
+		<img src="shard.svg" alt="">
+		<div class="word">Soul<span>-</span>Dex</div>
+	</div>
+	<script>
+		var q = location.search;
+		var m = /s=(\d+)/.exec(q);
+		if (m) { document.documentElement.style.setProperty("--s", m[1] + "px"); }
+		if (q.indexOf("mark") >= 0) {
+			document.getElementById("logo").classList.add("mark");
+			document.querySelector(".word").remove();
+		}
+	</script>
+</body></html>
