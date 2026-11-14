@@ -18,3 +18,7 @@ luacov.*.out
 .DS_Store
 Thumbs.db
 
+
+# Personal Claude Code files (shared ones live in .claude/ and CLAUDE.md)
+CLAUDE.local.md
+.claude/settings.local.json

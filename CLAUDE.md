@@ -1,10 +1,9 @@
 # Soul-Dex
 
-World of Warcraft: Forever addon (Lua 5.1, Interface 16001), a Pokédex for a
-warlock's Soul Shards. It records what dies while a shard is being taken and
-fills a dex of creatures. `/souldex` (or `/dex`) opens the window. Settings and the dex are
-saved per character in `SoulDexDB`. Personal output goes to the player's own
-chat frame only; the only chat-channel output is guild announcements.
+World of Warcraft: Forever addon (Lua 5.1, Interface 16001): a collection dex
+for a warlock's Soul Shards. It records what dies while a shard is being taken
+and fills a dex of creatures. `/souldex` (or `/dex`) opens the window. Settings
+and the dex are saved per character in `SoulDexDB`.
 
 ## Spec
 
@@ -17,53 +16,35 @@ Run from the repo root. On Windows, `.sh` scripts need Git Bash.
 
 | Task | Command |
 |------|---------|
+| Install tools (once) | `luarocks --lua-version 5.1 install luacheck` and `... install busted` |
 | Lint | `luacheck .` |
 | Unit tests | `busted` |
+| One test file | `busted spec/Dex_spec.lua` |
 | Build, zip and install into the game | `scripts/build.sh` |
 | Build and zip only (no game install) | `scripts/build.sh --no-install` |
 
-In game: `/souldex` (short form `/dex`), `/souldex options`, `/souldex add <name>`, `/souldex remove <name>`.
-
-Lint and tests must pass before you call work done; CI runs both on every push.
-The build output goes to `.release/` (git-ignored). `scripts/build.sh` only
-works in a normal checkout: inside a git worktree the packager stops with
-"No Git, SVN, or Hg checkout found".
+Lint and tests must pass before you call work done; CI runs both on every push,
+and a Stop hook (`.claude/hooks/check.sh`) runs them when Lua files changed.
+The build output goes to `.release/` (git-ignored). The default game folder in
+`scripts/build.sh` is the Windows one; elsewhere set `WOW_ADDONS_DIR` or use
+`--no-install`. The build only works in a normal checkout: inside a git
+worktree the packager stops with "No Git, SVN, or Hg checkout found".
 
 ## Layout
 
-| Path | Purpose |
-|------|---------|
-| `SoulDex.toc` | Load order and SavedVariables. Every new `src/` file must be listed here, above `src\Init.lua` |
-| `embeds.xml` | Library includes (LibStub, CallbackHandler, AceComm) |
-| `src/Settings.lua` | Pure: setting defaults, `normalise` and slash-command parsing |
-| `src/RaidData.lua` | Generated raid creature lists (Questie, GPL-3); do not hand-edit, run `luajit scripts/gen_raids.lua <path>` |
-| `src/Raids.lua` | Pure: raid lookups by NPC id |
-| `src/Points.lua` | Pure: points per catch |
-| `src/Rarity.lua` | Pure: rarity colours and labels, class colour hex (shared by window, popup, tooltip) |
-| `src/Flavour.lua` | Pure: flavour text templates |
-| `src/Dex.lua` | Pure: dex storage, recording, counts |
-| `src/Milestones.lua` | Pure: milestone list and checks |
-| `src/View.lua` | Pure: row/group data for the tabs |
-| `src/Comm.lua` | Pure: encode/decode of friend messages |
-| `src/Friends.lua` | Pure: friends store and leaderboard |
-| `src/Catch.lua` | Pure: capture window (Drain Soul / Shadowburn target for the next new shard) |
-| `src/Shards.lua` | Pure: item GUID to soul map |
-| `src/Toast.lua` | New-catch popup and sound |
-| `src/Capture.lua` | Game events: secret-value guards, player spellcasts, bag scans by item GUID, records catches |
-| `src/Tooltip.lua` | Soul Shard tooltip lines (TooltipDataProcessor, by item GUID) |
-| `src/UIFormat.lua` | UI text and colour helpers |
-| `src/UIList.lua` | Pooled scrolling list component |
-| `src/UI.lua` | Dex window, tabs, panes |
-| `src/UIDetail.lua` | Detail pane content |
-| `src/Options.lua` | Options panel |
-| `src/Net.lua` | Friends network (AceComm), Friends tab |
-| `src/Init.lua` | WoW glue: version, `ns.Print`, ADDON_LOADED, `/souldex` |
-| `scripts/gen_raids.lua` | Generates `src/RaidData.lua` from the Questie NPC database (not shipped) |
-| `spec/` | busted tests, one `<Module>_spec.lua` per module |
-| `scripts/` | Developer scripts (not shipped); `release-intro.sh` runs in the release workflow |
-| `.github/release-intro.md` | Intro put on top of the next GitHub release (not shipped) |
-| `docs/` | Design specs and plans (not shipped) |
-| `.pkgmeta` | Packager config: library externals, files left out of the package |
+- **Pure modules** (no WoW API, busted-tested): `Settings`, `Raids`, `Points`,
+  `Rarity`, `Flavour`, `Dex`, `Milestones`, `View`, `Comm`, `Friends`, `Catch`,
+  `Shards`, `UIFormat`.
+- **Game-facing** (frames, events, chat): `Capture` (secret-value guards,
+  spellcasts, bag scans), `Tooltip`, `Toast`, `UI`, `UIList`, `UIDetail`,
+  `Options`, `Net` (AceComm), `Init` (version, `ns.Print`, slash command).
+- `SoulDex.toc` is the load order: every new `src/` file goes there, above
+  `src\Init.lua`.
+- `src/RaidData.lua` is generated from Questie (GPL-3): never hand-edit, run
+  `luajit scripts/gen_raids.lua <path to classicNpcDB.lua>`.
+- Not shipped (`.pkgmeta` `ignore`): `spec/`, `scripts/`, `docs/`, `CLAUDE.md`;
+  dotfiles are left out by the packager. `scripts/probe/` is a throwaway
+  diagnostic addon, not part of Soul-Dex.
 
 ## Code rules
 
@@ -87,26 +68,20 @@ works in a normal checkout: inside a git worktree the packager stops with
   and `embeds.xml`; never commit `Libs/` or copy library code into `src/`.
 - Tabs for Lua indentation; see `.editorconfig`.
 - Newly created files are left out of builds until they are `git add`ed.
+- Don't use Pokémon names or art anywhere players see it (CurseForge rules on
+  trademarks); "dex" alone is fine.
 
 ## Things only a human can check
 
 Anything that needs the game client. When a task depends on one of these,
 finish the parts you can test, then list exactly what the user should try in
-game and what they should expect to see. Section 9 of the spec
-(`docs/superpowers/specs/2026-11-10-soul-dex-design.md`) is the full list; keep it
-up to date.
+game and what they should expect to see. Section 9 of the spec is the full
+list; keep it up to date.
 
 ## Changes and releases
 
 - Add a line under `## [Unreleased]` in `CHANGELOG.md` for each user-facing change.
-- Releases are made by pushing a `v*` tag. Do not tag or push unless asked.
-- Keep each version's `CHANGELOG.md` section short: a few plain lines, not a
-  list of every fix. The release page shows the whole file.
-- Before tagging, rewrite `.github/release-intro.md` for the new version and
-  commit it with the release. The release workflow puts it on top of the
-  release page (`scripts/release-intro.sh`). Its first line must name the
-  version (`## 💜 Soul-Dex 1.3.0: <title>`), or the workflow leaves it out with
-  a warning. Keep it short and readable for players: a one-line warlock-flavoured
-  tagline, "What's new" in 3–5 bold-led bullets, install steps (say when a full
-  restart is needed: any release that adds a file to `SoulDex.toc`), and a
-  flavoured sign-off.
+- Releases are made by pushing a `v*` tag. Do not tag or push unless asked;
+  the steps are in the `/release` skill (`.claude/skills/release/SKILL.md`).
+- Personal details stay out of the repo: commit with the GitHub no-reply
+  address, and write no local paths or emails into docs.

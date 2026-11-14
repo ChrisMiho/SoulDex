@@ -1,6 +1,6 @@
 ## Interface: 16001
 ## Title: Soul-Dex
-## Notes: A Pokédex for your Soul Shards.
+## Notes: A collection dex for your Soul Shards.
 ## Author: ChrisMiho
 ## Version: @project-version@
 ## Category: Miscellaneous

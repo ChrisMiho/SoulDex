@@ -60,13 +60,12 @@ this document are marked **[call]**, and the user should check them.
 ## 3. Platform and constraints
 
 - WoW: Forever, `## Interface: 16001`, Lua 5.1. **[user]**
-- Same project setup as the user's other addons (FeelingPeckish,
-  DeathRollForever in `C:\Coding\`): `src/` modules sharing code through `ns`,
+- Same project setup as the user's other addons: `src/` modules sharing code through `ns`,
   pure logic kept apart from WoW glue and tested with busted via
   `LoadAddonFile`, `luacheck` with every WoW API declared, `scripts/build.sh`,
   `.pkgmeta`, a `CHANGELOG.md`, and a `CLAUDE.md` like theirs. **[call]**
 - Libraries: AceComm-3.0 (and its dependencies) via `.pkgmeta` externals pinned
-  to an Ace3 tag, as DeathRollForever does, for chunked addon messages. Nothing
+  to an Ace3 tag, for chunked addon messages. Nothing
   else. **[call]**
 - Name in game: **Soul-Dex**. Slash command: **`/souldex`**, with **`/dex`**
   as a short form that works for every subcommand (`/sd` is left alone: too

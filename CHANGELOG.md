@@ -5,6 +5,8 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- The in-game addon list now describes Soul-Dex as "A collection dex for your Soul Shards".
+
 ## [1.2.2] - 2026-11-14
 
 - The first new soul of a session no longer lags: the popup and sound are loaded at login, or when you switch them on.

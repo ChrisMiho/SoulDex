@@ -35,7 +35,7 @@ Author console → **Create Project** → game **World of Warcraft** → class *
 | Logo / avatar | `images/logo-400.png` |
 | Licence | see below |
 | Description | paste `description.md` (Markdown editor), see step 3 |
-| Source / Issues links | leave empty while the GitHub repo is private |
+| Source / Issues links | `https://github.com/ChrisMiho/SoulDex` and `https://github.com/ChrisMiho/SoulDex/issues` |
 | Allow comments | on |
 
 CurseForge reviews every new project by hand; that can take a few days.
@@ -96,11 +96,9 @@ data would have to come from a source that allows that.
 
 ## Trademarks
 
-The page calls Soul-Dex a collection for Soul Shards and never uses Pokémon names or art.
-Keep it that way on the page: CurseForge moderators may reject a project that uses
-another company's trademarks or art. The line "A Pokédex for your Soul Shards" in the
-`.toc` `## Notes` shows in the in-game addon list; it is probably fine there, but if
-moderation complains, change it to "A collection dex for your Soul Shards".
+The page, the README and the `.toc` `## Notes` call Soul-Dex a collection dex and never
+use Pokémon names or art. Keep it that way: CurseForge moderators may reject a project
+that uses another company's trademarks or art.
 
 ## 6. After approval: automatic uploads (optional)
 

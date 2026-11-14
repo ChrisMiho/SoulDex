@@ -28,4 +28,5 @@ jobs:
       - name: Add the release intro
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: scripts/release-intro.sh "${{ github.ref_name }}"
+          TAG: ${{ github.ref_name }}
+        run: scripts/release-intro.sh "$TAG"
