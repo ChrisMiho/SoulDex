@@ -5,6 +5,13 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-14
+
+- The new-catch popup shows your soul count: "Soul #42".
+- `/dex` works as a shortcut for `/souldex`.
+- A chat line after login shows Soul-Dex is loaded, with its version.
+- Fixed: a brief lag on the first popup, popup colours that didn't match the window, and a few smaller issues.
+
 ## [1.1.0] - 2026-11-11
 
 - Friends: hover any row for a × that removes that person, including guild and group members you never added; a new "Clean up" button (with a confirmation) removes everyone you didn't add who isn't in your guild or group.
