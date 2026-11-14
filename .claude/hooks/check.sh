@@ -3,6 +3,8 @@
 # and busted; exit 2 (sends Claude back to work with the output) if either fails.
 # Skips quietly when nothing relevant changed or the tools are not installed.
 cd "${CLAUDE_PROJECT_DIR:-$(dirname "$0")/../..}" || exit 0
+# Tools from "luarocks --local install" live here and may not be on PATH.
+PATH="$HOME/.luarocks/bin:$PATH"
 
 changed="$(git status --porcelain -- '*.lua' '*.toc' .luacheckrc .busted 2>/dev/null)"
 [ -n "$changed" ] || exit 0
