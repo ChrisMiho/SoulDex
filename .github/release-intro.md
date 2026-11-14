@@ -1,13 +1,13 @@
-## 💜 Soul-Dex 1.2.1: No Boast Left Behind
+## 💜 Soul-Dex 1.2.2: No Stutter on the First Soul
 
-*A soul captured in front of the raid deserves an audience.*
+*A soul should be torn from its body smoothly, not with a hiccup.*
 
 **What's new**
 
-- **Raid announcements get through.** The game mutes addon guild messages during boss fights, which is exactly when you finish a raid. Soul-Dex now holds the message and sends it as soon as the fight ends.
-- **Safe over a reload.** A held announcement survives `/reload` and logging out, and goes out next time chat is open.
-- **No stale boasting.** Anything held for over an hour is quietly dropped, and turning announcements off clears the queue.
+- **No more first-catch lag.** The first new soul of a session used to freeze the game for a moment while it loaded the catch sound. The sound now loads quietly behind the loading screen.
+- **Same when you switch it on.** Turning the popup or sound on in `/souldex options` gets it ready right away, so your next catch is smooth too.
+- **Off means off.** With the popup or sound switched off, Soul-Dex doesn't load it at all.
 
-**Install:** download `SoulDex-v1.2.1-forever.zip` below and unzip it into `Interface\AddOns`, replacing your old `SoulDex` folder, then `/reload`. No new files this time, so no full restart needed.
+**Install:** download `SoulDex-v1.2.2-forever.zip` below and unzip it into `Interface\AddOns`, replacing your old `SoulDex` folder, then `/reload`. No new files this time, so no full restart needed.
 
-*Go forth and brag. Your guild can't ignore you forever.*
+*Drain freely. The only thing stuttering now is your victim's last breath.*
