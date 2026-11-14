@@ -60,7 +60,8 @@ works in a normal checkout: inside a git worktree the packager stops with
 | `src/Init.lua` | WoW glue: version, `ns.Print`, ADDON_LOADED, `/souldex` |
 | `scripts/gen_raids.lua` | Generates `src/RaidData.lua` from the Questie NPC database (not shipped) |
 | `spec/` | busted tests, one `<Module>_spec.lua` per module |
-| `scripts/` | Developer scripts (not shipped) |
+| `scripts/` | Developer scripts (not shipped); `release-intro.sh` runs in the release workflow |
+| `.github/release-intro.md` | Intro put on top of the next GitHub release (not shipped) |
 | `docs/` | Design specs and plans (not shipped) |
 | `.pkgmeta` | Packager config: library externals, files left out of the package |
 
@@ -99,3 +100,13 @@ up to date.
 
 - Add a line under `## [Unreleased]` in `CHANGELOG.md` for each user-facing change.
 - Releases are made by pushing a `v*` tag. Do not tag or push unless asked.
+- Keep each version's `CHANGELOG.md` section short: a few plain lines, not a
+  list of every fix. The release page shows the whole file.
+- Before tagging, rewrite `.github/release-intro.md` for the new version and
+  commit it with the release. The release workflow puts it on top of the
+  release page (`scripts/release-intro.sh`). Its first line must name the
+  version (`## 💜 Soul-Dex 1.3.0: <title>`), or the workflow leaves it out with
+  a warning. Keep it short and readable for players: a one-line warlock-flavoured
+  tagline, "What's new" in 3–5 bold-led bullets, install steps (say when a full
+  restart is needed: any release that adds a file to `SoulDex.toc`), and a
+  flavoured sign-off.

@@ -2,7 +2,7 @@ name: Release
 
 # Runs when a version tag such as v0.1.0 is pushed. The packager fetches the
 # libraries listed in .pkgmeta, stamps the version into the .toc, builds the
-# zip and attaches it to a GitHub release.
+# zip and attaches it to a GitHub release; then the intro goes on top.
 on:
   push:
     tags:
@@ -22,3 +22,10 @@ jobs:
       - uses: BigWigsMods/packager@v2.6.1
         env:
           GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
+
+      # A short, readable intro on top of the changelog (.github/release-intro.md;
+      # skipped with a warning if it names another version).
+      - name: Add the release intro
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/release-intro.sh "${{ github.ref_name }}"
