@@ -87,5 +87,5 @@ Classic Era and may differ from WoW: Forever.
 
 ## Licence
 
-MIT. See `LICENSE`. The Questie-derived raid data in `src/RaidData.lua` comes
-from a GPL-3 project; see Data above.
+Copyright (C) 2026 ChrisMiho. GNU General Public License v3.0; see `LICENSE`.
+The raid data in `src/RaidData.lua` comes from Questie, also GPL-3; see Data above.

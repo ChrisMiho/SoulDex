@@ -5,6 +5,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Soul-Dex is now licensed under the GNU GPL v3 (it was MIT), matching the Questie raid data it ships.
 - The in-game addon list now describes Soul-Dex as "A collection dex for your Soul Shards".
 
 ## [1.2.2] - 2026-11-14

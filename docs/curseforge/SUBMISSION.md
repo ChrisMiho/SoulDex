@@ -19,7 +19,6 @@ Everything for the CurseForge project page is in this folder. `docs/` is already
 - [ ] Build the zip you will upload first: `scripts/build.sh --no-install` (Git Bash, normal
   checkout, not a worktree). It lands in `.release/` as `SoulDex-v<version>.zip` (the GitHub release zip is `SoulDex-v<version>-forever.zip`; either works),
   or take the zip from the 1.2.2 GitHub release once that is out.
-- [ ] Decide the licence (see **Licence** below).
 
 ## 2. Create the project
 
@@ -33,7 +32,7 @@ Author console → **Create Project** → game **World of Warcraft** → class *
 | Main category | **Class** (subcategory **Warlock** if offered) |
 | Extra categories | **Achievements** (collection/points), **Minigames** |
 | Logo / avatar | `images/logo-400.png` |
-| Licence | see below |
+| Licence | **GNU General Public License version 3 (GPLv3)** |
 | Description | paste `description.md` (Markdown editor), see step 3 |
 | Source / Issues links | `https://github.com/ChrisMiho/SoulDex` and `https://github.com/ChrisMiho/SoulDex/issues` |
 | Allow comments | on |
@@ -87,12 +86,8 @@ The zip must contain one top-level `SoulDex/` folder; the packager already does 
 
 ## Licence
 
-The addon code is MIT, but the zip also ships `src/RaidData.lua`, which is derived from
-Questie (GPL-3). MIT code can be combined with GPL-3 data, but the combined download
-then has to be shared under GPL-3 terms. On CurseForge pick **GNU General Public
-License version 3 (GPLv3)** for the project. Your own code stays MIT in the repo; nothing
-in the repo needs to change. If you'd rather keep the project MIT on CurseForge, the raid
-data would have to come from a source that allows that.
+Soul-Dex is GPLv3, in the repo (`LICENSE`) and on CurseForge. It has to be: the zip ships
+`src/RaidData.lua`, which is derived from Questie (GPL-3).
 
 ## Trademarks
 
