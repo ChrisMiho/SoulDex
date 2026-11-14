@@ -389,8 +389,16 @@ the user agreed to this table as an example]**
   the name, rarity, place, "Soul #N", and "+N pts". A short sound plays. **[user]**
 - The popup and the sound each have their own on/off setting. **[user]**
 - (changed during build: a hitch on the first popup.) The popup frame is built
-  at load, not on the first catch, and the popup and sound come one frame
+  when the world first loads (only if the popup is on), not on the first catch,
+  and the popup and sound come one frame
   after the bag scan that records the catch, so neither lands on that frame.
+- (changed during build: the first catch still lagged; testing with the sound
+  off showed it was the game reading the sound file on first play.) When the
+  world first loads, behind the loading screen, the catch sound is started and
+  stopped at once so it is already loaded. Only when the sound setting is on
+  and the client has `StopSound` (otherwise it would be heard).
+- Ticking the popup or sound box in the options builds the popup / loads the
+  sound right then, so the first catch after switching one on doesn't lag either.
 
 ### 6.3 Shard tooltip
 
@@ -497,7 +505,10 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
 - Drain Soul a mob to death and get a shard: the popup "NEW SOUL CAUGHT!"
   appears at top centre (name in rarity colour, zone, "Soul #N", "+N pts"),
   a sound plays, it holds 4 s, then fades (about 5 s in all); a second quick kill replaces it.
-  The first catch after a `/reload` shows it without a hitch.
+  The first catch after a `/reload` or a fresh login, with the sound on, shows
+  it and plays the sound without a hitch, and no sound is heard at login.
+  The same after logging in with the popup and sound off, then ticking both in
+  `/souldex options`: no sound is heard on ticking, and the next catch has no hitch.
   The mob is listed under the right place.
 - The same mob name again: no popup or sound. The same mob in another zone:
   listed there, no popup.

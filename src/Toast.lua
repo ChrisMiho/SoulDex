@@ -93,16 +93,14 @@ local function build()
 	frame:Hide()
 end
 
--- Builds the frame ahead of time. Run at load, so the first catch of a session doesn't
--- pay for the frame, its backdrop and the icon on top of the bag scan (a visible hitch).
+-- Builds the frame ahead of time, so the first catch of a session doesn't pay for the
+-- frame, its backdrop and the icon on top of the bag scan (a visible hitch). Run when the
+-- world first loads and when the popup is switched on (Capture.prepareFor).
 function Toast.prepare()
 	if not frame then
 		build()
 	end
 end
-
-ns.onLoaded = ns.onLoaded or {}
-table.insert(ns.onLoaded, Toast.prepare)
 
 -- result: Dex.record* result; info: the mob/player details; ctx: catch context (needs zone);
 -- color: the soul's hex colour (the same one its shard tooltip uses). A second catch

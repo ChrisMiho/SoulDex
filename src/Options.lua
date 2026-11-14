@@ -65,6 +65,10 @@ local function build()
 		check:SetScript("OnClick", function(self)
 			if ns.db and ns.db.settings then
 				ns.db.settings[item.key] = self:GetChecked() and true or false
+				-- Switched on: build the popup / load the sound now, not on the next catch.
+				if ns.db.settings[item.key] and ns.Capture then
+					pcall(ns.Capture.prepareFor, ns.db, item.key)
+				end
 			end
 		end)
 		checks[i] = check

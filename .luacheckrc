@@ -73,6 +73,7 @@ read_globals = {
 	"RAID_CLASS_COLORS",
 	"SOUNDKIT",
 	"StaticPopup_Show",
+	"StopSound",
 	"SendChatMessage",
 	"TooltipDataProcessor",
 	"UIParent",

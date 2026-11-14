@@ -11,7 +11,7 @@ local STUBBED = {
 	"Enum", "C_RestrictedActions", "GetCursorInfo", "UnitName", "UnitGUID", "UnitIsPlayer", "UnitLevel",
 	"UnitClassification", "UnitCreatureType", "UnitCreatureFamily", "UnitClass", "UnitRace", "GetGuildInfo",
 	"GetRealmName", "GetInstanceInfo", "C_Map", "GetRealZoneText", "GetZoneText", "IsInGuild",
-	"SendChatMessage", "C_ChatInfo", "IsEncounterInProgress", "PlaySound", "SOUNDKIT", "geterrorhandler",
+	"SendChatMessage", "C_ChatInfo", "IsEncounterInProgress", "PlaySound", "StopSound", "SOUNDKIT", "geterrorhandler",
 	"UNKNOWN", "UNKNOWNOBJECT", "NUM_BAG_SLOTS", "NUM_TOTAL_EQUIPPED_BAG_SLOTS", "RAID_CLASS_COLORS",
 }
 
@@ -157,6 +157,7 @@ describe("Capture glue", function()
 		_G.C_ChatInfo = nil
 		_G.IsEncounterInProgress = function() return false end
 		_G.PlaySound = function() end
+		_G.StopSound = nil
 		_G.SOUNDKIT = nil
 		_G.geterrorhandler = function() return function(err) error(err, 0) end end
 		_G.UNKNOWN = "Unknown"
@@ -239,7 +240,7 @@ describe("Capture glue", function()
 		local ns = load()
 		assert.equal("function", type(ns.OnLoaded))
 		assert.same({}, ns.onCatch)
-		assert.same({ ns.Toast.prepare }, ns.onLoaded) -- the popup is built at load
+		assert.same({}, ns.onLoaded)
 		assert.equal(1, #postCalls)
 		assert.equal(0, postCalls[1].kind)
 	end)
@@ -799,6 +800,91 @@ describe("Capture glue", function()
 			assert.same({ "hook" }, log)
 			flush()
 			assert.same({ "hook", "show", "sound" }, log)
+		end)
+
+		describe("sound preload at login", function()
+			local played, stopped
+			before_each(function()
+				played, stopped = {}, {}
+				_G.PlaySound = function(kit)
+					played[#played + 1] = kit
+					return true, 77
+				end
+				_G.StopSound = function(handle) stopped[#stopped + 1] = handle end
+			end)
+
+			it("starts the catch sound and stops it at once when the world loads", function()
+				local ns = load()
+				ns.Print = function() end
+				ns.OnLoaded({ settings = { popup = false, sound = true, announce = false } })
+				assert.same({}, played) -- not at ADDON_LOADED
+				fire("PLAYER_ENTERING_WORLD")
+				assert.same({ 8959 }, played)
+				assert.same({ 77 }, stopped)
+				fire("PLAYER_ENTERING_WORLD") -- a later loading screen: once per session
+				assert.equal(1, #played)
+			end)
+
+			it("loads it when the sound is switched on later, and not while it is off", function()
+				local ns, db = boot({ settings = { popup = false, sound = false, announce = false } })
+				ns.Capture.prepareFor(db, "sound")
+				assert.same({}, played)
+				db.settings.sound = true
+				ns.Capture.prepareFor(db, "sound")
+				assert.same({ 8959 }, played)
+				assert.same({ 77 }, stopped)
+			end)
+
+			it("does nothing when the sound is off", function()
+				boot({ settings = { popup = false, sound = false, announce = false } })
+				assert.same({}, played)
+			end)
+
+			it("does nothing when the client can't stop a sound, so none is heard", function()
+				_G.StopSound = nil
+				boot({ settings = { popup = false, sound = true, announce = false } })
+				assert.same({}, played)
+			end)
+
+			it("stops nothing when the game won't play it or the handle is secret", function()
+				_G.PlaySound = function() return false, nil end
+				boot({ settings = { popup = false, sound = true, announce = false } })
+				_G.issecretvalue = function(v) return v == SECRET end
+				_G.PlaySound = function() return true, SECRET end
+				boot({ settings = { popup = false, sound = true, announce = false } })
+				assert.same({}, stopped)
+			end)
+		end)
+
+		describe("popup frame", function()
+			local function countPrepares(ns)
+				local n = 0
+				ns.Toast.prepare = function() n = n + 1 end
+				return function() return n end
+			end
+
+			it("is built when the world first loads if the popup is on", function()
+				local ns = load()
+				ns.Print = function() end
+				local prepared = countPrepares(ns)
+				ns.OnLoaded({ settings = { popup = true, sound = false, announce = false } })
+				assert.equal(0, prepared())
+				fire("PLAYER_ENTERING_WORLD")
+				assert.equal(1, prepared())
+			end)
+
+			it("is not built while the popup is off, and is built when it is switched on", function()
+				local ns = load()
+				ns.Print = function() end
+				local prepared = countPrepares(ns)
+				local db = { settings = { popup = false, sound = false, announce = false } }
+				ns.OnLoaded(db)
+				fire("PLAYER_ENTERING_WORLD")
+				assert.equal(0, prepared())
+				db.settings.popup = true
+				ns.Capture.prepareFor(db, "popup")
+				assert.equal(1, prepared())
+			end)
 		end)
 
 		it("the old slot map is discarded and a junk soul map replaced", function()

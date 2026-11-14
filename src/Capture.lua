@@ -435,14 +435,42 @@ local function milestones(db, dex)
 	end
 end
 
+local function catchSound()
+	return SOUNDKIT and SOUNDKIT.UI_EPICLOOT_TOAST or FALLBACK_SOUND
+end
+
+-- The game reads a sound from disk the first time it plays, which stalls that frame: the
+-- first catch of a session lagged. At login (behind the loading screen) the catch sound
+-- is started and stopped at once, so it is already loaded by the first catch. Skipped
+-- when the sound is off, or when the client can't stop it (it would be heard).
+function Capture.preloadSound(db)
+	if not db.settings.sound or type(StopSound) ~= "function" then
+		return
+	end
+	local willPlay, handle = call(PlaySound, catchSound())
+	if readable(willPlay) and willPlay and plainNumber(handle) then
+		call(StopSound, handle)
+	end
+end
+
+-- Gets ready what a switched-on setting needs at the next catch: the popup frame for
+-- "popup", the loaded sound for "sound". Run for both when the world first loads, and
+-- for one when it is ticked in the options, so the first catch after either doesn't lag.
+function Capture.prepareFor(db, key)
+	if key == "popup" and db.settings.popup and ns.Toast then
+		ns.Toast.prepare()
+	elseif key == "sound" then
+		Capture.preloadSound(db)
+	end
+end
+
 local function popup(db, result, entry)
 	local settings = db.settings
 	if settings.popup and ns.Toast then
 		ns.Toast.show(result, entry.info, entry.ctx, entry.color)
 	end
 	if settings.sound then
-		local kit = SOUNDKIT and SOUNDKIT.UI_EPICLOOT_TOAST or FALLBACK_SOUND
-		pcall(PlaySound, kit)
+		pcall(PlaySound, catchSound())
 	end
 end
 
@@ -620,6 +648,8 @@ function Capture.start(db, dex)
 			return
 		end
 		baselineQueued = true
+		Capture.protect(errorHandler(), Capture.prepareFor, db, "popup")
+		Capture.protect(errorHandler(), Capture.prepareFor, db, "sound")
 		C_Timer.After(BASELINE_DELAY, function()
 			Capture.protect(errorHandler(), scanBags)
 		end)
