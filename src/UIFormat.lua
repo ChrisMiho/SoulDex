@@ -1,4 +1,5 @@
--- Display rows for the dex window (pure; no WoW API). Turns View rows and details
+-- Display rows for the dex window (pure; no WoW API except the date() fallback in
+-- F.dateText when no formatter is passed). Turns View rows and details
 -- into plain line descriptors the window paints:
 --   { text, color, right, rightColor, value, selected, header, hr, big, wrap }
 -- `value` is what a click passes back (nil = not clickable); colours are hex "rrggbb".
@@ -17,9 +18,9 @@ local C = {
 	DIM = "6e6385",
 	GREEN = "7dff6a",
 	FLAVOUR = "ffd100",
-	ELITE = "ffd25a",
-	RARE = "c0c0c0",
-	BOSS = "ff9a5a",
+	ELITE = ns.Rarity.ELITE,
+	RARE = ns.Rarity.RARE,
+	BOSS = ns.Rarity.BOSS,
 }
 F.COLORS = C
 
@@ -34,11 +35,12 @@ local SKULL_DIM = "|TInterface\\TargetingFrame\\UI-RaidTargetingIcon_8:0:0:0:0:6
 local CHECK = "|TInterface\\RaidFrame\\ReadyCheck-Ready:0|t"
 F.MARKS = { STAR = STAR, SKULL = SKULL, SKULL_DIM = SKULL_DIM, CHECK = CHECK }
 
+local R = ns.Rarity
 local STYLES = {
-	elite = { color = C.ELITE, mark = STAR, label = "Elite" },
-	rareelite = { color = C.RARE, mark = STAR, label = "Rare Elite" },
-	rare = { color = C.RARE, label = "Rare" },
-	worldboss = { color = C.BOSS, mark = SKULL, label = "Boss" },
+	elite = { color = R.color("elite"), mark = STAR, label = R.label("elite") },
+	rareelite = { color = R.color("rareelite"), mark = STAR, label = R.label("rareelite") },
+	rare = { color = R.color("rare"), label = R.label("rare") },
+	worldboss = { color = R.color("worldboss"), mark = SKULL, label = R.label("worldboss") },
 }
 
 -- Small helpers ----------------------------------------------------------------
@@ -96,16 +98,7 @@ function F.className(class, classNames)
 end
 
 -- Hex class colour from RAID_CLASS_COLORS (or nil).
-function F.classHex(class, classColors)
-	local c = class and classColors and classColors[class]
-	if not c then
-		return nil
-	end
-	local function byte(v)
-		return math.floor(v * 255 + 0.5)
-	end
-	return string.format("%02x%02x%02x", byte(c.r), byte(c.g), byte(c.b))
-end
+F.classHex = ns.Rarity.classHex
 
 -- The current selection if a row still has it in `field`, else the first row's, else nil.
 function F.pick(rows, field, current)

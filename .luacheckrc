@@ -17,6 +17,7 @@ exclude_files = {
 globals = {
 	"SlashCmdList",
 	"SLASH_SOULDEX1",
+	"SLASH_SOULDEX2",
 	"SoulDexDB",
 	"SoulDexFrame",
 	"SoulDexOptionsFrame",

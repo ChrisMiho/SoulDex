@@ -174,7 +174,7 @@ describe("Capture glue", function()
 	local function load()
 		local ns = {}
 		local pure = {
-			"Settings", "RaidData", "Raids", "Points", "Flavour", "Dex", "Milestones", "Friends", "Catch", "Shards",
+			"Settings", "RaidData", "Raids", "Points", "Rarity", "Flavour", "Dex", "Milestones", "Friends", "Catch", "Shards",
 		}
 		for _, f in ipairs(pure) do
 			LoadAddonFile("src/" .. f .. ".lua", ns)
@@ -238,7 +238,7 @@ describe("Capture glue", function()
 		local ns = load()
 		assert.equal("function", type(ns.OnLoaded))
 		assert.same({}, ns.onCatch)
-		assert.same({}, ns.onLoaded)
+		assert.same({ ns.Toast.prepare }, ns.onLoaded) -- the popup is built at load
 		assert.equal(1, #postCalls)
 		assert.equal(0, postCalls[1].kind)
 	end)
@@ -271,7 +271,7 @@ describe("Capture glue", function()
 			assert.equal("Eastern Kingdoms", db.places["Elwynn Forest"].group)
 			local soul = db.shardSouls.NEW.soul
 			assert.equal("Hogger", soul.name)
-			assert.equal("ffcc33", soul.color)
+			assert.equal("ffd25a", soul.color)
 			assert.equal("Elwynn Forest", soul.zone)
 			assert.is_false(db.shardSouls.OLD.soul)
 			assert.equal(1, #caught)
@@ -668,6 +668,22 @@ describe("Capture glue", function()
 			assert.is_not_nil(db.shardSouls.B)
 		end)
 
+		it("shows the popup and plays the sound a frame after the catch, not during it", function()
+			world.target = HOGGER
+			local ns = boot({ settings = { popup = true, sound = true, announce = false } })
+			local log = {}
+			ns.Toast.show = function() log[#log + 1] = "show" end
+			_G.PlaySound = function() log[#log + 1] = "sound" end
+			table.insert(ns.onCatch, function() log[#log + 1] = "hook" end)
+			drain("cast1", "Hogger")
+			putShard(1, "A")
+			fire("BAG_UPDATE_DELAYED")
+			table.remove(timers, 1)() -- the bag scan records the catch
+			assert.same({ "hook" }, log)
+			flush()
+			assert.same({ "hook", "show", "sound" }, log)
+		end)
+
 		it("the old slot map is discarded and a junk soul map replaced", function()
 			local _, db = boot({ shardSlots = { ["0:1"] = { name = "Wolf" } }, shardSouls = "junk" })
 			assert.is_nil(db.shardSlots)
@@ -821,7 +837,7 @@ describe("Capture glue", function()
 		local classColors = { ROGUE = { r = 1, g = 0.96, b = 0.41 } }
 		assert.equal("fff569", ns.Capture.colorFor({ class = "ROGUE" }, classColors))
 		assert.equal("ffffff", ns.Capture.colorFor({ class = "NOPE" }, classColors))
-		assert.equal("ffcc33", ns.Capture.colorFor({ classification = "elite" }))
+		assert.equal("ffd25a", ns.Capture.colorFor({ classification = "elite" }))
 		assert.equal("ffffff", ns.Capture.colorFor({ classification = "normal" }))
 	end)
 
@@ -870,7 +886,7 @@ describe("Capture glue", function()
 			local cand = { guid = "Creature-0-1-0-2-299-3", info = { name = "Young Wolf", classification = "normal" } }
 			local r, kind = ns.Capture.recordCatch(dex, cand, ctx, "none")
 			assert.equal("mob", kind)
-			assert.equal(1, r.placeCount)
+			assert.equal(1, r.total)
 		end)
 		it("refuses a candidate without a name, or an unknown one", function()
 			local ns, dex = setup()
@@ -882,12 +898,14 @@ describe("Capture glue", function()
 	describe("Toast text", function()
 		it("builds subtitles", function()
 			local ns = load()
-			local mob = { kind = "mob", placeCount = 3, points = 5 }
-			local player = { kind = "player", points = 10 }
-			local raid = { kind = "raid", points = 25 }
-			assert.equal("Elwynn Forest \194\183 #3 here \194\183 |cff7dff6a+5 pts|r", ns.Toast.subtitle(mob, "Elwynn Forest"))
-			assert.equal("Elwynn Forest \194\183 |cff7dff6a+10 pts|r", ns.Toast.subtitle(player, "Elwynn Forest"))
-			assert.equal("Molten Core \194\183 |cff7dff6a+25 pts|r", ns.Toast.subtitle(raid, "Molten Core"))
+			local mob = { kind = "mob", total = 3, points = 5 }
+			local player = { kind = "player", total = 42, points = 10 }
+			local raid = { kind = "raid", total = 7, points = 25 }
+			assert.equal("Elwynn Forest \194\183 Soul #3 \194\183 |cff7dff6a+5 pts|r", ns.Toast.subtitle(mob, "Elwynn Forest"))
+			assert.equal("Elwynn Forest \194\183 Soul #42 \194\183 |cff7dff6a+10 pts|r",
+				ns.Toast.subtitle(player, "Elwynn Forest"))
+			assert.equal("Molten Core \194\183 Soul #7 \194\183 |cff7dff6a+25 pts|r", ns.Toast.subtitle(raid, "Molten Core"))
+			assert.equal("Nowhere \194\183 |cff7dff6a+0 pts|r", ns.Toast.subtitle({ kind = "unknown", points = 0 }, "Nowhere"))
 		end)
 		it("finds the shard icon without the removed GetItemIcon", function()
 			local ns = load()
@@ -916,7 +934,6 @@ describe("Capture glue", function()
 			assert.equal("Hogger  (Elite)", ns.Toast.nameLine({ name = "Hogger", classification = "elite" }))
 			assert.equal("Bob", ns.Toast.nameLine({ name = "Bob", classification = "elite", class = "ROGUE" }))
 			assert.equal("Wolf", ns.Toast.nameLine({ name = "Wolf", classification = "normal" }))
-			assert.equal("Boss", ns.Toast.rarityLabel("worldboss"))
 		end)
 	end)
 

@@ -2,7 +2,7 @@
 
 World of Warcraft: Forever addon (Lua 5.1, Interface 16001), a Pokédex for a
 warlock's Soul Shards. It records what dies while a shard is being taken and
-fills a dex of creatures. `/souldex` opens the window. Settings and the dex are
+fills a dex of creatures. `/souldex` (or `/dex`) opens the window. Settings and the dex are
 saved per character in `SoulDexDB`. Personal output goes to the player's own
 chat frame only; the only chat-channel output is guild announcements.
 
@@ -22,7 +22,7 @@ Run from the repo root. On Windows, `.sh` scripts need Git Bash.
 | Build, zip and install into the game | `scripts/build.sh` |
 | Build and zip only (no game install) | `scripts/build.sh --no-install` |
 
-In game: `/souldex`, `/souldex options`, `/souldex add <name>`, `/souldex remove <name>`.
+In game: `/souldex` (short form `/dex`), `/souldex options`, `/souldex add <name>`, `/souldex remove <name>`.
 
 Lint and tests must pass before you call work done; CI runs both on every push.
 The build output goes to `.release/` (git-ignored). `scripts/build.sh` only
@@ -35,10 +35,11 @@ works in a normal checkout: inside a git worktree the packager stops with
 |------|---------|
 | `SoulDex.toc` | Load order and SavedVariables. Every new `src/` file must be listed here, above `src\Init.lua` |
 | `embeds.xml` | Library includes (LibStub, CallbackHandler, AceComm) |
-| `src/Settings.lua` | Pure: setting defaults and `normalise` |
+| `src/Settings.lua` | Pure: setting defaults, `normalise` and slash-command parsing |
 | `src/RaidData.lua` | Generated raid creature lists (Questie, GPL-3); do not hand-edit, run `luajit scripts/gen_raids.lua <path>` |
 | `src/Raids.lua` | Pure: raid lookups by NPC id |
 | `src/Points.lua` | Pure: points per catch |
+| `src/Rarity.lua` | Pure: rarity colours and labels, class colour hex (shared by window, popup, tooltip) |
 | `src/Flavour.lua` | Pure: flavour text templates |
 | `src/Dex.lua` | Pure: dex storage, recording, counts |
 | `src/Milestones.lua` | Pure: milestone list and checks |

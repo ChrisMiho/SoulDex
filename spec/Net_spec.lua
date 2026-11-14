@@ -7,7 +7,7 @@ describe("Net", function()
 			Print = function() end,
 		}
 		local files = {
-			"Settings", "Raids", "Points", "Flavour", "Dex", "Milestones", "View", "UIFormat", "Comm", "Friends",
+			"Settings", "Raids", "Points", "Rarity", "Flavour", "Dex", "Milestones", "View", "UIFormat", "Comm", "Friends",
 			"Shards", "Capture", "Net",
 		}
 		for _, file in ipairs(files) do
@@ -174,7 +174,7 @@ describe("Net", function()
 		local STUBBED = {
 			"LibStub", "CreateFrame", "C_Timer", "GetTime", "time", "UnitName", "Ambiguate",
 			"IsInGuild", "IsInRaid", "IsInGroup", "ChatFrame_AddMessageEventFilter", "ERR_CHAT_PLAYER_NOT_FOUND_S",
-			"GetNumGroupMembers", "GetNumGuildMembers", "GetGuildRosterInfo",
+			"GetNumGroupMembers", "GetNumGuildMembers", "GetGuildRosterInfo", "issecretvalue",
 		}
 		local saved, ns, sent, registered, printed, clock, wall, timers, filter, shown
 
@@ -261,6 +261,19 @@ describe("Net", function()
 			-- a newcomer gets our summary back on the guild channel
 			assert.equal("GUILD", sent[#sent].dist)
 			assert.equal("S", sent[#sent].text:sub(1, 1))
+		end)
+
+		it("sends nothing to the guild when IsInGuild is a secret value", function()
+			local secret = {}
+			_G.issecretvalue = function(v) return rawequal(v, secret) end
+			_G.IsInGuild = function() return secret end
+			local db = start()
+			local before = #sent
+			ns.Net:OnCommReceived("SoulDex", summary(42), "GUILD", "Bob-Realm")
+			assert.equal(42, db.friends.Bob.summary.score)
+			for i = before + 1, #sent do
+				assert.are_not.equal("GUILD", sent[i].dist)
+			end
 		end)
 
 		it("ignores its own messages and strangers' whispers", function()

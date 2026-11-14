@@ -9,7 +9,7 @@
 -- Hooks (plain lists of functions, so later modules can add their own work):
 --   ns.onLoaded  functions called with (db) at the end of ns.OnLoaded
 --   ns.onCatch   functions called with (result, entry) after every recorded catch, where
---                result is the Dex.record* result ({ isNew, points, placeCount, kind })
+--                result is the Dex.record* result ({ isNew, points, total, kind })
 --                and entry is { info = <mob/player info>, ctx = <catch context>, kind = <result.kind>,
 --                color = <soul hex colour, or nil for an unknown soul> }
 local _, ns = ...
@@ -154,32 +154,15 @@ function Capture.spellKind(spellID, nameOf, names)
 	return nil
 end
 
-local function hex(r, g, b)
-	local function byte(v)
-		return math.floor(v * 255 + 0.5)
-	end
-	return string.format("%02x%02x%02x", byte(r), byte(g), byte(b))
-end
-
-local RARITY_COLORS = {
-	elite = "ffcc33",
-	rare = "9fb8d0",
-	rareelite = "9fb8d0",
-	worldboss = "ff5050",
-}
 local NORMAL_COLOR = "ffffff"
 
--- Hex colour (no "|cff") for a caught thing: class colour for players, rarity for mobs.
--- classColors is RAID_CLASS_COLORS (or nil).
+-- Hex colour (no "|cff") for a caught thing: class colour for players, rarity for mobs,
+-- the same ones the window uses (ns.Rarity). classColors is RAID_CLASS_COLORS (or nil).
 function Capture.colorFor(info, classColors)
 	if info.class then
-		local c = classColors and classColors[info.class]
-		if c then
-			return hex(c.r, c.g, c.b)
-		end
-		return NORMAL_COLOR
+		return ns.Rarity.classHex(info.class, classColors) or NORMAL_COLOR
 	end
-	return RARITY_COLORS[info.classification] or NORMAL_COLOR
+	return ns.Rarity.color(info.classification) or NORMAL_COLOR
 end
 
 -- Records a captured target { guid, info } into the dex. Returns result, kind (or nil if
@@ -408,7 +391,10 @@ end
 -- Each step is protected: nothing here can skip the catch hooks.
 local function afterCatch(db, dex, result, entry)
 	if result.isNew then
-		Capture.protect(errorHandler(), popup, db, result, entry)
+		-- A frame later, so the popup and its sound don't land on the bag scan's frame.
+		C_Timer.After(0, function()
+			Capture.protect(errorHandler(), popup, db, result, entry)
+		end)
 	end
 	Capture.protect(errorHandler(), milestones, db, dex)
 	Capture.runHooks(ns.onCatch, errorHandler(), result, entry)

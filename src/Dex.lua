@@ -34,17 +34,6 @@ local function noteLevel(entry, level)
 	end
 end
 
--- How many different mobs have been caught in zone.
-local function mobsIn(db, zone)
-	local n = 0
-	for _, entry in pairs(db.mobs) do
-		if entry.places and entry.places[zone] then
-			n = n + 1
-		end
-	end
-	return n
-end
-
 function methods:recordMob(info, ctx)
 	local db = self.db
 	notePlace(db, ctx)
@@ -75,8 +64,7 @@ function methods:recordMob(info, ctx)
 	end
 	place.count = place.count + 1
 	place.last = ctx.time
-	-- placeCount: the zone's unique mob count after this catch (the popup's "#N here").
-	return { isNew = isNew, points = points, placeCount = mobsIn(db, ctx.zone), kind = "mob" }
+	return { isNew = isNew, points = points, total = self:uniqueSouls(), kind = "mob" }
 end
 
 function methods:recordPlayer(info, ctx)
@@ -111,7 +99,7 @@ function methods:recordPlayer(info, ctx)
 		entry.places[ctx.zone] = place
 	end
 	place.count = place.count + 1
-	return { isNew = isNew, points = points, kind = "player" }
+	return { isNew = isNew, points = points, total = self:uniqueSouls(), kind = "player" }
 end
 
 function methods:recordRaid(info, ctx, instanceID, npcID)
@@ -120,7 +108,9 @@ function methods:recordRaid(info, ctx, instanceID, npcID)
 	local entry = db.raids[npcID]
 	local isNew = entry == nil
 	local points = 0
+	local before
 	if isNew then
+		before = self:uniqueSouls()
 		points = ns.Points.forMob(info.classification, known ~= nil and known.boss == true)
 		entry = {
 			name = info.name,
@@ -140,7 +130,13 @@ function methods:recordRaid(info, ctx, instanceID, npcID)
 	noteLevel(entry, info.level)
 	entry.count = entry.count + 1
 	entry.last = ctx.time
-	return { isNew = isNew, points = points, kind = "raid" }
+	-- A new raid slot whose name the dex already has (spec 4.5) adds no soul: no total, so
+	-- the popup shows no repeated "Soul #N".
+	local total = self:uniqueSouls()
+	if total == before then
+		total = nil
+	end
+	return { isNew = isNew, points = points, total = total, kind = "raid" }
 end
 
 -- A soul whose name the game hid (spec 4.4): counted per zone only. No points, not a
@@ -180,6 +176,12 @@ function methods:uniquePlayers()
 		n = n + 1
 	end
 	return n
+end
+
+-- Different souls in the dex: unique mobs (raid creatures included) plus unique players.
+-- Record results carry it as `total` after the catch (the popup's "Soul #N").
+function methods:uniqueSouls()
+	return self:uniqueMobs() + self:uniquePlayers()
 end
 
 function methods:score()

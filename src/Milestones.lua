@@ -19,7 +19,7 @@ local function definitions(dex)
 
 	local mobs = dex:uniqueMobs()
 	for _, n in ipairs(MOB_STEPS) do
-		add("mobs_" .. n, n .. " unique souls", n >= MOB_ANNOUNCE_FROM, mobs, n)
+		add("mobs_" .. n, n .. " unique mobs", n >= MOB_ANNOUNCE_FROM, mobs, n)
 	end
 
 	local players = dex:uniquePlayers()

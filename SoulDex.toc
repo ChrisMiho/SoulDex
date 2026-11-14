@@ -12,6 +12,7 @@ src\Settings.lua
 src\RaidData.lua
 src\Raids.lua
 src\Points.lua
+src\Rarity.lua
 src\Flavour.lua
 src\Dex.lua
 src\Milestones.lua

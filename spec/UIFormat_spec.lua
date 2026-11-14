@@ -2,7 +2,7 @@ describe("UIFormat", function()
 	local F
 
 	before_each(function()
-		F = LoadAddonFile("src/UIFormat.lua", LoadAddonFile("src/View.lua", {})).UIFormat
+		F = LoadAddonFile("src/UIFormat.lua", LoadAddonFile("src/View.lua", LoadAddonFile("src/Rarity.lua", {}))).UIFormat
 	end)
 
 	local function texts(lines)

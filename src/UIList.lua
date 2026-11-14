@@ -38,6 +38,32 @@ function L.backdrop(frame, bg, border, alpha)
 	frame:SetBackdropBorderColor(r, g, b, 1)
 end
 
+local BUTTON_BG, BUTTON_BORDER, BUTTON_HOVER = "251b36", "5a4486", "3d2d5c"
+
+-- A small text button ("« Back", "Clean up"): dark purple, lighter on hover.
+-- onClick is optional (callers may set OnClick later).
+function L.button(parent, text, width, height, onClick)
+	local button = CreateFrame("Button", nil, parent, "BackdropTemplate")
+	button:SetSize(width, height)
+	L.backdrop(button, BUTTON_BG, BUTTON_BORDER)
+	button.label = button:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	button.label:SetPoint("CENTER", 0, 0)
+	button.label:SetText(text)
+	L.textColor(button.label, C.TITLE)
+	button:SetScript("OnEnter", function(self)
+		L.backdrop(self, BUTTON_HOVER, BUTTON_BORDER)
+		L.textColor(self.label, C.WHITE)
+	end)
+	button:SetScript("OnLeave", function(self)
+		L.backdrop(self, BUTTON_BG, BUTTON_BORDER)
+		L.textColor(self.label, C.TITLE)
+	end)
+	if onClick then
+		button:SetScript("OnClick", onClick)
+	end
+	return button
+end
+
 function L.setShown(obj, shown)
 	if shown then
 		obj:Show()

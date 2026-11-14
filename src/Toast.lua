@@ -8,13 +8,6 @@ local WIDTH, HEIGHT = 300, 54
 local SLIDE_IN, HOLD, FADE_OUT = 0.3, 4, 0.5
 local TOP_OFFSET, SLIDE_DISTANCE = -140, 30
 
-local RARITY_LABELS = {
-	elite = "Elite",
-	rare = "Rare",
-	rareelite = "Rare Elite",
-	worldboss = "Boss",
-}
-
 Toast.SHARD_ICON_FILE = "Interface\\Icons\\INV_Misc_Gem_Amethyst_02"
 
 -- The Soul Shard icon. GetItemIcon is gone on WoW: Forever; C_Item.GetItemIconByID replaces it.
@@ -30,22 +23,17 @@ function Toast.shardIcon(itemApi, legacy)
 	return Toast.SHARD_ICON_FILE
 end
 
--- "Elite" / "Rare" / "Boss" marker for a classification, or nil for ordinary mobs.
-function Toast.rarityLabel(classification)
-	return RARITY_LABELS[classification]
-end
-
--- Second line: "<zone> · #<placeCount> here · +<points> pts"; players and raid mobs
--- have no place count: "<zone> · +<points> pts".
+-- Second line: "<zone> · Soul #<total> · +<points> pts", where total is how many different
+-- souls the dex holds after this catch; without a total: "<zone> · +<points> pts".
 function Toast.subtitle(result, zone)
-	if result.kind == "mob" and result.placeCount then
-		return string.format("%s \194\183 #%d here \194\183 |cff7dff6a+%d pts|r", zone, result.placeCount, result.points)
+	if result.total then
+		return string.format("%s \194\183 Soul #%d \194\183 |cff7dff6a+%d pts|r", zone, result.total, result.points)
 	end
 	return string.format("%s \194\183 |cff7dff6a+%d pts|r", zone, result.points)
 end
 
 function Toast.nameLine(info)
-	local label = Toast.rarityLabel(info.classification)
+	local label = ns.Rarity.label(info.classification)
 	if label and not info.class then
 		return info.name .. "  (" .. label .. ")"
 	end
@@ -105,13 +93,22 @@ local function build()
 	frame:Hide()
 end
 
+-- Builds the frame ahead of time. Run at load, so the first catch of a session doesn't
+-- pay for the frame, its backdrop and the icon on top of the bag scan (a visible hitch).
+function Toast.prepare()
+	if not frame then
+		build()
+	end
+end
+
+ns.onLoaded = ns.onLoaded or {}
+table.insert(ns.onLoaded, Toast.prepare)
+
 -- result: Dex.record* result; info: the mob/player details; ctx: catch context (needs zone);
 -- color: the soul's hex colour (the same one its shard tooltip uses). A second catch
 -- replaces the first.
 function Toast.show(result, info, ctx, color)
-	if not frame then
-		build()
-	end
+	Toast.prepare()
 	frame.name:SetText("|cff" .. (color or "ffffff") .. Toast.nameLine(info) .. "|r")
 	frame.sub:SetText(Toast.subtitle(result, ctx.zone))
 	frame.t = 0

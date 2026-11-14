@@ -26,11 +26,10 @@ UI.FRIENDS_LEFT_W, UI.FRIENDS_RIGHT_W, UI.FRIENDS_H = LEFT_W, BODY_W - RIGHT_X, 
 
 local WINDOW_BG, BORDER, DIVIDER = "14101c", "6b4fa0", "3d2d5c"
 local TAB_BG = "251b36"
-local BACK_BG, BACK_BORDER, BACK_HOVER = "251b36", "5a4486", "3d2d5c"
 
 -- Shared painting helpers (src/UIList.lua), kept on UI for callers.
 local L = ns.UIList
-UI.textColor, UI.fill, UI.backdrop, UI.newList = L.textColor, L.fill, L.backdrop, L.new
+UI.textColor, UI.fill, UI.backdrop, UI.newList, UI.button = L.textColor, L.fill, L.backdrop, L.new, L.button
 local setShown = L.setShown
 
 -- Window state ----------------------------------------------------------------------
@@ -293,25 +292,10 @@ local function buildTitle()
 	titleRight:SetPoint("RIGHT", gear, "LEFT", -6, 0)
 	UI.textColor(titleRight, C.TITLE)
 	-- "« My dex": shown while browsing a friend's dex (draw anchors the title after it).
-	myDexButton = CreateFrame("Button", nil, bar, "BackdropTemplate")
-	myDexButton:SetSize(56, 14)
-	myDexButton:SetPoint("LEFT", 0, 0)
-	UI.backdrop(myDexButton, BACK_BG, BACK_BORDER)
-	myDexButton.label = myDexButton:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-	myDexButton.label:SetPoint("CENTER", 0, 0)
-	myDexButton.label:SetText("\194\171 My dex")
-	UI.textColor(myDexButton.label, C.TITLE)
-	myDexButton:SetScript("OnEnter", function(self)
-		UI.backdrop(self, BACK_HOVER, BACK_BORDER)
-		UI.textColor(self.label, C.WHITE)
-	end)
-	myDexButton:SetScript("OnLeave", function(self)
-		UI.backdrop(self, BACK_BG, BACK_BORDER)
-		UI.textColor(self.label, C.TITLE)
-	end)
-	myDexButton:SetScript("OnClick", function()
+	myDexButton = UI.button(bar, "\194\171 My dex", 56, 14, function()
 		UI.showDex(nil, nil)
 	end)
+	myDexButton:SetPoint("LEFT", 0, 0)
 	myDexButton:Hide()
 
 	titleLeft = bar:CreateFontString(nil, "OVERLAY", "GameFontNormal")

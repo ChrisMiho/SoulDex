@@ -8,7 +8,6 @@ ns.UIDetail = UIDetail
 
 local SLIDE_TIME = 0.2
 local PANE_BG, PANE_EDGE = "0d0a14", "8a72b8"
-local BACK_BG, BACK_BORDER, BACK_HOVER = "251b36", "5a4486", "3d2d5c"
 local LINE_H = 15
 
 local Pane = {}
@@ -40,28 +39,6 @@ function Pane:close(instant)
 	end
 end
 
-local function backButton(parent, onClick)
-	local UI = ns.UI
-	local C = ns.UIFormat.COLORS
-	local button = CreateFrame("Button", nil, parent, "BackdropTemplate")
-	button:SetSize(50, 14)
-	UI.backdrop(button, BACK_BG, BACK_BORDER)
-	button.label = button:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-	button.label:SetPoint("CENTER", 0, 0)
-	button.label:SetText("\194\171 Back")
-	UI.textColor(button.label, C.TITLE)
-	button:SetScript("OnEnter", function(self)
-		UI.backdrop(self, BACK_HOVER, BACK_BORDER)
-		UI.textColor(self.label, C.WHITE)
-	end)
-	button:SetScript("OnLeave", function(self)
-		UI.backdrop(self, BACK_BG, BACK_BORDER)
-		UI.textColor(self.label, C.TITLE)
-	end)
-	button:SetScript("OnClick", onClick)
-	return button
-end
-
 -- parent: the window body (clips children). x/width/height: where the pane rests.
 -- onClose() runs when the player closes it with Back or ×.
 function UIDetail.create(parent, x, width, height, onClose)
@@ -88,7 +65,7 @@ function UIDetail.create(parent, x, width, height, onClose)
 		end
 	end
 
-	local back = backButton(frame, close)
+	local back = UI.button(frame, "\194\171 Back", 50, 14, close)
 	back:SetPoint("TOPLEFT", 6, -3)
 	local cross = UI.textButton(frame, "\195\151", 14)
 	cross:SetPoint("TOPRIGHT", -4, -2)

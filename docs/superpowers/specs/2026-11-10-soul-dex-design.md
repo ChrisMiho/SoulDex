@@ -68,7 +68,9 @@ this document are marked **[call]**, and the user should check them.
 - Libraries: AceComm-3.0 (and its dependencies) via `.pkgmeta` externals pinned
   to an Ace3 tag, as DeathRollForever does, for chunked addon messages. Nothing
   else. **[call]**
-- Name in game: **Soul-Dex**. Slash command: **`/souldex`**. **[user]**
+- Name in game: **Soul-Dex**. Slash command: **`/souldex`**, with **`/dex`**
+  as a short form that works for every subcommand (`/sd` is left alone: too
+  likely to clash with another addon). **[user]**
   The folder, `.toc` and code name can stay `SoulShardPokeDox` or become
   `SoulDex`; that's the builder's choice. (Built as `SoulDex`: `SoulDex.toc`,
   `package-as: SoulDex`, `SoulDexDB`.)
@@ -281,7 +283,8 @@ The look was settled through mockups; the final versions are in
 Not mocked up. Same style: a compact list of milestones, earned ones bright
 with their date, the rest dimmed with how far along you are. Milestones:
 
-- Unique mobs: 10, 50, 100, 250, 500, 1000. **[user: "counts"]**
+- Unique mobs: 10, 50, 100, 250, 500, 1000, named "N unique mobs" (they
+  count mobs only; the popup's "Soul #N" also counts players). **[user: "counts"]**
 - Unique players: 1, 10, 25, 50, 100. **[call]**
 - Each raid completed, and all raids completed. **[call, follows the raid dex]**
 
@@ -375,19 +378,29 @@ the user agreed to this table as an example]**
 ### 6.2 New-catch popup and sound
 
 - Catching a mob you already have, in a new place, adds it to that place's
-  list quietly: no popup, no points. **[call]** "#N here" in the toast is the
-  place's unique mob count after this catch (an 8th different mob in Elwynn
-  Forest reads "#8 here").
+  list quietly: no popup, no points. **[call]** "Soul #N" in the toast is
+  how many different souls the dex holds after this catch: unique mobs (raid
+  creatures included) plus unique players, across all zones (a 42nd different
+  soul reads "Soul #42"). **[user]** A new raid slot whose name the dex
+  already has adds no soul, so its toast leaves the number out rather than
+  repeat it. **[call]**
 - On a **first** catch only (mob, player or raid entry), a small purple toast
   slides in near the top of the screen (0.3 s slide, 4 s hold, 0.5 s fade): "NEW SOUL CAUGHT!",
-  the name, rarity, place, "#N here", and "+N pts". A short sound plays. **[user]**
+  the name, rarity, place, "Soul #N", and "+N pts". A short sound plays. **[user]**
 - The popup and the sound each have their own on/off setting. **[user]**
+- (changed during build: a hitch on the first popup.) The popup frame is built
+  at load, not on the first catch, and the popup and sound come one frame
+  after the bag scan that records the catch, so neither lands on that frame.
 
 ### 6.3 Shard tooltip
 
 - Hovering a Soul Shard in your bags adds two lines to the normal tooltip:
   "Soul of <name>" (in rarity or class colour) and "<zone> · <date>".
   Nothing else changes. **[user]**
+- (changed during build: one palette.) The tooltip, the popup and the window
+  use the same rarity colours (`Rarity.lua`: elite gold, rare silver, boss
+  orange, as in the mockups). The colour is saved with each shard, so shards
+  named before this keep their old shade.
 - (changed during build: WoW: Forever.) The addon keeps an item GUID → soul
   map (`SoulDexDB.shardSouls`), so the soul follows the shard exactly through
   moves, sorting, the bank and relogs. The tooltip lines are added through
@@ -425,6 +438,8 @@ text. **[call]**
 `/souldex` opens the window. `/souldex options` (and a small gear in the
 window) opens settings. `/souldex add <name>` and `/souldex remove <name>`
 manage the Friends list by name; any other word prints the command list.
+After each login or `/reload`, one chat line shows the addon is on:
+"Soul-Dex v<version> loaded. Type /souldex or /dex to open." **[user]**
 The settings:
 
 - New-catch popup on/off
@@ -437,8 +452,8 @@ All saved.
 
 (changed during build: the module list is owned by `CLAUDE.md`, not this
 spec.) Notably the UI is split across `UI.lua` (window, tabs, panes),
-`UIList.lua` (pooled scrolling list), `UIFormat.lua` (text and colour
-helpers) and `UIDetail.lua` (detail pane content), and the Friends network
+`UIList.lua` (pooled scrolling list and the shared small button),
+`UIFormat.lua` (text and colour helpers; rarity colours come from `Rarity.lua`) and `UIDetail.lua` (detail pane content), and the Friends network
 glue and tab live in `Net.lua`.
 
 ## 8. Left to the builder
@@ -471,8 +486,9 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
 
 **Catching**
 - Drain Soul a mob to death and get a shard: the popup "NEW SOUL CAUGHT!"
-  appears at top centre (name in rarity colour, zone, "#N here", "+N pts"),
+  appears at top centre (name in rarity colour, zone, "Soul #N", "+N pts"),
   a sound plays, it holds 4 s, then fades (about 5 s in all); a second quick kill replaces it.
+  The first catch after a `/reload` shows it without a hitch.
   The mob is listed under the right place.
 - The same mob name again: no popup or sound. The same mob in another zone:
   listed there, no popup.
@@ -499,8 +515,9 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
   from the mailbox or a trade: that one stays unnamed too, never the mob's name.
 - Drain Soul a mob to death with the mailbox, a trade or a vendor window open:
   the shard stays unnamed (accepted).
-- The popup's "#N here" counts the different mobs you have in that zone: a
-  new 3rd mob in a zone reads "#3 here".
+- The popup's "Soul #N" counts every different soul in your dex (mobs, raid
+  creatures and players, all zones): with 41 already, a new one reads
+  "Soul #42". Players and raid creatures show it too.
 - Drain Soul a raid creature: its detail pane (Raids tab) shows its rarity
   (Elite / Boss) and a "Lv 60 Humanoid" style line, if the game gave a level.
 
@@ -512,6 +529,9 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
   that exact shard.
 
 **Window**
+- Log in or `/reload`: one chat line "Soul-Dex v<version> loaded. Type
+  /souldex or /dex to open." (with a version number such as "v1.1.0", not
+  "dev", in a built copy; "dev" only in an unbuilt checkout).
 - `/souldex` opens a small dark-purple window with the score at the top right,
   a gear and a ×, and tabs Me · Mobs · Players · Raids · Milestones · Friends.
   `/souldex`, Escape or × closes it.
@@ -539,6 +559,8 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
   announcements); clicking the label text toggles too. Untick each in turn,
   `/reload`: still unticked, and the matching behaviour stops.
 - `/souldex help` (or any unknown word) prints the commands.
+- `/dex`, `/dex options`, `/dex add <name>` do the same as their `/souldex`
+  forms.
 
 **Raid data**
 - In a raid, `/dump UnitGUID("target")` on a mob: the sixth dash-separated

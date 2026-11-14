@@ -232,6 +232,12 @@ local state = {
 	selected = nil, -- leaderboard selection
 }
 
+-- True only for a readable true from fn() (IsInGuild, IsInRaid, IsInGroup).
+local function yes(fn)
+	local v = Capture.call(fn)
+	return Capture.readable(v) and v == true
+end
+
 -- UnitName("player")'s two parts, each nil unless readable.
 local function myParts()
 	local first, second = Capture.call(UnitName, "player")
@@ -275,7 +281,7 @@ end
 local function broadcastNow()
 	state.lastBroadcast = GetTime()
 	local msg = summaryMessage()
-	for _, channel in ipairs(Net.channels(IsInGuild(), IsInRaid(), IsInGroup())) do
+	for _, channel in ipairs(Net.channels(yes(IsInGuild), yes(IsInRaid), yes(IsInGroup))) do
 		send(msg, channel)
 	end
 end
@@ -464,7 +470,7 @@ local function presentNames()
 		end
 	end
 	local members = Capture.call(GetNumGroupMembers)
-	local prefix = Capture.call(IsInRaid) == true and "raid" or "party"
+	local prefix = yes(IsInRaid) and "raid" or "party"
 	for i = 1, Capture.plainNumber(members) and members or 0 do
 		note(Capture.call(UnitName, prefix .. i))
 	end
@@ -522,7 +528,6 @@ end
 
 -- Friends tab ------------------------------------------------------------------------------
 
-local BACK_BG, BACK_BORDER, BACK_HOVER = "251b36", "5a4486", "3d2d5c"
 local PANE_BG, DIVIDER = "0d0a14", "3d2d5c"
 local ROW_H, LINE_H, BOX_H, BUTTON_H = 16, 15, 16, 16
 
@@ -569,26 +574,6 @@ local function decorateRows()
 		removable[row] = row.value ~= nil
 		remove:Hide()
 	end
-end
-
-local function backButton(parent, text, width)
-	local UI, C = ns.UI, ns.UIFormat.COLORS
-	local button = CreateFrame("Button", nil, parent, "BackdropTemplate")
-	button:SetSize(width, BUTTON_H)
-	UI.backdrop(button, BACK_BG, BACK_BORDER)
-	button.label = button:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-	button.label:SetPoint("CENTER", 0, 0)
-	button.label:SetText(text)
-	UI.textColor(button.label, C.TITLE)
-	button:SetScript("OnEnter", function(self)
-		UI.backdrop(self, BACK_HOVER, BACK_BORDER)
-		UI.textColor(self.label, C.WHITE)
-	end)
-	button:SetScript("OnLeave", function(self)
-		UI.backdrop(self, BACK_BG, BACK_BORDER)
-		UI.textColor(self.label, C.TITLE)
-	end)
-	return button
 end
 
 local function buildTab(left, right)
@@ -640,7 +625,7 @@ local function buildTab(left, right)
 		whileDead = true,
 		hideOnEscape = true,
 	}
-	tab.cleanUp = backButton(left, "Clean up", CLEANUP_W)
+	tab.cleanUp = UI.button(left, "Clean up", CLEANUP_W, BUTTON_H)
 	tab.cleanUp:SetPoint("BOTTOMRIGHT", 0, 0)
 	tab.cleanUp:SetScript("OnClick", function()
 		if C_GuildInfo and C_GuildInfo.GuildRoster then
@@ -652,7 +637,7 @@ local function buildTab(left, right)
 	tab.info = UI.newList(right, rightW, h - BUTTON_H - 6, LINE_H, true)
 	tab.info.frame:SetPoint("TOPLEFT", 0, 0)
 
-	tab.browse = backButton(right, "Browse dex", 76)
+	tab.browse = UI.button(right, "Browse dex", 76, BUTTON_H)
 	tab.browse:SetPoint("BOTTOMLEFT", 4, 2)
 	tab.browse:SetScript("OnClick", function()
 		if state.selected then
@@ -743,7 +728,7 @@ local function start(db)
 					askForSummaries()
 				end)
 			end
-		elseif IsInGroup() then
+		elseif yes(IsInGroup) then
 			requestBroadcast()
 		end
 	end)
