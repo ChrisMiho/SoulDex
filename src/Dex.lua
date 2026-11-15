@@ -9,10 +9,15 @@ local methods = {}
 local meta = { __index = methods }
 
 function Dex.new(db)
-	for _, key in ipairs({ "mobs", "places", "players", "raids", "milestones", "unknown" }) do
+	for _, key in ipairs({ "mobs", "places", "players", "raids", "milestones", "unknown", "instances" }) do
 		if type(db[key]) ~= "table" then
 			db[key] = {} -- missing, or damaged saved data
 		end
+	end
+	-- Instance ids learned in game for raids the data lists without one (raidFor).
+	-- Raids.learn refuses anything damaged or out of date.
+	for key, instanceID in pairs(db.instances) do
+		ns.Raids.learn(key, instanceID)
 	end
 	return setmetatable({ db = db }, meta)
 end
@@ -134,6 +139,21 @@ function methods:recordPlayer(info, ctx)
 		points = ns.Points.again(entry, entry.count - 1, prevLast, ctx.time, true)
 	end
 	return { isNew = isNew, points = points, total = self:uniqueSouls(), kind = "player", count = entry.count }
+end
+
+-- The listed raid for an instance. A raid the data lists without an instance id is
+-- matched by its instance name the first time; the id is then learned and saved.
+function methods:raidFor(instanceID, instanceName)
+	local raid = ns.Raids.byInstance(instanceID)
+	if raid then
+		return raid
+	end
+	raid = ns.Raids.byName(instanceName)
+	if raid and ns.Raids.learn(raid.key, instanceID) then
+		self.db.instances[raid.key] = instanceID
+		return raid
+	end
+	return nil
 end
 
 function methods:recordRaid(info, ctx, instanceID, npcID)

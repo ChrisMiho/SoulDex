@@ -176,8 +176,8 @@ describe("Capture glue", function()
 	local function load()
 		local ns = {}
 		local pure = {
-			"Settings", "RaidData", "Raids", "Points", "Rarity", "Ranks", "Flavour", "Dex", "Milestones", "Friends", "Catch",
-			"Shards",
+			"Settings", "RaidData", "ForeverData", "Raids", "Points", "Rarity", "Ranks", "Flavour", "Dex", "Milestones",
+			"Friends", "Catch", "Shards",
 		}
 		for _, f in ipairs(pure) do
 			LoadAddonFile("src/" .. f .. ".lua", ns)
@@ -1078,6 +1078,18 @@ describe("Capture glue", function()
 			assert.is_nil(ctx.x)
 		end)
 
+		it("buildContext gives the instance name", function()
+			local ns = load()
+			_G.GetInstanceInfo = function() return "Hyjal Summit", "raid", 1, "", 20, 0, false, 3002 end
+			assert.equal("Hyjal Summit", ns.Capture.buildContext().instanceName)
+		end)
+
+		it("buildContext drops a secret instance name", function()
+			local ns = load()
+			_G.GetInstanceInfo = function() return SECRET, "raid", 1, "", 20, 0, false, 3002 end
+			assert.is_nil(ns.Capture.buildContext().instanceName)
+		end)
+
 		it("shardGuids skips secret item IDs and GUIDs", function()
 			local ns = load()
 			world.bags[0][1] = { id = 6265, guid = "A" }
@@ -1186,6 +1198,29 @@ describe("Capture glue", function()
 			assert.is_not_nil(dex.db.mobs["Odd Beast"])
 			assert.same({}, dex.db.raids)
 			assert.equal("Raids", dex.db.places["Odd Keep"].group)
+		end)
+		it("files a claim in a TBD raid under that raid, learning its id from the name", function()
+			local ns, dex = setup()
+			local cand = { guid = "Creature-0-1-3001-2-555-3", info = { name = "Barrow Thing", classification = "elite" } }
+			local raidCtx = { time = 100, myLevel = 60, zone = "The Barrow Deeps", group = "Raids",
+				instanceName = "The Barrow Deeps" }
+			local r, kind = ns.Capture.recordCatch(dex, cand, raidCtx, "raid", 3001)
+			assert.equal("raid", kind)
+			assert.is_true(r.isNew)
+			assert.equal("Barrow Thing", dex.db.raids[555].name)
+			assert.is_nil(dex.db.mobs["Barrow Thing"])
+			assert.equal(3001, dex.db.instances.BD)
+		end)
+		it("does not learn from a party-type instance or without a name", function()
+			local ns, dex = setup()
+			local cand = { guid = "Creature-0-1-3001-2-555-3", info = { name = "Barrow Thing", classification = "elite" } }
+			local named = { time = 100, zone = "X", group = "Dungeons", instanceName = "The Barrow Deeps" }
+			local _, kind = ns.Capture.recordCatch(dex, cand, named, "party", 3001)
+			assert.equal("mob", kind)
+			local unnamed = { time = 100, zone = "X", group = "Raids" }
+			_, kind = ns.Capture.recordCatch(dex, cand, unnamed, "raid", 3001)
+			assert.equal("mob", kind)
+			assert.same({}, dex.db.instances)
 		end)
 		it("records everything else as a mob", function()
 			local ns, dex = setup()

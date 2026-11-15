@@ -178,7 +178,7 @@ function Capture.recordCatch(dex, cand, ctx, instanceType, instanceID)
 	end
 	if instanceType == "raid" then
 		local npcID = Capture.npcIdFromGuid(cand.guid)
-		if instanceID and npcID and ns.Raids.byInstance(instanceID) then
+		if instanceID and npcID and dex:raidFor(instanceID, ctx.instanceName) then
 			return dex:recordRaid(info, ctx, instanceID, npcID), "raid"
 		end
 		-- A raid we do not list: a plain mob (ctx.group is already "Raids").
@@ -276,9 +276,9 @@ local function mapInfo(id)
 	return { mapType = num(info.mapType), parentMapID = num(info.parentMapID), name = str(info.name) }
 end
 
--- Where and when: { time, myLevel, zone, group, x, y }, instance type and ID.
+-- Where and when: { time, myLevel, zone, group, instanceName, x, y }, instance type and ID.
 function Capture.buildContext()
-	local _, instanceType, _, _, _, _, _, instanceID = call(GetInstanceInfo)
+	local instanceName, instanceType, _, _, _, _, _, instanceID = call(GetInstanceInfo)
 	instanceType, instanceID = str(instanceType), num(instanceID)
 	local mapID = C_Map and num(call(C_Map.GetBestMapForUnit, "player"))
 	local continent = mapID and Capture.continentOf(mapID, mapInfo)
@@ -288,6 +288,7 @@ function Capture.buildContext()
 		myLevel = num(call(UnitLevel, "player")),
 		zone = zone,
 		group = Capture.groupFor(instanceType, continent),
+		instanceName = str(instanceName), -- matches a raid whose instance id is not known yet
 	}
 	if instanceType == "raid" then
 		ctx.group = "Raids"
