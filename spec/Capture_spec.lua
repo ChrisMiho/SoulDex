@@ -657,7 +657,7 @@ describe("Capture glue", function()
 			putShard(1, "A")
 			fire("BAG_UPDATE_DELAYED")
 			flush()
-			assert.same({ "GUILD:Soul-Dex: Big one!" }, sentChat)
+			assert.same({ "GUILD:SoulDex: Big one!" }, sentChat)
 			assert.equal(1, hooked)
 			-- no C_ChatInfo and a global that errors: the hooks still run, nothing escapes
 			_G.C_ChatInfo = nil
@@ -702,12 +702,12 @@ describe("Capture glue", function()
 				locked = true
 				catch("cast1", "A")
 				assert.same({}, sentChat)
-				assert.same({ { text = "Soul-Dex: Completed Molten Core!", at = world.epoch } }, db.announceQueue)
+				assert.same({ { text = "SoulDex: Completed Molten Core!", at = world.epoch } }, db.announceQueue)
 				fire("ADDON_RESTRICTION_STATE_CHANGED", 5, 2) -- still active: nothing yet
 				assert.same({}, sentChat)
 				locked = false
 				fire("ADDON_RESTRICTION_STATE_CHANGED", 5, 0)
-				assert.same({ "GUILD:Soul-Dex: Completed Molten Core!" }, sentChat)
+				assert.same({ "GUILD:SoulDex: Completed Molten Core!" }, sentChat)
 				assert.same({}, db.announceQueue)
 				fire("ADDON_RESTRICTION_STATE_CHANGED", 5, 0) -- sent once only
 				assert.equal(1, #sentChat)
@@ -721,7 +721,7 @@ describe("Capture glue", function()
 				_G.IsEncounterInProgress = function() return false end
 				fire("PLAYER_REGEN_ENABLED")
 				flush()
-				assert.same({ "GUILD:Soul-Dex: Completed Molten Core!" }, sentChat)
+				assert.same({ "GUILD:SoulDex: Completed Molten Core!" }, sentChat)
 				assert.same({}, db.announceQueue)
 			end)
 
@@ -735,13 +735,13 @@ describe("Capture glue", function()
 			end)
 
 			it("sends a message held over a reload once the world loads", function()
-				bootGuild({ announceQueue = { { text = "Soul-Dex: Completed Molten Core!", at = world.epoch - 60 } } })
-				assert.same({ "GUILD:Soul-Dex: Completed Molten Core!" }, sentChat)
+				bootGuild({ announceQueue = { { text = "SoulDex: Completed Molten Core!", at = world.epoch - 60 } } })
+				assert.same({ "GUILD:SoulDex: Completed Molten Core!" }, sentChat)
 			end)
 
 			it("throws away junk and messages held for over an hour", function()
 				local _, db = bootGuild({
-					announceQueue = { "junk", { text = "Soul-Dex: Old!", at = world.epoch - 3601 }, { at = 1 } },
+					announceQueue = { "junk", { text = "SoulDex: Old!", at = world.epoch - 3601 }, { at = 1 } },
 				})
 				assert.same({}, sentChat)
 				assert.same({}, db.announceQueue)
@@ -770,7 +770,7 @@ describe("Capture glue", function()
 				_G.IsInGuild = function() return true end
 				fire("PLAYER_REGEN_ENABLED")
 				flush()
-				assert.same({ "GUILD:Soul-Dex: Completed Molten Core!" }, sentChat)
+				assert.same({ "GUILD:SoulDex: Completed Molten Core!" }, sentChat)
 			end)
 
 			it("keeps at most ten held messages", function()
@@ -782,7 +782,7 @@ describe("Capture glue", function()
 				catch("cast1", "A")
 				assert.equal(10, #db.announceQueue)
 				assert.equal("old 4", db.announceQueue[1].text)
-				assert.equal("Soul-Dex: Completed Molten Core!", db.announceQueue[10].text)
+				assert.equal("SoulDex: Completed Molten Core!", db.announceQueue[10].text)
 			end)
 		end)
 

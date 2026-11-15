@@ -1,4 +1,4 @@
-# Submitting Soul-Dex to CurseForge
+# Submitting SoulDex to CurseForge
 
 Everything for the CurseForge project page is in this folder. `docs/` is already in the
 `.pkgmeta` ignore list, so none of it ends up in the addon zip.
@@ -16,9 +16,9 @@ Everything for the CurseForge project page is in this folder. `docs/` is already
 
 - [ ] Sign in at <https://www.curseforge.com> and open the author console
   (<https://authors.curseforge.com>). Accept the author terms if it is your first project.
-- [ ] Build the zip you will upload first: `scripts/build.sh --no-install` (Git Bash, normal
-  checkout, not a worktree). It lands in `.release/` as `SoulDex-v<version>.zip` (the GitHub release zip is `SoulDex-v<version>-forever.zip`; either works),
-  or take the zip from the 1.2.2 GitHub release once that is out.
+- [ ] Get the zip you will upload: every release saves the GitHub release zip to
+  `releases/SoulDex-v<version>-forever.zip` (git-ignored). For an older release, run
+  `gh release download v<version> -p '*.zip' -D releases`.
 
 ## 2. Create the project
 
@@ -26,7 +26,7 @@ Author console → **Create Project** → game **World of Warcraft** → class *
 
 | Field | Fill in |
 |-------|---------|
-| Project name | `Soul-Dex` |
+| Project name | `SoulDex` |
 | Summary | `A collector's dex for warlocks: every Soul Shard records whose soul it holds. Catch mobs, players and raid souls.` (113 characters) |
 | Short alternative | `Every Soul Shard remembers whose soul it holds. A collection game for warlocks.` |
 | Main category | **Class** (subcategory **Warlock** if offered) |
@@ -76,7 +76,7 @@ Files tab → **Upload File**:
 | Field | Fill in |
 |-------|---------|
 | File | the `SoulDex-v<version>` zip |
-| Display name | `Soul-Dex <version>` |
+| Display name | `SoulDex <version>` |
 | Release type | **Release** |
 | Game version | **Forever** (1.60.1 / interface 16001; tick every Forever version listed) |
 | Changelog | that version's lines from `CHANGELOG.md` (Markdown) |
@@ -86,12 +86,12 @@ The zip must contain one top-level `SoulDex/` folder; the packager already does 
 
 ## Licence
 
-Soul-Dex is GPLv3, in the repo (`LICENSE`) and on CurseForge. It has to be: the zip ships
+SoulDex is GPLv3, in the repo (`LICENSE`) and on CurseForge. It has to be: the zip ships
 `src/RaidData.lua`, which is derived from Questie (GPL-3).
 
 ## Trademarks
 
-The page, the README and the `.toc` `## Notes` call Soul-Dex a collection dex and never
+The page, the README and the `.toc` `## Notes` call SoulDex a collection dex and never
 use Pokémon names or art. Keep it that way: CurseForge moderators may reject a project
 that uses another company's trademarks or art.
 

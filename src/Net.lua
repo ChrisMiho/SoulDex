@@ -1,4 +1,4 @@
--- Friends glue: swaps summaries and dexes with other Soul-Dex users over AceComm-3.0,
+-- Friends glue: swaps summaries and dexes with other SoulDex users over AceComm-3.0,
 -- draws the Friends tab (leaderboard, add/remove, the selected person's numbers) and
 -- opens a friend's dex for browsing. The decision helpers are pure and tested; the
 -- wiring below them is game code. Wall-clock time() for every saved `seen`, GetTime()
@@ -176,7 +176,7 @@ function Net.leaderRows(rows, selected)
 	end
 	if #rows == 0 then
 		out[#out + 1] = {
-			text = "Guild and group members with Soul-Dex appear here.",
+			text = "Guild and group members with SoulDex appear here.",
 			color = C.MUTED,
 			wrap = true,
 		}
@@ -414,7 +414,7 @@ local function loaded()
 	if ns.db and ns.db.friends then
 		return true
 	end
-	ns.Print("Soul-Dex is still loading.")
+	ns.Print("SoulDex is still loading.")
 	return false
 end
 
@@ -735,7 +735,7 @@ local function start(db)
 	C_Timer.NewTicker(POLL_EVERY, tick)
 
 	-- Whispering an offline friend prints "No player named ... is currently playing."; hide
-	-- that line for names Soul-Dex itself whispered a moment ago.
+	-- that line for names SoulDex itself whispered a moment ago.
 	if ChatFrame_AddMessageEventFilter then
 		ChatFrame_AddMessageEventFilter("CHAT_MSG_SYSTEM", function(_, _, msg)
 			local name = Friends.normalise(Net.notFoundName(msg, ERR_CHAT_PLAYER_NOT_FOUND_S))

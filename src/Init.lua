@@ -14,14 +14,14 @@ end
 
 -- Personal output: the player's own chat frame only, never a channel.
 local function Print(text)
-	DEFAULT_CHAT_FRAME:AddMessage("|cff9482c9Soul-Dex|r " .. text)
+	DEFAULT_CHAT_FRAME:AddMessage("|cff9482c9SoulDex|r " .. text)
 end
 
 ns.version = GetVersion()
 ns.Print = Print
 
 local HELP = {
-	"/souldex - open or close the Soul-Dex",
+	"/souldex - open or close the SoulDex",
 	"/souldex options - popup, sound and announcement switches",
 	"/souldex add <name> - follow a friend's dex by name",
 	"/souldex remove <name> - stop following them",

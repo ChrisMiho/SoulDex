@@ -1,11 +1,11 @@
-![Soul-Dex](BANNER_IMAGE_URL)
+![SoulDex](BANNER_IMAGE_URL)
 
 ## Every Soul Shard remembers whose soul it holds
 
-Warlocks collect Soul Shards all day. **Soul-Dex** turns that chore into a collection:
+Warlocks collect Soul Shards all day. **SoulDex** turns that chore into a collection:
 each time a shard lands in your bags, the mob or player it came from is *caught* and
 recorded in your dex. Fill it, earn points and milestones, and compare with other
-Soul-Dex users in your guild.
+SoulDex users in your guild.
 
 Made for **World of Warcraft: Forever**.
 
@@ -41,7 +41,7 @@ relogs.
 
 ### ◆ Friends
 
-Soul-Dex users in your party, raid and guild appear on a leaderboard on their own. Add
+SoulDex users in your party, raid and guild appear on a leaderboard on their own. Add
 anyone else with `/souldex add <name>`. Browse a friend's dex, read-only: what they
 have and you don't is highlighted.
 
@@ -65,10 +65,10 @@ The new-catch popup, the sound and guild announcements each have their own on/of
 
 ### How catching works on WoW: Forever
 
-Forever hides the combat log from addons, so Soul-Dex reads your target when you start
+Forever hides the combat log from addons, so SoulDex reads your target when you start
 **Drain Soul** (or cast **Shadowburn**) and names the next new shard after it. When the
 game hides the target's name, the catch counts as an **Unknown soul** in that zone (no
-points, no popup). Soul-Dex never guesses: a shard it can't match to a cast is left
+points, no popup). SoulDex never guesses: a shard it can't match to a cast is left
 unnamed rather than recorded under the wrong name. Shards from before you installed the
 addon have no soul to show.
 

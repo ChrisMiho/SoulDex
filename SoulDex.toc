@@ -1,5 +1,5 @@
 ## Interface: 16001
-## Title: Soul-Dex
+## Title: SoulDex
 ## Notes: A collection dex for your Soul Shards.
 ## Author: ChrisMiho
 ## Version: @project-version@

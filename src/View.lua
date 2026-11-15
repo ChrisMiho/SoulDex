@@ -452,7 +452,7 @@ function View.me(dex, friendsStore, me, now)
 end
 
 function View.header(dex, tab)
-	local left = "Soul-Dex \194\183 " .. tab
+	local left = "SoulDex \194\183 " .. tab
 	local pts = thousands(dex:score()) .. " pts"
 	local sep = " \194\183 "
 	local right

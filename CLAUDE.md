@@ -1,4 +1,4 @@
-# Soul-Dex
+# SoulDex
 
 World of Warcraft: Forever addon (Lua 5.1, Interface 16001): a collection dex
 for a warlock's Soul Shards. It records what dies while a shard is being taken
@@ -7,7 +7,7 @@ and the dex are saved per character in `SoulDexDB`.
 
 ## Spec
 
-`docs/superpowers/specs/2026-11-10-soul-dex-design.md` is the owning
+`docs/superpowers/specs/2026-11-10-souldex-design.md` is the owning
 document. A change to behaviour is not done until the spec and the code agree.
 
 ## Commands
@@ -44,7 +44,7 @@ worktree the packager stops with "No Git, SVN, or Hg checkout found".
   `luajit scripts/gen_raids.lua <path to classicNpcDB.lua>`.
 - Not shipped (`.pkgmeta` `ignore`): `spec/`, `scripts/`, `docs/`, `CLAUDE.md`;
   dotfiles are left out by the packager. `scripts/probe/` is a throwaway
-  diagnostic addon, not part of Soul-Dex.
+  diagnostic addon, not part of SoulDex.
 
 ## Code rules
 
@@ -81,7 +81,8 @@ list; keep it up to date.
 ## Changes and releases
 
 - Add a line under `## [Unreleased]` in `CHANGELOG.md` for each user-facing change.
-- Releases are made by pushing a `v*` tag. Do not tag or push unless asked;
+- Releases are made by pushing a `v*` tag. The `/release` skill then saves the
+  published zip to `releases/` (git-ignored), the copy to upload to CurseForge. Do not tag or push unless asked;
   the steps are in the `/release` skill (`.claude/skills/release/SKILL.md`).
 - Personal details stay out of the repo: commit with the GitHub no-reply
   address, and write no local paths or emails into docs.

@@ -388,7 +388,7 @@ describe("View", function()
 			dex:recordRaid(mob("Core Hound"), ctx("Molten Core", "Dungeons"), 409, 11671)
 			local pts = dex:score() .. " pts"
 			local left, right = View.header(dex, "Mobs")
-			assert.equal("Soul-Dex \194\183 Mobs", left)
+			assert.equal("SoulDex \194\183 Mobs", left)
 			assert.equal("401 \194\183 " .. pts, right)
 			assert.equal("1 \194\183 " .. pts, select(2, View.header(dex, "Players")))
 			assert.equal("1/4 \194\183 " .. pts, select(2, View.header(dex, "Raids")))

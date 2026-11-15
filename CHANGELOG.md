@@ -5,10 +5,12 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- The addon is now called SoulDex everywhere: the window, options, chat lines, guild announcements and the addon list.
+
 ## [1.2.3] - 2026-11-14
 
-- Soul-Dex is now licensed under the GNU GPL v3 (it was MIT), matching the Questie raid data it ships.
-- The in-game addon list now describes Soul-Dex as "A collection dex for your Soul Shards".
+- SoulDex is now licensed under the GNU GPL v3 (it was MIT), matching the Questie raid data it ships.
+- The in-game addon list now describes SoulDex as "A collection dex for your Soul Shards".
 
 ## [1.2.2] - 2026-11-14
 
@@ -22,7 +24,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 - The new-catch popup shows your soul count: "Soul #42".
 - `/dex` works as a shortcut for `/souldex`.
-- A chat line after login shows Soul-Dex is loaded, with its version.
+- A chat line after login shows SoulDex is loaded, with its version.
 - Fixed: a brief lag on the first popup, popup colours that didn't match the window, and a few smaller issues.
 
 ## [1.1.0] - 2026-11-11
@@ -49,7 +51,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - Raids tab with a fixed list of every vanilla raid creature (Zul'Gurub, Molten Core, Onyxia, Blackwing Lair, AQ20, AQ40, Naxxramas).
 - New-catch popup and sound, points for first catches, and milestones with optional guild announcements.
 - Soul Shard tooltips show whose soul it is and where it was taken, following the shard between bag slots.
-- Friends tab: a leaderboard of Soul-Dex users in your party, raid and guild plus people added with `/souldex add <name>`; browse a friend's dex read-only.
+- Friends tab: a leaderboard of SoulDex users in your party, raid and guild plus people added with `/souldex add <name>`; browse a friend's dex read-only.
 - `/souldex options` (or the gear) toggles the popup, the sound and guild announcements.
 - Fixed: nothing was recorded on WoW: Forever (the combat log is blocked for addons). Catches now come from your Drain Soul / Shadowburn casts and shards are tracked by item, so a soul follows its shard anywhere. A target whose name the game hides is counted as an "Unknown soul" in that zone.
 - Fixed: the new-catch popup errored on WoW: Forever (`GetItemIcon` no longer exists).

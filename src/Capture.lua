@@ -429,7 +429,7 @@ local function milestones(db, dex)
 		Capture.protect(errorHandler(), function()
 			ns.Print("Milestone earned: " .. m.text)
 			if m.announce and settings.announce then
-				announce(db, "Soul-Dex: " .. m.text .. "!")
+				announce(db, "SoulDex: " .. m.text .. "!")
 			end
 		end)
 	end

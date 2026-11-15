@@ -1,4 +1,4 @@
--- Soul-Dex probe (throwaway, not shipped). Records what this client exposes to addons
+-- SoulDex probe (throwaway, not shipped). Records what this client exposes to addons
 -- about the player's spellcasts, the target and the bags, into SoulDexProbeLog
 -- (written to SavedVariables on /reload or logout). Every read is protected.
 local PREFIX = "|cff9482c9SoulDexProbe|r "

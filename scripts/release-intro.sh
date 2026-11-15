@@ -6,7 +6,7 @@
 # Usage: scripts/release-intro.sh v1.2.0
 #
 # The intro's first line must name the version (for example
-# "## Soul-Dex 1.2.0: ..."). An intro for another version is left out with a
+# "## SoulDex 1.2.0: ..."). An intro for another version is left out with a
 # warning, so a forgotten update never posts last release's text. Running it
 # twice doesn't add the intro twice.
 set -euo pipefail

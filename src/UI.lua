@@ -174,7 +174,7 @@ draw = function(action)
 	local left, right = ns.View.header(dex, tab)
 	titleLeft:ClearAllPoints()
 	if state.owner then
-		left = "Soul-Dex \194\183 Viewing " .. state.owner
+		left = "SoulDex \194\183 Viewing " .. state.owner
 		titleLeft:SetPoint("LEFT", myDexButton, "RIGHT", 5, 0)
 	else
 		titleLeft:SetPoint("LEFT", 2, 0)
@@ -401,7 +401,7 @@ local function ready()
 	if ns.db and dexNow() then
 		return true
 	end
-	ns.Print("Soul-Dex is still loading.")
+	ns.Print("SoulDex is still loading.")
 	return false
 end
 

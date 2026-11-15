@@ -1,5 +1,5 @@
 ## Interface: 16001
-## Title: Soul-Dex Probe
+## Title: SoulDex Probe
 ## Notes: Throwaway probe: records what this client lets addons see about Drain Soul, targets and bags.
 ## SavedVariables: SoulDexProbeLog
 

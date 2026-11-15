@@ -1,16 +1,16 @@
-# Soul-Dex — design
+# SoulDex — design
 
 Date: 2026-11-10
-Status: approved and built (feat/soul-dex). Deliberate differences from the first draft are marked "(changed during build: ...)".
+Status: approved and built. Deliberate differences from the first draft are marked "(changed during build: ...)".
 
 ## 1. What it is and why
 
-Soul-Dex is a World of Warcraft: Forever addon for warlocks. It turns
+SoulDex is a World of Warcraft: Forever addon for warlocks. It turns
 collecting Soul Shards into a collection minigame, like a Pokédex: every time
 a shard lands in your bags, the mob or player it came from is "caught" and
 recorded in the dex.
 
-Warlocks collect shards all the time anyway. Soul-Dex gives that chore a
+Warlocks collect shards all the time anyway. SoulDex gives that chore a
 collector's goal, a record of where your souls came from, and something to
 compare with other warlocks.
 
@@ -32,7 +32,7 @@ this document are marked **[call]**, and the user should check them.
 - The shard in your bag gets extra tooltip lines saying whose soul it is. **[user]**
 - A minigame layer: a popup and sound for new catches, points, milestones,
   and guild announcements of big moments. **[user]**
-- Social: see other Soul-Dex users in your party, raid or guild, plus anyone
+- Social: see other SoulDex users in your party, raid or guild, plus anyone
   you add by name. View their score and browse their dex. **[user]**
 
 ### Non-goals
@@ -67,7 +67,7 @@ this document are marked **[call]**, and the user should check them.
 - Libraries: AceComm-3.0 (and its dependencies) via `.pkgmeta` externals pinned
   to an Ace3 tag, for chunked addon messages. Nothing
   else. **[call]**
-- Name in game: **Soul-Dex**. Slash command: **`/souldex`**, with **`/dex`**
+- Name in game: **SoulDex**. Slash command: **`/souldex`**, with **`/dex`**
   as a short form that works for every subcommand (`/sd` is left alone: too
   likely to clash with another addon). **[user]**
   The folder, `.toc` and code name can stay `SoulShardPokeDox` or become
@@ -205,7 +205,7 @@ The look was settled through mockups; the final versions are in
 
 - Small, dense window (around 340 px wide in the mockups), dark purple
   warlock palette, movable, position saved, closes with Escape.
-- Title bar: "Soul-Dex · <tab>", plus the total for that tab and the score.
+- Title bar: "SoulDex · <tab>", plus the total for that tab and the score.
 - Tabs along the bottom: **Me · Mobs · Players · Raids · Milestones · Friends**.
   (changed during build: user asked for their own stats on a Me tab instead of a row in Friends) Mobs stays the default tab for a fresh character.
 - Each collection tab has the same two columns: a **compact list on the left**
@@ -291,7 +291,7 @@ with their date, the rest dimmed with how far along you are. Milestones:
 
 Not mocked up. Same two columns. **[user for what; call for layout]**
 
-- Left: Soul-Dex users found in your **party, raid and guild**, plus anyone
+- Left: SoulDex users found in your **party, raid and guild**, plus anyone
   **added by name** (saved list, with an add box and a remove option). **[user]**
   Names may have two words (WoW: Forever's "Forgot Shards"). Hovering any row
   shows a × that removes that person: someone never added comes back if they
@@ -303,7 +303,7 @@ Not mocked up. Same two columns. **[user for what; call for layout]**
   by score, as a leaderboard. You appear in your ranked place (highlighted,
   "(you)", not selectable) once at least one friend with a summary is listed; your numbers are on
   the Me tab (5.8). (changed during build: user asked for their own stats on a Me tab instead of a row in Friends) With nobody else
-  yet your row is hidden: the left side shows the help text ("Guild and group members with Soul-Dex appear here." and "/souldex add <name>") and the right side is empty.
+  yet your row is hidden: the left side shows the help text ("Guild and group members with SoulDex appear here." and "/souldex add <name>") and the right side is empty.
 - Clicking someone shows their summary; a **Browse dex** button opens
   **their dex** read-only in the same window, with a visible "Viewing <name>"
   marker and a "« My dex" button back to yours. Entries they have and you
@@ -323,7 +323,7 @@ Not mocked up. Same two columns. **[user for what; call for layout]**
     someone not heard from for 10 minutes shows as offline.
   - When a group or guild member we haven't heard from recently announces
     themselves, we reply with our own summary so they see us at once.
-  - Added friends are whispered; Soul-Dex hides the "No player named ... is
+  - Added friends are whispered; SoulDex hides the "No player named ... is
     currently playing." line for names it whispered itself in the last 5 s,
     so offline friends cause no chat spam.
   - Browse dex whispers a request. With no dex after 60 s, a chat line says
@@ -455,7 +455,7 @@ text. **[call]**
 window) opens settings. `/souldex add <name>` and `/souldex remove <name>`
 manage the Friends list by name; any other word prints the command list.
 After each login or `/reload`, one chat line shows the addon is on:
-"Soul-Dex v<version> loaded. Type /souldex or /dex to open." **[user]**
+"SoulDex v<version> loaded. Type /souldex or /dex to open." **[user]**
 The settings:
 
 - New-catch popup on/off
@@ -548,7 +548,7 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
   that exact shard.
 
 **Window**
-- Log in or `/reload`: one chat line "Soul-Dex v<version> loaded. Type
+- Log in or `/reload`: one chat line "SoulDex v<version> loaded. Type
   /souldex or /dex to open." (with a version number such as "v1.1.0", not
   "dev", in a built copy; "dev" only in an unbuilt checkout).
 - `/souldex` opens a small dark-purple window with the score at the top right,
@@ -602,10 +602,10 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
 **Friends** (two players A and B on a packaged build, same realm)
 - Same guild: within about 5 s of login the Friends tab on both lists both
   names by score, you in your ranked place marked "(you)". Alone, your row is
-  hidden, the left side shows the help text ("Guild and group members with Soul-Dex appear here." and "/souldex add <name>") and the right side is empty.
+  hidden, the left side shows the help text ("Guild and group members with SoulDex appear here." and "/souldex add <name>") and the right side is empty.
 - Click the other person: Score, Unique mobs, Players, Raids completed, online.
 - A clicks Browse dex: "Asking B..." then B's dex fills every tab, the title
-  reads "Soul-Dex · Viewing B" with a "« My dex" button, and entries B has and
+  reads "SoulDex · Viewing B" with a "« My dex" button, and entries B has and
   A lacks are green. A catch made while browsing does not change the view;
   "« My dex" returns to A's own dex including it. Close the window while
   browsing, then `/souldex`: it opens on A's own dex.

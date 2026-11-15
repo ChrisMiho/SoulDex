@@ -1,9 +1,9 @@
-# Soul-Dex
+# SoulDex
 
 A collection dex for your Soul Shards. A World of Warcraft: Forever addon for
 warlocks: every time a Soul Shard lands in your bags, the mob or player it came
 from is "caught" and recorded in your dex. Collect them, earn points and
-milestones, and compare with other Soul-Dex users.
+milestones, and compare with other SoulDex users.
 
 ## Features
 
@@ -11,7 +11,7 @@ milestones, and compare with other Soul-Dex users.
   and **Raids** (a fixed list of every vanilla raid creature, so you can finish it).
 - A popup and sound for each new catch, points for first catches, and milestones.
 - Hover a Soul Shard in your bags to see whose soul it holds and where it was taken.
-- **Friends**: a leaderboard of Soul-Dex users in your party, raid and guild, plus
+- **Friends**: a leaderboard of SoulDex users in your party, raid and guild, plus
   anyone you add by name. Browse their dex read-only; what you lack is highlighted.
 - Optional guild announcements for big moments only.
 
@@ -19,7 +19,7 @@ milestones, and compare with other Soul-Dex users.
 
 | Command | What it does |
 |---------|--------------|
-| `/souldex` (or `/dex`) | Open or close the Soul-Dex window |
+| `/souldex` (or `/dex`) | Open or close the SoulDex window |
 | `/souldex options` | Open the settings (also the gear on the window) |
 | `/souldex add <name>` | Add a friend by name |
 | `/souldex remove <name>` | Remove a friend |
@@ -39,15 +39,15 @@ the game the first time; after that, `/reload` picks up updates.
 
 ## How it works
 
-WoW: Forever hides the combat log from addons, so Soul-Dex reads your target
+WoW: Forever hides the combat log from addons, so SoulDex reads your target
 when you start Drain Soul (or cast Shadowburn) and names the next new shard
 after it. When the game hides the target's name, the catch is counted as an
-**Unknown soul** in that zone (no points, no popup). A shard Soul-Dex can't
+**Unknown soul** in that zone (no points, no popup). A shard SoulDex can't
 match to a capture records nothing, so the dex never holds a wrong name.
 
 Your dex is saved per character. Nothing leaves your game except guild
 announcements (if you turn them on) and the small addon messages the Friends
-tab exchanges with other Soul-Dex users.
+tab exchanges with other SoulDex users.
 
 ## Bugs and ideas
 
@@ -72,7 +72,7 @@ in Git Bash.
 `WOW_ADDONS_DIR` to install somewhere else. The zip lands in `.release/`.
 
 Behaviour is described in
-[the design spec](docs/superpowers/specs/2026-11-10-soul-dex-design.md); code
+[the design spec](docs/superpowers/specs/2026-11-10-souldex-design.md); code
 and spec change together. Code conventions and repo layout are in
 [`CLAUDE.md`](CLAUDE.md), which is written for both people and coding agents.
 CI runs lint and tests on every push; releases are built from `v*` tags.

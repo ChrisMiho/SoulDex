@@ -46,7 +46,7 @@ describe("Init", function()
 			load()
 			assert.truthy(table.concat(events, " "):find("PLAYER_LOGIN", 1, true))
 			onEvent(nil, "PLAYER_LOGIN")
-			assert.same({ "|cff9482c9Soul-Dex|r dev loaded. Type /souldex or /dex to open." }, printed)
+			assert.same({ "|cff9482c9SoulDex|r dev loaded. Type /souldex or /dex to open." }, printed)
 		end)
 
 		it("prefixes a packaged version with v", function()

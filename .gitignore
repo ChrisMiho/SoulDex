@@ -3,6 +3,7 @@
 
 # Build output (scripts/build.sh), packager and secrets
 /.release/
+/releases/
 .env
 
 # Build and test leftovers

@@ -40,7 +40,7 @@ local function build()
 
 	local title = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 	title:SetPoint("TOPLEFT", 8, -6)
-	title:SetText("Soul-Dex Options")
+	title:SetText("SoulDex Options")
 	UI.textColor(title, C.TITLE)
 	local close = UI.textButton(panel, "\195\151", 14)
 	close:SetPoint("TOPRIGHT", -4, -4)

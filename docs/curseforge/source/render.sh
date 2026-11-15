@@ -12,6 +12,7 @@ browser=""
 for candidate in \
 	"/c/Program Files/Google/Chrome/Application/chrome.exe" \
 	"/c/Program Files (x86)/Microsoft/Edge/Application/msedge.exe" \
+	"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
 	"$(command -v google-chrome || true)" \
 	"$(command -v chromium || true)"; do
 	if [ -n "$candidate" ] && [ -x "$candidate" ]; then
