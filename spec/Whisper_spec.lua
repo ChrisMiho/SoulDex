@@ -103,4 +103,64 @@ describe("Whisper", function()
 			end)
 		end
 	end)
+
+	describe("queue", function()
+		local q
+
+		before_each(function()
+			q = W.newQueue()
+		end)
+
+		it("expires after the timeout of unrestricted time", function()
+			local pend = { id = 1 }
+			local token = q:add(pend, 0)
+			assert.equal(token, pend.token)
+			assert.same({}, q:tick(59, false))
+			assert.equal(pend, q:get(token))
+			local expired = q:tick(61, false)
+			assert.equal(1, #expired)
+			assert.equal(pend, expired[1])
+			assert.is_nil(q:get(token))
+			assert.equal(0, q:count())
+		end)
+
+		it("does not count restricted time", function()
+			local token = q:add({}, 0)
+			assert.same({}, q:tick(100, true))
+			assert.same({}, q:tick(150, false))
+			assert.is_not_nil(q:get(token))
+			assert.equal(1, #q:tick(161, false))
+			assert.is_nil(q:get(token))
+		end)
+
+		it("expires at the ceiling even when always restricted", function()
+			local token = q:add({}, 0)
+			for t = 10, 590, 10 do
+				assert.same({}, q:tick(t, true))
+			end
+			assert.is_not_nil(q:get(token))
+			assert.equal(1, #q:tick(600, true))
+			assert.is_nil(q:get(token))
+		end)
+
+		it("gives unique tokens and removes one at a time", function()
+			local a, b = {}, {}
+			local ta, tb = q:add(a, 0), q:add(b, 0)
+			assert.are_not.equal(ta, tb)
+			assert.equal(2, q:count())
+			assert.equal(a, q:remove(ta))
+			assert.is_nil(q:remove(ta))
+			assert.equal(b, q:get(tb))
+			assert.equal(1, q:count())
+		end)
+
+		it("returns expired entries in send order", function()
+			local a, b = {}, {}
+			q:add(a, 0)
+			q:add(b, 1)
+			local expired = q:tick(100, false)
+			assert.equal(a, expired[1])
+			assert.equal(b, expired[2])
+		end)
+	end)
 end)

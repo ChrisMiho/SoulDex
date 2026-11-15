@@ -57,3 +57,67 @@ function Whisper.shouldAsk(s)
 		and s.afk == false
 		and s.dnd == false
 end
+
+-- Pending whispers. The clock only runs while the client lets the reply through (out of
+-- combat, chat not locked): the caller passes restricted = true otherwise. Whatever the
+-- state, an entry is dropped CEILING seconds after it was sent.
+local Queue = {}
+Queue.__index = Queue
+
+function Whisper.newQueue()
+	return setmetatable({ entries = {}, n = 0 }, Queue)
+end
+
+-- Stores pend (the caller's capture state) and gives it pend.token.
+function Queue:add(pend, now)
+	self.n = self.n + 1
+	local token = string.format("%x", self.n)
+	pend.token = token
+	self.entries[token] = { pend = pend, sentAt = now, waited = 0, last = now, seq = self.n }
+	return token
+end
+
+function Queue:get(token)
+	local e = self.entries[token]
+	return e and e.pend or nil
+end
+
+function Queue:remove(token)
+	local e = self.entries[token]
+	if not e then
+		return nil
+	end
+	self.entries[token] = nil
+	return e.pend
+end
+
+function Queue:count()
+	local n = 0
+	for _ in pairs(self.entries) do
+		n = n + 1
+	end
+	return n
+end
+
+-- Returns the pends that gave up, oldest first, and removes them.
+function Queue:tick(now, restricted)
+	local gone = {}
+	for token, e in pairs(self.entries) do
+		if not restricted then
+			e.waited = e.waited + (now - e.last)
+		end
+		e.last = now
+		if e.waited >= Whisper.TIMEOUT or now - e.sentAt >= Whisper.CEILING then
+			gone[#gone + 1] = e
+			self.entries[token] = nil
+		end
+	end
+	table.sort(gone, function(a, b)
+		return a.seq < b.seq
+	end)
+	local expired = {}
+	for i, e in ipairs(gone) do
+		expired[i] = e.pend
+	end
+	return expired
+end
