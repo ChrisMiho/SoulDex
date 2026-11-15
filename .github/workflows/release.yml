@@ -3,6 +3,10 @@ name: Release
 # Runs when a version tag such as v0.1.0 is pushed. The packager fetches the
 # libraries listed in .pkgmeta, stamps the version into the .toc, builds the
 # zip and attaches it to a GitHub release; then the intro goes on top.
+# With the CF_API_KEY secret set and X-Curse-Project-ID in SoulDex.toc, the
+# packager uploads the same zip to CurseForge too; a tag with "alpha" or "beta"
+# in its name goes up as an alpha or beta file. Without either, that upload is
+# skipped and the rest still runs.
 on:
   push:
     tags:
@@ -22,6 +26,7 @@ jobs:
       - uses: BigWigsMods/packager@v2.6.1
         env:
           GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
+          CF_API_KEY: ${{ secrets.CF_API_KEY }}
 
       # A short, readable intro on top of the changelog (.github/release-intro.md;
       # skipped with a warning if it names another version).

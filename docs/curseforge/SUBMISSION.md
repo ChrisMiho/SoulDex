@@ -126,28 +126,26 @@ The page, the README and the `.toc` `## Notes` call SoulDex a collection dex and
 use Pokémon names or art. Keep it that way: CurseForge moderators may reject a project
 that uses another company's trademarks or art.
 
-## 6. After approval: automatic uploads (optional)
+## 6. Automatic uploads
 
-The release workflow already runs the BigWigs packager on each `v*` tag. It can upload
-to CurseForge too:
+The project is approved (Project ID 1806215), and the release workflow uploads to
+CurseForge by itself: on each `v*` tag the BigWigs packager builds the zip, attaches it
+to the GitHub release and sends the same zip to CurseForge. A tag with "alpha" or "beta"
+in its name (such as `v1.3.0-beta.1`) goes up as an alpha or beta file.
 
-1. Note the **Project ID** on the project's page (right-hand "About Project" box).
-2. Add it to `SoulDex.toc`, under `## Author`:
-   `## X-Curse-Project-ID: <id>`
-3. Create an API token at <https://authors.curseforge.com/account/api-tokens>, and add it
-   to the GitHub repo as the secret `CF_API_KEY` (Settings → Secrets and variables → Actions).
-4. In `.github/workflows/release.yml`, give the packager step the token:
+It needs two things:
 
-   ```yaml
-   - uses: BigWigsMods/packager@v2.6.1
-     env:
-       GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
-       CF_API_KEY: ${{ secrets.CF_API_KEY }}
-   ```
+- `## X-Curse-Project-ID: 1806215` in `SoulDex.toc` (already there; the ID is public).
+- The repo secret `CF_API_KEY`: an API token made at
+  <https://authors.curseforge.com/account/api-tokens>, stored under Settings → Secrets
+  and variables → Actions on GitHub. The token lives only there: never in a file in the
+  repo, git-ignored or not. Without it the CurseForge upload is skipped and the GitHub
+  release is still made.
 
-5. Check the first automatic upload on the Files tab: if it isn't tagged with the
-   Forever game version, set it by hand and add the version for the packager with
-   `with: { args: -g <game version> }`, using the version CurseForge shows for Forever.
+After the first automatic upload, check it on the Files tab. If it isn't tagged with the
+Forever game version, set it by hand and give the packager the version in
+`.github/workflows/release.yml` with `with: { args: -g <game version> }`, using the
+version CurseForge shows for Forever.
 
-Do the first upload by hand (step 5) so the project exists and is approved before
-automating it.
+The page text and images are not uploaded automatically: update them by hand from
+`description.md` and `images/`.

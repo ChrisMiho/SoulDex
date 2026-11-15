@@ -1,4 +1,4 @@
-![SoulDex](https://media.forgecdn.net/attachments/2207/172/banner-1200x400-png.png)
+![SoulDex](https://media.forgecdn.net/attachments/2212/105/banner-1200x400-png.png)
 
 ## Their souls. Your collection.
 
@@ -18,7 +18,7 @@ zone and dungeon. Elites, rares and bosses show in their colours. Click any soul
 trophy card: level and type, a one-line epitaph, its mastery stars, how many times you
 claimed it, and when and where you took it first.
 
-![Mobs tab](https://media.forgecdn.net/attachments/2207/171/feature-1-mobs-png.png)
+![Mobs tab](https://media.forgecdn.net/attachments/2212/110/feature-1-mobs-png.png)
 
 ### ◆ The raids: drain every one
 
@@ -27,7 +27,7 @@ Lair, Ruins and Temple of Ahn'Qiraj, and Naxxramas. Unclaimed souls stay `? ? ?`
 are marked before you claim them, and every raid has a progress bar. It is the one hunt
 you can finish.
 
-![Raids tab](https://media.forgecdn.net/attachments/2207/170/feature-2-raids-png.png)
+![Raids tab](https://media.forgecdn.net/attachments/2212/109/feature-2-raids-png.png)
 
 ### ◆ The trophies: every shard has a name
 
@@ -36,7 +36,7 @@ boss or player. Then hover a Soul Shard in your bags and its tooltip names the s
 inside, with where and when you took it, so you know exactly whose soul you're about to
 spend. The name follows its shard through your bags, the bank and relogs.
 
-![Popup and shard tooltips](https://media.forgecdn.net/attachments/2207/197/feature-3-catch-png.png)
+![Popup and shard tooltips](https://media.forgecdn.net/attachments/2212/108/feature-3-catch-png.png)
 
 ### ◆ The rivals: hunt players, outrank friends
 
@@ -44,7 +44,7 @@ Every player you shard is a trophy, sorted by class. SoulDex users in your party
 and guild join your leaderboard on their own; add anyone else with `/dex add <name>`.
 Browse a rival's dex, read-only: what they have and you don't is highlighted.
 
-![Players and Friends tabs](https://media.forgecdn.net/attachments/2207/168/feature-4-players-friends-png.png)
+![Players and Friends tabs](https://media.forgecdn.net/attachments/2212/107/feature-4-players-friends-png.png)
 
 ### ◆ The climb: rise through the ranks
 
@@ -65,7 +65,7 @@ Browse a rival's dex, read-only: what they have and you don't is highlighted.
 Guild announcements are **for big moments only** (the higher ranks, the bigger
 milestones and raid completions), never for every soul. They switch off with one tick.
 
-![Me and Milestones tabs](https://media.forgecdn.net/attachments/2207/167/feature-5-me-milestones-png.png)
+![Me and Milestones tabs](https://media.forgecdn.net/attachments/2212/106/feature-5-me-milestones-png.png)
 
 ---
 

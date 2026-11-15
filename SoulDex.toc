@@ -2,6 +2,7 @@
 ## Title: SoulDex
 ## Notes: Their souls. Your collection. Turns every Soul Shard into a trophy.
 ## Author: ChrisMiho
+## X-Curse-Project-ID: 1806215
 ## Version: @project-version@
 ## Category: Miscellaneous
 ## SavedVariablesPerCharacter: SoulDexDB
