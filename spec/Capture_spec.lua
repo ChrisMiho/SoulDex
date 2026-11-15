@@ -1517,6 +1517,63 @@ describe("Capture glue", function()
 				assert.truthy(line:find("Rank up: you are now |cff9dff3aReaper|r", 1, true))
 			end)
 
+			describe("when the game blocks a whisper", function()
+				local LINE = "Soul names in dungeons are off for this session: the game blocked SoulDex's whisper."
+
+				for _, event in ipairs({ "ADDON_ACTION_BLOCKED", "ADDON_ACTION_FORBIDDEN" }) do
+					it(event .. " for SoulDex ends the waiting whisper as Unknown and stops later sends", function()
+						world.target = MONK
+						local ns, db, printed = boot()
+						local caught = {}
+						table.insert(ns.onCatch, function(result) caught[#caught + 1] = result end)
+						drain("cast1", SECRET)
+						newShard(1, "NEW")
+						fire(event, "SoulDex", "UNKNOWN()")
+						assert.equal(0, ns.Capture.whispers.queue:count())
+						assert.equal(1, db.unknown["Elwynn Forest"].count)
+						assert.is_true(db.shardSouls.NEW.soul.unknown)
+						assert.equal(1, #caught)
+						local lines = 0
+						for _, line in ipairs(printed) do
+							if line == LINE then
+								lines = lines + 1
+							end
+						end
+						assert.equal(1, lines)
+						fire("UNIT_SPELLCAST_CHANNEL_STOP", "player", "cast1", 1120)
+						world.clock = world.clock + 30
+						drain("cast2", SECRET)
+						assert.equal(1, #sends) -- no second whisper this session
+						fire(event, "SoulDex", "UNKNOWN()")
+						wait(61)
+						assert.equal(1, db.unknown["Elwynn Forest"].count)
+						local again = 0
+						for _, line in ipairs(printed) do
+							if line == LINE then
+								again = again + 1
+							end
+						end
+						assert.equal(1, again) -- the line is printed once
+					end)
+				end
+
+				it("a block naming another addon, or an unreadable one, changes nothing", function()
+					world.target = MONK
+					local ns, db, printed = boot()
+					drain("cast1", SECRET)
+					newShard(1, "NEW")
+					fire("ADDON_ACTION_BLOCKED", "OtherAddon", "SendChatMessage()")
+					fire("ADDON_ACTION_BLOCKED", SECRET, "UNKNOWN()")
+					assert.equal(1, ns.Capture.whispers.queue:count())
+					assert.is_nil(db.unknown["Elwynn Forest"])
+					assert.same({}, printed)
+					fire("UNIT_SPELLCAST_CHANNEL_STOP", "player", "cast1", 1120)
+					world.clock = world.clock + 5
+					drain("cast2", SECRET)
+					assert.equal(2, #sends)
+				end)
+			end)
+
 			it("a reply with no usable name after the shard is held gives one Unknown soul", function()
 				world.target = MONK
 				local _, db = boot()

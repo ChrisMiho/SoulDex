@@ -181,7 +181,11 @@ death detection is used; the capture window below replaces the death queue.)
   the name arrives it is recorded like an open-world catch (popup, sound,
   points). With no reply it becomes an Unknown soul after 60 s of unrestricted
   time (out of combat, chat unlocked), at most 600 s after sending. A held
-  shard still pending at login becomes one Unknown soul. In a dungeon the
+  shard still pending at login becomes one Unknown soul. If the game blocks a
+  SoulDex action (`ADDON_ACTION_BLOCKED` or `ADDON_ACTION_FORBIDDEN` naming
+  SoulDex in arg 1), SoulDex sends no more whispers that session, every
+  waiting whisper fails at once (a held shard becomes one Unknown soul), and
+  one line in your chat says so. In a dungeon the
   creature type and family are secret, so a soul named this way is recorded
   without them; a later catch of the same creature fills them in and tops up
   its points (a top-up counts toward a rank-up). Full reasoning and probe results: `docs/superpowers/specs/2026-11-15-soul-name-whisper-design.md`.
@@ -838,6 +842,9 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
   (the whisper is sent from a spell event, not a key press; this was never
   probed). No `SDX1:` line shows in chat in normal play (a reply that arrives
   as a secret value can't be filtered and may show; see Known limitations).
+  If the send is blocked anyway, SoulDex prints "Soul names in dungeons are
+  off for this session" once, the shard ends as an Unknown soul, and no more
+  whispers go out until a `/reload`.
 - Same mid-pull -> the popup comes within a few seconds (after combat at the
   latest).
 - During a boss encounter -> the shard ends as an Unknown soul (chat is
@@ -1070,6 +1077,9 @@ that overlaps, is cut off, or shows as a solid green square (a missing icon).
 - Bosses killed during their encounter stay Unknown souls: chat is locked
   then, and sending anyway shows a red "Interface action failed" error, so
   SoulDex never sends.
+- Sending the whisper from a spell event (no key press) was never tested in
+  game. If the game blocks it, soul names in dungeons stay off for the rest
+  of that session (one chat line says so) and those souls are Unknown.
 - Casts through other macro targets (`@targettarget`, `@party1target`,
   unit-frame click-casting) pass the whisper guard and can be misnamed.
   **[user accepted]**

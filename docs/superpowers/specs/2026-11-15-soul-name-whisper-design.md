@@ -97,6 +97,11 @@ and one whisper is sent:
 - Not sent when chat is locked down, when the guard in 5.2 fails, or when no
   chat filter could be installed (5.3; the lines would show): the capture
   stays plain Unknown, as today.
+- Safety net (sending from an event handler was never probed): if
+  `ADDON_ACTION_BLOCKED` / `ADDON_ACTION_FORBIDDEN` fires with arg 1 equal to
+  the addon's name (arg 2 can read `UNKNOWN()`, so it isn't checked), no more
+  whispers are sent that session, every waiting whisper fails at once, and
+  one chat line says soul names are off for the session.
 - The readable details (level, classification, creature type, family,
   isPlayer) are read at the same moment and kept on the capture.
 

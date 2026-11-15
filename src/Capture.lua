@@ -12,7 +12,7 @@
 --                result is the Dex.record* result ({ isNew, points, total, kind })
 --                and entry is { info = <mob/player info>, ctx = <catch context>, kind = <result.kind>,
 --                color = <soul hex colour, or nil for an unknown soul> }
-local _, ns = ...
+local addonName, ns = ...
 
 local Capture = {}
 ns.Capture = Capture
@@ -788,6 +788,8 @@ local EVENTS = {
 -- Chat lockdown ending (see Capture.flushAnnouncements), newer clients only; and a zone
 -- change, after which a whisper reply that came in secret may be readable.
 local OPTIONAL_EVENTS = {
+	"ADDON_ACTION_BLOCKED",
+	"ADDON_ACTION_FORBIDDEN",
 	"ADDON_RESTRICTION_STATE_CHANGED",
 	"ENCOUNTER_END",
 	"ZONE_CHANGED_NEW_AREA",
@@ -1050,11 +1052,13 @@ function Capture.start(db, dex)
 
 	-- Set once the chat filter hiding SDX1 lines is in: without it no whisper is sent.
 	local filtered = false
+	-- Set when the game blocked one of SoulDex's actions: no more whispers this session.
+	local blocked = false
 
 	-- A capture whose target name is hidden: whispers the player for the name when the
 	-- guard allows. Returns the capture's info, carrying the pend when the whisper went out.
 	local function askName(info)
-		if not filtered or not Whisper.shouldAsk(Capture.askState()) then
+		if blocked or not filtered or not Whisper.shouldAsk(Capture.askState()) then
 			return info
 		end
 		local details = Capture.readDetails("target")
@@ -1166,6 +1170,31 @@ function Capture.start(db, dex)
 	handlers.ADDON_RESTRICTION_STATE_CHANGED = restrictionsLifted
 	handlers.ENCOUNTER_END = restrictionsLifted
 	handlers.ZONE_CHANGED_NEW_AREA = reread
+
+	-- The game blocked a SoulDex action (arg 1 is the addon; arg 2, the function, can read
+	-- "UNKNOWN()"): it may be the whisper, so stop asking for this session and let every
+	-- waiting whisper fail now (a held shard becomes one Unknown soul).
+	local function actionBlocked(blockedAddon)
+		if blocked or not plainString(blockedAddon) or blockedAddon ~= addonName then
+			return
+		end
+		blocked = true
+		local waiting = queue:tick(GetTime() + Whisper.CEILING, true) -- all past the ceiling: every one
+		for _, pend in ipairs(waiting) do
+			pend.state = "failed"
+			restoreTell(pend.lastTell)
+			Capture.protect(errorHandler(), settle, pend)
+		end
+		if ticker then
+			call(ticker.Cancel, ticker)
+			ticker = nil
+		end
+		if ns.Print then
+			ns.Print("Soul names in dungeons are off for this session: the game blocked SoulDex's whisper.")
+		end
+	end
+	handlers.ADDON_ACTION_BLOCKED = actionBlocked
+	handlers.ADDON_ACTION_FORBIDDEN = actionBlocked
 
 	-- text, sender, ..., line id (arg 11), sender GUID (arg 12)
 	handlers.CHAT_MSG_WHISPER = function(text, _, _, _, _, _, _, _, _, _, lineID, guid)
