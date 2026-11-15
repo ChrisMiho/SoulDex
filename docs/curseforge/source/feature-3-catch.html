@@ -1,52 +1,43 @@
 <!doctype html>
-<html><head><meta charset="utf-8"><title>SoulDex: Catch</title>
+<html><head><meta charset="utf-8"><title>SoulDex: Shard tooltip</title>
 <link rel="stylesheet" href="shared.css">
 <style>
-	.shot { flex-direction: column; align-items: flex-start; gap: 40px; }
-	.pair { display: flex; gap: 16px; align-items: flex-start; }
-	.label { color: #8a72b8; font-size: 15px; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 10px; }
+	.shot { flex-direction: column; align-items: center; gap: 22px; }
+	.tt .q { color: #c9a8ff; }
+	.tt .z { color: #9a8fb0; font-size: 10px; }
+	.tt.a { margin-left: -120px; }
+	.tt.b { margin-left: 120px; }
+	.tt.c { margin-left: -40px; }
 </style></head>
 <body>
 <div class="stage">
 	<div class="copy">
 		<div class="kicker"><img src="shard.svg" alt="">SoulDex</div>
 		<h1>Your shards <em>remember</em></h1>
-		<p>A popup and a sound for each new soul, and every Soul Shard in your bags tells you whose soul it holds.</p>
+		<p>Hover a Soul Shard and its tooltip names the soul inside, with where and when you took it.</p>
 		<ul>
-			<li>Points for first catches only</li>
+			<li>Names in rarity colours: elite, rare, boss</li>
 			<li>The soul follows its shard: bags, bank, relogs</li>
-			<li>Popup and sound each switch off</li>
+			<li>Never guessed: an unmatched shard stays a plain Soul Shard</li>
 		</ul>
 	</div>
 	<div class="shot">
-		<div>
-			<div class="label">New soul</div>
-			<div class="toast">
-				<div class="ic"></div>
-				<div>
-					<div class="t">NEW SOUL CAUGHT!</div>
-					<div class="nm" style="color:#c0c0c0">Mor'Ladim <span style="font-size:10px">Rare Elite</span></div>
-					<div class="sub">Duskwood · Soul #213 · <span style="color:#7dff6a">+10 pts</span></div>
-				</div>
-			</div>
+		<div class="tt a">
+			<div class="q">Soul of <span style="color:#ff9a5a">Ragnaros</span></div>
+			<div>Unique</div>
+			<div class="z">Molten Core · 12 Nov 2026</div>
 		</div>
-		<div>
-			<div class="label">Shard tooltip</div>
-			<div class="pair">
-				<div class="bag">
-					<div class="slot sh"></div><div class="slot sh hov"></div><div class="slot sh"></div><div class="slot"></div>
-					<div class="slot sh"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div>
-					<div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div>
-				</div>
-				<div class="tt">
-					<div class="q">Soul Shard</div>
-					<div>Unique</div>
-					<div style="margin-top:3px">Soul of <span style="color:#ffd25a">Hogger</span></div>
-					<div style="color:#9a8fb0;font-size:10px">Elwynn Forest · 9 Nov 2026</div>
-				</div>
-			</div>
+		<div class="tt b">
+			<div class="q">Soul of <span style="color:#c0c0c0">Mor'Ladim</span></div>
+			<div>Unique</div>
+			<div class="z">Duskwood · 10 Nov 2026</div>
+		</div>
+		<div class="tt c">
+			<div class="q">Soul of <span style="color:#ffd25a">Hogger</span></div>
+			<div>Unique</div>
+			<div class="z">Elwynn Forest · 9 Nov 2026</div>
 		</div>
 	</div>
-	<div class="note">Illustration of the in-game popup and tooltip</div>
+	<div class="note">Illustration of the in-game tooltip</div>
 </div>
 </body></html>

@@ -1,4 +1,5 @@
--- Adds the soul name to the Soul Shard tooltip (spec 6.3). Nothing else changes.
+-- Names the soul on the Soul Shard tooltip (spec 6.3): the item name line becomes
+-- "Soul of <name>" and a "<zone> · <date>" line is added. Nothing else changes.
 -- Shards are looked up by item GUID in db.shardSouls; every value read from the
 -- tooltip is checked for secrets first (ns.Capture's guards).
 local _, ns = ...
@@ -29,10 +30,34 @@ local function soulFor(guid)
 	return db and ns.Shards.soulOf(db.shardSouls, guid)
 end
 
+-- The tooltip's first line (the item name), or nil if it can't be found.
+local function titleOf(tip)
+	local fs = tip.TextLeft1
+	if not fs then
+		local name = ns.Capture.call(tip.GetName, tip)
+		if ns.Capture.plainString(name) then
+			fs = _G[name .. "TextLeft1"]
+		end
+	end
+	if type(fs) == "table" and fs.SetText then
+		return fs
+	end
+	return nil
+end
+
+-- "Soul of <name>" replaces the item name ("Soul Shard"), then the zone and date line.
+-- If the name line can't be found, the soul line is added below instead.
 local function addLines(tip, soul)
 	local first, second = Tooltip.lines(soul, date)
-	tip:AddLine(first, 0.79, 0.66, 1)
+	local title = titleOf(tip)
+	if title then
+		title:SetText(first)
+		title:SetTextColor(0.79, 0.66, 1)
+	else
+		tip:AddLine(first, 0.79, 0.66, 1)
+	end
 	tip:AddLine(second, 0.6, 0.56, 0.69)
+	tip:Show() -- re-fit the width to the longer name line
 end
 
 -- The hovered shard's GUID: the tooltip data's own, else the bag slot it was set from.
@@ -95,7 +120,6 @@ function Tooltip.onSetBagItem(tip, bag, slot)
 	local soul = soulFor(C.itemGuid(bag, slot))
 	if soul then
 		addLines(tip, soul)
-		tip:Show()
 	end
 end
 

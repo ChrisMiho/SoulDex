@@ -29,7 +29,7 @@ this document are marked **[call]**, and the user should check them.
   are open-ended: they only show what you've caught, never `???` blanks. **[user]**
   The user decided this because a complete list of every open-world mob is
   impossible to finish and the display gets swamped with blanks.
-- The shard in your bag gets extra tooltip lines saying whose soul it is. **[user]**
+- The shard in your bag says whose soul it is in its tooltip. **[user]**
 - A minigame layer: a popup and sound for new catches, points, milestones,
   and guild announcements of big moments. **[user]**
 - Social: see other SoulDex users in your party, raid or guild, plus anyone
@@ -39,7 +39,7 @@ this document are marked **[call]**, and the user should check them.
 
 - No master list of open-world mobs, and no "X / Y" for zones. **[user]**
 - No 3D model portraits. **[user]** (left out when choosing what an entry shows)
-- No change to the shard item, its icon, or how bags look. Tooltip lines only. **[user]**
+- No change to the shard item, its icon, or how bags look. Tooltip text only. **[user]**
 - No content past vanilla for now. Raid data starts from classic vanilla
   (MC, Onyxia, BWL, ZG, AQ20, AQ40, Naxxramas). WoW: Forever plans new content;
   the raid list must be easy to extend later. **[user]**
@@ -401,9 +401,12 @@ the user agreed to this table as an example]**
 
 ### 6.3 Shard tooltip
 
-- Hovering a Soul Shard in your bags adds two lines to the normal tooltip:
-  "Soul of <name>" (in rarity or class colour) and "<zone> · <date>".
-  Nothing else changes. **[user]**
+- Hovering a Soul Shard in your bags changes its tooltip: the item name line
+  ("Soul Shard") becomes "Soul of <name>" (in rarity or class colour), and a
+  "<zone> · <date>" line is added at the bottom. Nothing else changes. **[user]**
+  (changed after 1.2.4: the user wanted the name in the title, not repeated
+  under "Soul Shard".) If the name line can't be found, "Soul of <name>" is
+  added as a line instead.
 - (changed during build: one palette.) The tooltip, the popup and the window
   use the same rarity colours (`Rarity.lua`: elite gold, rare silver, boss
   orange, as in the mockups). The colour is saved with each shard, so shards
@@ -415,9 +418,9 @@ the user agreed to this table as an example]**
   data's GUID, or by the bag slot the tooltip was set from. Forbidden or
   protected tooltips are left alone. Without `TooltipDataProcessor` the old
   `GameTooltip:SetBagItem` hook is used.
-- An Unknown soul shard shows a grey "Unknown soul" line instead of
+- An Unknown soul shard shows a grey "Unknown soul" as its name instead of
   "Soul of <name>", then "<zone> · <date>".
-- Shards from before the addon was installed get no extra lines.
+- Shards from before the addon was installed keep the plain "Soul Shard" tooltip.
 
 ### 6.4 Guild announcements
 
@@ -541,9 +544,10 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
   (Elite / Boss) and a "Lv 60 Humanoid" style line, if the game gave a level.
 
 **Shard tooltip**
-- Hover the new shard: two extra lines, "Soul of <name>" (coloured) and
-  "<zone> · <date>"; an Unknown soul shard shows a grey "Unknown soul" line.
-  Old or unmatched shards get no extra lines. Move the shard to another bag,
+- Hover the new shard: the tooltip's top line reads "Soul of <name>" (name
+  coloured) instead of "Soul Shard", the box is wide enough for it, and
+  "<zone> · <date>" is the last line; an Unknown soul shard's top line is a grey
+  "Unknown soul". Old or unmatched shards still say "Soul Shard" with no extra lines. Move the shard to another bag,
   sort the bags, put it in the bank and take it out, relog: the line stays on
   that exact shard.
 

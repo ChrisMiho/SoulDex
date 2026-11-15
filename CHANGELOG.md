@@ -5,6 +5,8 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- A named Soul Shard's tooltip now shows "Soul of <name>" as its title, in place of "Soul Shard", instead of repeating it on a line below.
+
 ## [1.2.4] - 2026-11-14
 
 - The addon is now called SoulDex everywhere: the window, options, chat lines, guild announcements and the addon list.

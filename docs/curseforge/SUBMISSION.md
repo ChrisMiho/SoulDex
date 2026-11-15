@@ -53,7 +53,7 @@ Upload the five `feature-*.png` files, in order, with these titles:
 
 1. **Mobs** — Every shard is a soul caught
 2. **Raids** — Catch every raid soul
-3. **New soul and shard tooltip** — Your shards remember
+3. **Shard tooltip** — Your shards remember
 4. **Players and Friends** — Players, and rivals
 5. **Me and Milestones** — Score, stats and milestones
 
@@ -64,7 +64,7 @@ soon as you can**; players trust them more. Good ones to take:
 - [ ] The window on the Mobs tab with a detail pane open (an elite or rare).
 - [ ] The Raids tab with a partly caught raid, showing `? ? ?` and boss skulls.
 - [ ] The NEW SOUL CAUGHT! popup right after a catch.
-- [ ] A Soul Shard tooltip in your bags ("Soul of …").
+- [ ] A named Soul Shard's tooltip in your bags (title "Soul of …").
 - [ ] The Friends tab with at least one guildie listed.
 
 Hide other UI clutter (Alt+Z hides the whole UI, so open the window first and crop).
