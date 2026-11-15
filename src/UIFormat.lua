@@ -218,19 +218,34 @@ function F.playerRows(rows)
 	return out
 end
 
+-- Rows are keyed by raid key (a TBD raid may have no instance id yet). A TBD raid shows
+-- "TBD", or "N / ?" once souls were claimed there; it has no total, so no bar and no tick.
 function F.raidRows(rows, selected)
 	local out = {}
 	for _, row in ipairs(rows) do
+		local right = row.done and CHECK or (row.caught .. "/" .. row.total)
+		if row.tbd then
+			right = row.caught == 0 and "TBD" or (row.caught .. " / ?")
+		end
 		out[#out + 1] = {
 			text = row.name,
-			right = row.done and CHECK or (row.caught .. "/" .. row.total),
-			rightColor = row.done and C.GREEN or nil,
+			right = right,
+			rightColor = (row.tbd and C.MUTED) or (row.done and C.GREEN) or nil,
 			bar = (not row.done and row.total > 0) and (row.caught / row.total) or nil,
-			value = row.instanceID,
-			selected = row.instanceID == selected,
+			value = row.key,
+			selected = row.key == selected,
 		}
 	end
 	return out
+end
+
+-- The first right-pane row of a raid whose creature list is not known yet.
+function F.tbdNote(raid)
+	if raid.bossCount then
+		return F.note("Roster still sealed: " .. raid.bossCount
+			.. " bosses wait inside. Every soul you claim here is kept.")
+	end
+	return F.note("Roster still sealed. Every soul you claim here is kept.")
 end
 
 -- Uncaught rows are "? ? ?" and not clickable; bosses keep their skull either way.

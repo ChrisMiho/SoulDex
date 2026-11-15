@@ -130,15 +130,36 @@ describe("UIFormat", function()
 
 		it("shows raid progress or a check when done", function()
 			local rows = F.raidRows({
-				{ instanceID = 309, name = "ZG", caught = 3, total = 3, done = true },
-				{ instanceID = 409, name = "MC", caught = 1, total = 3, done = false },
-			}, 409)
+				{ key = "ZG", instanceID = 309, name = "ZG", caught = 3, total = 3, done = true },
+				{ key = "MC", instanceID = 409, name = "MC", caught = 1, total = 3, done = false },
+			}, "MC")
+			assert.equal("MC", rows[2].value)
 			assert.equal(F.MARKS.CHECK, rows[1].right)
 			assert.equal("7dff6a", rows[1].rightColor)
 			assert.equal("1/3", rows[2].right)
 			assert.is_true(rows[2].selected)
 			assert.is_nil(rows[1].bar) -- done: the tick says it
 			assert.equal(1 / 3, rows[2].bar)
+		end)
+
+		it("marks a TBD raid and counts what was claimed there", function()
+			local rows = F.raidRows({
+				{ key = "BD", name = "The Barrow Deeps", caught = 0, total = 0, done = false, tbd = true },
+				{ key = "Hyjal", instanceID = 3002, name = "Hyjal Summit", caught = 4, total = 0, done = false, tbd = true },
+			}, "BD")
+			assert.equal("TBD", rows[1].right)
+			assert.equal("4 / ?", rows[2].right)
+			assert.is_nil(rows[1].bar)
+			assert.is_nil(rows[2].bar)
+			assert.equal("BD", rows[1].value)
+			assert.is_true(rows[1].selected)
+			assert.is_false(rows[2].selected)
+		end)
+
+		it("writes the TBD note", function()
+			assert.equal("Roster still sealed: 8 bosses wait inside. Every soul you claim here is kept.",
+				F.tbdNote({ bossCount = 8 }).text)
+			assert.equal("Roster still sealed. Every soul you claim here is kept.", F.tbdNote({}).text)
 		end)
 
 		it("hides uncaught raid mobs, keeps boss skulls, and only caught rows click", function()

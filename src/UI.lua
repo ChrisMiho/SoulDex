@@ -147,10 +147,19 @@ local function drawLists(dex, keepLeft, keepRight)
 		rightRows = class and F.playerRows(View.playersOf(dex, class, other())) or { F.note("No player souls yet.") }
 	else
 		local raids = View.raids(dex)
-		local id = F.pick(raids, "instanceID", state.sel.Raids)
-		state.sel.Raids = id
-		leftRows = F.raidRows(raids, id)
-		rightRows = id and F.raidMobRows(View.raidMobs(dex, id, other())) or { F.note("No raid data.") }
+		-- Selected by raid key: a TBD raid has no instance id until a soul is claimed there.
+		local key = F.pick(raids, "key", state.sel.Raids)
+		state.sel.Raids = key
+		leftRows = F.raidRows(raids, key)
+		local raid = key and ns.Raids.byKey(key)
+		if raid then
+			rightRows = F.raidMobRows(View.raidMobs(dex, raid.instanceID, other()))
+			if raid.tbd then
+				table.insert(rightRows, 1, F.tbdNote(raid))
+			end
+		else
+			rightRows = { F.note("No raid data.") }
+		end
 	end
 	leftList:set(leftRows, selectLeft, keepLeft)
 	rightList:set(rightRows, openDetail, keepRight)

@@ -64,6 +64,7 @@ describe("UI", function()
 
 		ns = {
 			RaidData = {
+				{ key = "BD", name = "The Barrow Deeps", bossCount = 8, tbd = true, mobs = {} },
 				{
 					key = "MC",
 					name = "Molten Core",
@@ -145,6 +146,43 @@ describe("UI", function()
 
 		ns.UI.toggle()
 		assert.is_false(frame.shown)
+	end)
+
+	it("selects a TBD raid with no instance id and shows its note; other raids still list", function()
+		loadDb()
+		local F, View = ns.UIFormat, ns.View
+		local selected, noted, notes, listedFor = nil, nil, {}, nil
+		local raidRows, tbdNote, note, raidMobs = F.raidRows, F.tbdNote, F.note, View.raidMobs
+		F.raidRows = function(rows, sel)
+			selected = sel
+			return raidRows(rows, sel)
+		end
+		F.tbdNote = function(raid)
+			noted = raid
+			return tbdNote(raid)
+		end
+		F.note = function(text)
+			notes[text] = true
+			return note(text)
+		end
+		View.raidMobs = function(dex, instanceID, other)
+			listedFor = instanceID
+			return raidMobs(dex, instanceID, other)
+		end
+		ns.UI.toggle()
+		ns.UI.selectTab("Raids")
+		assert.equal("BD", selected)
+		assert.equal("BD", noted.key)
+		assert.is_nil(notes["No raid data."])
+		assert.is_truthy(find("Button", function(f) return f.value == "BD" end))
+
+		noted = nil
+		local row = find("Button", function(f) return f.value == "MC" end)
+		row.scripts.OnClick(row)
+		assert.equal("MC", selected)
+		assert.equal(409, listedFor)
+		assert.is_nil(noted)
+		ns.UI.openDetail(12118)
 	end)
 
 	it("draws the Me tab on an empty dex and on a populated one", function()
