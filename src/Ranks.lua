@@ -1,6 +1,6 @@
 -- Warlock ranks: a title earned from the dex score (pure; no WoW API). Shown on the Me
 -- tab, the Friends tab, the login line and the new-soul popup when a claim ranks you up.
-local _, ns = ...
+local addonName, ns = ...
 
 local Ranks = {}
 ns.Ranks = Ranks
@@ -20,8 +20,18 @@ Ranks.LIST = {
 -- Rank-ups from this rank on go to guild chat (when announcements are on).
 Ranks.ANNOUNCE_FROM = 5
 
+-- The texture path of a rank's emblem (art/rank<N>.tga under this addon's folder). A
+-- bad index gives the first rank's emblem; one past the end gives the last.
+function Ranks.emblem(index)
+	if type(index) ~= "number" or index ~= index then
+		index = 1
+	end
+	index = math.min(math.max(math.floor(index), 1), #Ranks.LIST)
+	return "Interface\\AddOns\\" .. addonName .. "\\art\\rank" .. index .. ".tga"
+end
+
 -- The rank a score holds: { index, count, name, min, score, nextName, nextMin, toNext,
--- progress }. progress is 0..1 of the way to the next rank; at the highest rank it is 1
+-- progress, emblem }. progress is 0..1 of the way to the next rank; at the highest rank it is 1
 -- and the next* fields are nil. A score that isn't a number counts as 0.
 function Ranks.of(score)
 	if type(score) ~= "number" or score < 0 then
@@ -35,7 +45,10 @@ function Ranks.of(score)
 		end
 	end
 	local rank, nextRank = list[index], list[index + 1]
-	local out = { index = index, count = #list, name = rank.name, min = rank.min, score = score, progress = 1 }
+	local out = {
+		index = index, count = #list, name = rank.name, min = rank.min, score = score,
+		progress = 1, emblem = Ranks.emblem(index),
+	}
 	if nextRank then
 		out.nextName, out.nextMin = nextRank.name, nextRank.min
 		out.toNext = nextRank.min - score

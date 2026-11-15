@@ -59,4 +59,28 @@ describe("Ranks", function()
 		assert.equal("Soul Thief", Ranks.gained(20, 250).name) -- skipping one names the rank reached
 		assert.is_nil(Ranks.gained(250, 20))
 	end)
+
+	it("names an emblem texture for each rank", function()
+		assert.equal("Interface\\AddOns\\SoulDex\\art\\rank1.tga", Ranks.emblem(1))
+		assert.equal("Interface\\AddOns\\SoulDex\\art\\rank8.tga", Ranks.emblem(8))
+		assert.equal(Ranks.emblem(4), Ranks.of(1000).emblem)
+		assert.equal(Ranks.emblem(8), Ranks.of(99999).emblem)
+	end)
+
+	it("gives the nearest real emblem for a bad index", function()
+		assert.equal(Ranks.emblem(1), Ranks.emblem(nil))
+		assert.equal(Ranks.emblem(1), Ranks.emblem("3"))
+		assert.equal(Ranks.emblem(1), Ranks.emblem(0))
+		assert.equal(Ranks.emblem(1), Ranks.emblem(-2))
+		assert.equal(Ranks.emblem(2), Ranks.emblem(2.9))
+		assert.equal(Ranks.emblem(#Ranks.LIST), Ranks.emblem(#Ranks.LIST + 1))
+		assert.equal(Ranks.emblem(1), Ranks.of(nil).emblem)
+		assert.equal(Ranks.emblem(1), Ranks.of("lots").emblem)
+	end)
+
+	it("finds the art under whatever folder the addon was loaded from", function()
+		local other = {}
+		loadfile("src/Ranks.lua")("SoulDex-main", other)
+		assert.equal("Interface\\AddOns\\SoulDex-main\\art\\rank3.tga", other.Ranks.emblem(3))
+	end)
 end)
