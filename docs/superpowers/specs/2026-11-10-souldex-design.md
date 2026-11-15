@@ -51,6 +51,11 @@ this document are marked **[call]**, and the user should check them.
 - No content past vanilla for now. Raid data starts from classic vanilla
   (MC, Onyxia, BWL, ZG, AQ20, AQ40, Naxxramas). WoW: Forever plans new content;
   the raid list must be easy to extend later. **[user]**
+  (changed after 1.2.4: Forever raids.) Beta testers asked for Forever's own
+  instances. Its two new raids, The Barrow Deeps and Hyjal Summit, are now
+  listed with their contents TBD (5.4). **[user: "raids now, dungeons later"]**
+  The nine new 5-player dungeons are still out and get their own plan; their
+  catches stay under Mobs > Dungeons.
 - No points for repeat catches. **[user]**
 - No minimap button. **[call]** Opened with `/souldex`.
 - No other WoW clients (Retail, other Classic versions). **[call]**
@@ -176,6 +181,13 @@ death detection is used; the capture window below replaces the death queue.)
 - **Raid mobs:** matched by NPC ID (taken from the GUID) against the raid data
   list, so same-named mobs in different raids stay apart. **[call]**
   Raid mobs are recorded **only** in the Raids collection, not under Mobs. **[call]**
+  (changed after 1.2.4: Forever raids.) A raid the data lists without an
+  instance ID (a TBD raid, 5.4) is matched by its instance name the first time
+  a soul is claimed inside a raid-type instance: the name `GetInstanceInfo`
+  gives, compared without case or a leading "The". The ID is then saved per
+  character in `SoulDexDB.instances` (raid key to instance ID) and applied on
+  every load. A saved ID that is damaged, names an unknown raid, or belongs to
+  another raid is ignored. **[call]**
 
 ### 4.4 What is recorded
 
@@ -287,6 +299,31 @@ The look was settled through mockups; the final versions are in
   Blackwing Lair 26/8, AQ20 30/6, AQ40 34/14, Naxxramas 73/20. The boss flag
   is also set by creature rank, so Eye of C'Thun and The Master's Eye count
   as bosses.
+- (changed after 1.2.4: Forever raids.) **TBD raids.** WoW: Forever's own
+  raids are hand-kept in `src/ForeverData.lua`, beside the generated file
+  (which stays Questie-only), and are listed first, above the vanilla raids:
+  they are the ones in the game today. **[call]** What is known comes from
+  Blizzard's "World of Warcraft: Forever Raid Overview" (news 24303009, read
+  2026-11-15); boss names, creature lists and instance IDs are not published,
+  and both raids open on 2026-12-09:
+
+  | Raid | Players | Bosses |
+  |------|---------|--------|
+  | The Barrow Deeps | 10 | 8 |
+  | Hyjal Summit | 20 | 13 |
+
+  Such a raid is marked `tbd` in the data, with no creature list and no
+  instance ID (learned in game, 4.3). In the Raids list its row reads `TBD`,
+  or `N / ?` once N different souls were claimed there, with no progress bar
+  and no tick. **[call]** Its right pane starts with the note "Roster still
+  sealed: 8 bosses wait inside. Every soul you claim here is kept." (the
+  raid's boss count), followed by the souls claimed there. Those are kept as
+  unlisted entries under the raid, by NPC ID, and fill their slots when the
+  real list ships. A TBD raid is **listed, not counted**: it is left out of
+  the Raids header total, the Me tile's "N / M", its own "<Raid> Drained"
+  milestone and Raid Reaper until its data ships. **[user]** When the data is
+  known, the entry gets its `instanceID` and `mobs` and loses `tbd`. Forever
+  dungeons, when planned, go in the same file.
 
 ### 5.5 Detail pane
 
@@ -343,7 +380,8 @@ the builder's call.) Milestones:
   100 Nemesis; goal "First player soul" / "N player souls". **[call]**
 - Each raid completed: "<Raid> Drained", goal "every soul". All raids
   completed: "Raid Reaper", goal "every raid drained". **[call, follows the
-  raid dex]**
+  raid dex]** (changed after 1.2.4: Forever raids.) TBD raids (5.4) have no
+  "Drained" milestone and are not part of Raid Reaper's goal. **[user]**
 
 In chat and guild messages a milestone reads "<name> (<goal>)".
 
@@ -421,7 +459,7 @@ Three parts (`View.meCard`, numbers from `View.me`):
   green, "RANK N OF 8", the score, a 4 px bar to the next rank and
   "<points> pts to <rank>" ("The highest rank" at the top).
 - **Six tiles**, two rows of three: Unique mobs, Players, Raids ("1 / 7"
-  completed), Mastery (stars, fel green, with a star), Souls taken (every
+  completed; TBD raids, 5.4, are not in the 7), Mastery (stars, fel green, with a star), Souls taken (every
   catch: mobs, players, raids and unknown souls), Among friends (`#R of N`
   among you and the friends we hold a summary for; a dash when alone). While
   browsing a friend the last tile is Zones instead.
@@ -777,6 +815,21 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
   field of the GUID is the NPC ID and must match that mob's id in
   `src/RaidData.lua`. Check at least one boss and one trash mob.
 
+**Forever raids** (added after 1.2.4)
+- Raids tab: The Barrow Deeps and Hyjal Summit are the top two rows, each
+  reading `TBD`; clicking one shows "Roster still sealed: 8 bosses wait
+  inside. Every soul you claim here is kept." (13 for Hyjal Summit). The Me
+  tile still reads "N / 7" and Milestones has no "The Barrow Deeps Drained".
+- From 2026-12-09, inside each raid: `/dump GetInstanceInfo()`. The first
+  value must be the raid's name as listed, the second `"raid"`; write down
+  the eighth (the instance ID).
+- Claim a soul there: the popup shows, the soul is listed under that raid in
+  the Raids tab (not under Mobs), and the row reads `1 / ?`. After `/reload`
+  it is still there.
+- For each boss and a few trash mobs, `/dump UnitGUID("target")`: write down
+  the name and the sixth dash-separated field. Also write down the names of
+  the raid's boss achievements. These fill `src/ForeverData.lua`.
+
 **Me tab**
 - Me is the left-most of six tabs and all fit in the window. On top is your
   rank in fel green with the score in white, then "Rank N · next: <rank>" with
@@ -895,6 +948,13 @@ that overlaps, is cut off, or shows as a solid green square (a missing icon).
 - Alt-Z (hiding the UI) resets browsing to your own dex.
 - A browsed friend's Milestones tab shows nothing earned (no dates are sent).
 - Raid data is Classic Era and may need regenerating for WoW: Forever content.
+- A TBD raid's instance ID is learned from its English name: on another
+  client language those claims go under Mobs > Raids until the ID ships in
+  the data.
+- A boss claimed in a TBD raid scores by its classification, not the raid
+  boss 25, until it is listed.
+- A friend's souls from a TBD raid show only once your own client has learned
+  that raid's instance ID.
 - WoW: Forever can hide target names (secret values): those catches are only
   counted as "Unknown soul" per zone.
 - Shadowburn catches are untested in game.

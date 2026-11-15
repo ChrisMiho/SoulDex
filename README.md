@@ -34,6 +34,10 @@ Every creature in every vanilla raid, from Zul'Gurub to Naxxramas. Unclaimed sou
 stay `? ? ?`, bosses are marked before you claim them, and every raid has a
 progress bar. The one hunt you can finish.
 
+WoW: Forever's own raids, The Barrow Deeps and Hyjal Summit, are listed too. Their
+rosters are still TBD: every soul you claim inside is kept and fills its slot when
+the list ships.
+
 ![Raids tab](docs/curseforge/images/feature-2-raids.png)
 
 ### ◆ The trophies: every shard has a name
@@ -134,6 +138,10 @@ generated from [Questie](https://github.com/Questie/Questie) v11.38.0
 (`Database/Classic/classicNpcDB.lua`), which is licensed under GPL-3. See
 `scripts/gen_raids.lua` and the header of `src/RaidData.lua`. Data is based on
 Classic Era and may differ from WoW: Forever.
+
+The names and boss counts of WoW: Forever's own raids come from Blizzard's
+"World of Warcraft: Forever Raid Overview" and are hand-kept in
+`src/ForeverData.lua`.
 
 ## Licence
 
