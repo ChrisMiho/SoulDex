@@ -5,6 +5,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Souls drained in dungeons now get their real names: SoulDex quietly whispers you to read them (bosses mid-fight still show as Unknown).
 - Your rank now has its own emblem, eight in all, from a dull sliver to a fel-crowned shard. It replaces the Soul Shard icon in the window, on the Me tab and in the popups.
 - New: WoW: Forever's own raids, The Barrow Deeps and Hyjal Summit, are in the Raids list. Their rosters are still TBD: every soul you claim inside is kept and will fill its slot when the list ships. They don't count toward Raid Reaper yet.
 - New look for the window: larger and shaded, with your rank beside the score and a progress line to the next rank on every tab, a green marker on the selected row and tab, and a rarity stripe on each soul.

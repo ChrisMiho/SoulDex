@@ -86,6 +86,12 @@ this document are marked **[call]**, and the user should check them.
   The folder, `.toc` and code name can stay `SoulShardPokeDox` or become
   `SoulDex`; that's the builder's choice. (Built as `SoulDex`: `SoulDex.toc`,
   `package-as: SoulDex`, `SoulDexDB`.)
+- Chat output: personal messages go to the player's own chat frame only. The
+  two exceptions are guild announcements and the hidden `SDX1:` whispers
+  SoulDex sends to the player themself to read a hidden target name (4.2).
+  Those lines are hidden by a chat filter and never reach anyone else. **[user]**
+  (changed after 1.2.4: soul names through a self-whisper; full reasoning in
+  `docs/superpowers/specs/2026-11-15-soul-name-whisper-design.md`.)
 
 ## 4. Catching
 
@@ -143,6 +149,33 @@ death detection is used; the capture window below replaces the death queue.)
   or "Unknown"), or there is no target name at all (a focus or mouseover
   macro), the catch is recorded as an Unknown soul in that zone (see 4.4).
   Players whose name is hidden go there too.
+- **Soul-name whisper [user].** (changed after 1.2.4: in dungeons the target's
+  name and GUID are secret, which made every dungeon catch an Unknown soul.)
+  The game still expands `%t` to the target's name when you send chat, so at
+  Drain Soul channel start or Shadowburn success SoulDex sends
+  `SDX1:<token>:%t` as a whisper to `GetUnitName("player", true)`, and reads
+  the name from the reply. It sends only when all of these hold:
+  - the target's name is secret (not a name mismatch);
+  - a target exists, and `mouseover` and `focus` are not a different unit
+    (`UnitIsUnit`; anything unreadable means no);
+  - the cast's SENT event did not name a readable unit;
+  - chat is not locked down (`InChatMessagingLockdown`; unreadable counts as
+    locked), because sending then shows a red "Interface action failed" error;
+  - the player is not AFK or DND (their auto-reply would show a line).
+  One whisper per capture. A reply counts only if its token is pending, its
+  sender GUID is the player's own, and its name is plain (no `|`, `:`,
+  newline, `%t`, empty or overlong). A reply that arrives secret (combat) is
+  re-read from chat history when restrictions lift. `SDX1:` whispers to and
+  from the player are hidden by a chat filter, and `/r` is put back after
+  sending. A shard whose name is pending is held: its tooltip shows the grey
+  "Unknown soul" with "<zone> · name pending", and nothing is recorded. When
+  the name arrives it is recorded like an open-world catch (popup, sound,
+  points). With no reply it becomes an Unknown soul after 60 s of unrestricted
+  time (out of combat, chat unlocked), at most 600 s after sending. A held
+  shard still pending at login becomes one Unknown soul. In a dungeon the
+  creature type and family are secret, so a soul named this way is recorded
+  without them; a later catch of the same creature fills them in and tops up
+  its points. Full reasoning and probe results: `docs/superpowers/specs/2026-11-15-soul-name-whisper-design.md`.
 - Recorded with the catch: date and time, your level, the zone (and subzone
   if known), and **your** map coordinates at that moment (the source's own
   position isn't available). **[call]**
@@ -202,7 +235,9 @@ with a count for each. **[user]**
 Unknown soul (changed during build: WoW: Forever can hide names) **[user]**:
 per zone, a count with first and last date (`SoulDexDB.unknown[zone]`). It
 gives no points, no popup and no milestone progress, is not a unique mob,
-and is not sent to friends.
+and is not sent to friends. A hidden name is no longer always Unknown: see
+the soul-name whisper in 4.2. Bosses killed during their encounter, and
+casts the whisper guard refuses, still end here.
 
 Data is saved **per character** (`SavedVariablesPerCharacter`): each warlock
 has its own dex, score and milestones, and Friends shows character names. **[user]**
@@ -559,6 +594,8 @@ earns double.
   "darker and demonesque".) Ranks, milestone names and rank-ups use fel green
   (`9dff3a`), not gold; the flavour line in the detail pane is a soft violet
   (`b9a6d9`), not yellow. Gold is left to elites, where the game itself uses it. **[user]**
+- A soul named by whisper (4.2) gets its popup and sound when the name
+  arrives, possibly a few seconds after the shard, or after combat. **[user]**
 - The popup and the sound each have their own on/off setting. **[user]**
 - (changed during build: a hitch on the first popup.) The popup frame is built
   when the world first loads (only if the popup is on), not on the first catch,
@@ -610,6 +647,9 @@ earns double.
   `GameTooltip:SetBagItem` hook is used.
 - An Unknown soul shard shows a grey "Unknown soul" as its name instead of
   "Soul of <name>", then "<zone> · <date>".
+- A shard held while its name is pending (4.2) shows the same grey "Unknown
+  soul" with "<zone> · name pending", and becomes "Soul of <name>" when the
+  name arrives.
 - Shards from before the addon was installed keep the plain "Soul Shard" tooltip.
 
 ### 6.4 Guild announcements
@@ -777,6 +817,23 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
   "Soul #42". Players and raid creatures show it too.
 - Drain Soul a raid creature: its detail pane (Raids tab) shows its rarity
   (Elite / Boss) and a "Lv 60 Humanoid" style line, if the game gave a level.
+
+**Soul-name whisper** (in a dungeon; details in
+`docs/superpowers/specs/2026-11-15-soul-name-whisper-design.md`)
+- Drain Soul a mob out of combat -> the popup shows its real name, with points;
+  no `SDX1:` line is ever visible in chat.
+- Same mid-pull -> the popup comes within a few seconds (after combat at the
+  latest).
+- During a boss encounter -> the shard ends as an Unknown soul (chat is
+  locked), and no "Interface action failed" error appears.
+- Drain Soul with the mouse over a different mob -> Unknown soul, never the
+  other mob's name.
+- `/reload` within a few seconds of a drain -> that shard is an Unknown soul
+  after the reload, counted once.
+- After a drain in a dungeon, `/r` still targets whoever last whispered you,
+  not yourself.
+- While a name is pending, hovering the shard shows the grey "Unknown soul"
+  with "<zone> · name pending", then "Soul of <name>" once it arrives.
 
 **Shard tooltip**
 - Hover the new shard: the tooltip's top line reads "Soul of <name>" (name
@@ -989,6 +1046,16 @@ that overlaps, is cut off, or shows as a solid green square (a missing icon).
   that raid's instance ID.
 - WoW: Forever can hide target names (secret values): those catches are only
   counted as "Unknown soul" per zone.
+- Bosses killed during their encounter stay Unknown souls: chat is locked
+  then, and sending anyway shows a red "Interface action failed" error, so
+  SoulDex never sends.
+- Casts through other macro targets (`@targettarget`, `@party1target`,
+  unit-frame click-casting) pass the whisper guard and can be misnamed.
+  **[user accepted]**
+- Chat addons that read whispers themselves (WIM, Prat, ElvUI) may show
+  `SDX1:` lines.
+- Creature type and family are missing for souls only ever caught in
+  dungeons; an open-world catch of the same creature fills them in.
 - Shadowburn catches are untested in game.
 - WoW: Forever beta bug: SavedVariables can fail to load after a reload.
 - A shard refunded by a demon that despawns during a Drain Soul (or within

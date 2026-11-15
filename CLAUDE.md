@@ -37,9 +37,10 @@ worktree the packager stops with "No Git, SVN, or Hg checkout found".
 
 - **Pure modules** (no WoW API, busted-tested): `Settings`, `Raids`, `Points`, `Ranks`,
   `Rarity`, `Flavour`, `Dex`, `Milestones`, `View`, `Comm`, `Friends`, `Catch`,
-  `Shards`, `UIFormat`.
+  `Whisper` (soul-name whisper marker, reply parsing, ask decision, pending
+  queue), `Shards`, `UIFormat`.
 - **Game-facing** (frames, events, chat): `Capture` (secret-value guards,
-  spellcasts, bag scans), `Tooltip`, `Toast`, `UI`, `UIList`, `UIDetail`,
+  spellcasts, bag scans, soul-name whispers), `Tooltip`, `Toast`, `UI`, `UIList`, `UIDetail`,
   `Options`, `Net` (AceComm), `Init` (version, `ns.Print`, slash command).
 - `SoulDex.toc` is the load order: every new `src/` file goes there, above
   `src\Init.lua`.
@@ -63,7 +64,9 @@ worktree the packager stops with "No Git, SVN, or Hg checkout found".
 - **Declare every WoW API you use** in `read_globals` in `.luacheckrc`, and every
   global you create in `globals`.
 - **Messages go to the player's own chat frame only** (`ns.Print`), never to a
-  chat channel, except guild announcements.
+  chat channel, except guild announcements and the hidden `SDX1:` whispers
+  SoulDex sends to the player themself (see the whisper design,
+  `docs/superpowers/specs/2026-11-15-soul-name-whisper-design.md`).
 - **Never record a wrong name in the dex.** A shard with no matching capture
   records nothing.
 - **This client blocks the combat log and may return secret values:** never
