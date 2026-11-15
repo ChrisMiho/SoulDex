@@ -451,8 +451,18 @@ local function ownName()
 	return str(call(GetUnitName, "player", true))
 end
 
+-- Whether name is the player's, with or without a "-realm". Unreadable means no.
+local function isOwnName(name)
+	local me = ownName()
+	if not me or not plainString(name) then
+		return false
+	end
+	return name == me or name:match("^(.*)%-[^%-]*$") == me
+end
+
 -- Whispers text to the player; false when it can't be sent. The last tell target (/r)
--- is put back afterwards.
+-- is put back afterwards; the second value is that target ({ target, chatType }), for
+-- putting it back again once the reply is in (finish).
 local function whisperSelf(text)
 	local me = ownName()
 	local fn = C_ChatInfo and C_ChatInfo.SendChatMessage or SendChatMessage
@@ -468,7 +478,18 @@ local function whisperSelf(text)
 	if hasLast then
 		call(ChatEdit_SetLastTellTarget, lastTarget, lastType)
 	end
-	return ok
+	return ok, hasLast and { lastTarget, lastType } or nil
+end
+
+-- Puts /r back to what it was before the whisper, but only while the player's own reply
+-- is what it points at: a friend who whispered meanwhile keeps it.
+local function restoreTell(saved)
+	if not saved or type(ChatEdit_GetLastTellTarget) ~= "function" then
+		return
+	end
+	if isOwnName((call(ChatEdit_GetLastTellTarget))) then
+		call(ChatEdit_SetLastTellTarget, saved[1], saved[2])
+	end
 end
 
 -- For the chat filter: an SDX1 line to or from the player (sender GUID, arg 12, or the
@@ -481,11 +502,7 @@ local function ownMarkerLine(msg, sender, guid)
 	if myGuid and plainString(guid) and guid == myGuid then
 		return true
 	end
-	local me = ownName()
-	if me and plainString(sender) then
-		return sender == me or sender:match("^(.*)%-[^%-]*$") == me
-	end
-	return false
+	return isOwnName(sender)
 end
 
 -- Guild chat through C_ChatInfo when the client has it; never raises (deprecated global).
@@ -953,6 +970,7 @@ function Capture.start(db, dex)
 		end
 		pend.name = name
 		pend.state = name and "named" or "failed"
+		restoreTell(pend.lastTell)
 		settle(pend)
 	end
 
@@ -965,6 +983,7 @@ function Capture.start(db, dex)
 		local restricted = whisperLocked() or yes(InCombatLockdown, true)
 		for _, pend in ipairs(queue:tick(GetTime(), restricted)) do
 			pend.state = "failed"
+			restoreTell(pend.lastTell)
 			settle(pend)
 		end
 		if queue:count() == 0 and ticker then
@@ -1024,19 +1043,24 @@ function Capture.start(db, dex)
 		whispers.lines = kept
 	end
 
+	-- Set once the chat filter hiding SDX1 lines is in: without it no whisper is sent.
+	local filtered = false
+
 	-- A capture whose target name is hidden: whispers the player for the name when the
 	-- guard allows. Returns the capture's info, carrying the pend when the whisper went out.
 	local function askName(info)
-		if not Whisper.shouldAsk(Capture.askState()) then
+		if not filtered or not Whisper.shouldAsk(Capture.askState()) then
 			return info
 		end
 		local details = Capture.readDetails("target")
 		local pend = { details = details, state = "waiting" }
 		local token = queue:add(pend, GetTime())
-		if not whisperSelf(Whisper.message(token)) then
+		local ok, lastTell = whisperSelf(Whisper.message(token))
+		if not ok then
 			queue:remove(token)
 			return info
 		end
+		pend.lastTell = lastTell
 		startTicker()
 		return { unknown = true, pend = pend, isPlayer = details.isPlayer }
 	end
@@ -1164,13 +1188,17 @@ function Capture.start(db, dex)
 		end
 	end)
 	-- Hides SDX1 whispers to and from yourself for the whole session (late echoes too).
+	-- No filter, no whisper: the lines would show.
 	local addFilter = (ChatFrameUtil and ChatFrameUtil.AddMessageEventFilter) or ChatFrame_AddMessageEventFilter
 	local function hideOwnMarker(_, _, msg, sender, _, _, _, _, _, _, _, _, _, guid)
 		local ok, hide = pcall(ownMarkerLine, msg, sender, guid)
 		return ok and hide or false
 	end
-	call(addFilter, "CHAT_MSG_WHISPER", hideOwnMarker)
-	call(addFilter, "CHAT_MSG_WHISPER_INFORM", hideOwnMarker)
+	if type(addFilter) == "function" then
+		local inWhisper = pcall(addFilter, "CHAT_MSG_WHISPER", hideOwnMarker)
+		local inInform = pcall(addFilter, "CHAT_MSG_WHISPER_INFORM", hideOwnMarker)
+		filtered = inWhisper and inInform
+	end
 
 	local failed = Capture.register(frame, EVENTS, UNIT_EVENTS)
 	Capture.register(frame, OPTIONAL_EVENTS, {}) -- refusals here are not worth a warning

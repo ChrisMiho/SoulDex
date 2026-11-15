@@ -1103,9 +1103,11 @@ describe("Capture glue", function()
 			_G.ChatFrameUtil = {
 				AddMessageEventFilter = function(event, fn) filters[#filters + 1] = { event = event, fn = fn } end,
 			}
-			_G.ChatEdit_GetLastTellTarget = function() return "Friend", "WHISPER" end
+			world.lastTell = { "Friend", "WHISPER" }
+			_G.ChatEdit_GetLastTellTarget = function() return world.lastTell[1], world.lastTell[2] end
 			_G.ChatEdit_SetLastTellTarget = function(target, chatType)
 				tellsSet[#tellsSet + 1] = { target = target, chatType = chatType }
+				world.lastTell = { target, chatType }
 			end
 		end)
 
@@ -1231,6 +1233,51 @@ describe("Capture glue", function()
 			drain("cast1", SECRET)
 			assert.equal(1, #sends)
 			assert.same({ { target = "Friend", chatType = "WHISPER" } }, tellsSet)
+		end)
+
+		it("never whispers when no chat filter could be installed", function()
+			_G.ChatFrameUtil = nil
+			_G.ChatFrame_AddMessageEventFilter = nil
+			world.target = MONK
+			local ns = boot()
+			drain("cast1", SECRET)
+			assert.equal(0, #sends)
+			assert.equal(0, ns.Capture.whispers.queue:count())
+		end)
+
+		it("never whispers when installing the chat filter fails", function()
+			_G.ChatFrameUtil = { AddMessageEventFilter = function() error("no") end }
+			world.target = MONK
+			boot()
+			drain("cast1", SECRET)
+			assert.equal(0, #sends)
+		end)
+
+		it("puts /r back again when the reply arrives (the reply set it to the player)", function()
+			world.target = MONK
+			boot()
+			drain("cast1", SECRET)
+			world.lastTell = { "Forgot Shards", "WHISPER" } -- as the client does for an incoming whisper
+			whisper("SDX1:" .. tokenOf(sends[1]) .. ":Scarlet Monk", ME_GUID)
+			assert.same({ "Friend", "WHISPER" }, world.lastTell)
+		end)
+
+		it("puts /r back after a failed reply, with the player's name given with a realm", function()
+			world.target = MONK
+			boot()
+			drain("cast1", SECRET)
+			world.lastTell = { "Forgot Shards-Home", "WHISPER" }
+			whisper("SDX1:" .. tokenOf(sends[1]) .. ":%t", ME_GUID)
+			assert.same({ "Friend", "WHISPER" }, world.lastTell)
+		end)
+
+		it("leaves /r alone when someone else whispered meanwhile", function()
+			world.target = MONK
+			boot()
+			drain("cast1", SECRET)
+			world.lastTell = { "Bestie", "WHISPER" }
+			whisper("SDX1:" .. tokenOf(sends[1]) .. ":Scarlet Monk", ME_GUID)
+			assert.same({ "Bestie", "WHISPER" }, world.lastTell)
 		end)
 
 		it("the player's own reply names the soul; another sender's changes nothing", function()
@@ -1439,6 +1486,16 @@ describe("Capture glue", function()
 				wait(120)
 				assert.equal(1, db.unknown["Elwynn Forest"].count)
 				assert.equal(0, liveTickers()) -- nothing left to wait for
+			end)
+
+			it("puts /r back when the wait ends, if a reply set it to the player", function()
+				world.target = MONK
+				boot()
+				drain("cast1", SECRET)
+				whisper(SECRET, SECRET, 7) -- a reply that never becomes readable
+				world.lastTell = { "Forgot Shards", "WHISPER" }
+				wait(61)
+				assert.same({ "Friend", "WHISPER" }, world.lastTell)
 			end)
 
 			it("a reply with no usable name after the shard is held gives one Unknown soul", function()
