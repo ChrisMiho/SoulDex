@@ -24,6 +24,7 @@ finds it by itself).
 | One test file | `busted spec/Dex_spec.lua` |
 | Build, zip and install into the game | `scripts/build.sh` |
 | Build and zip only (no game install) | `scripts/build.sh --no-install` |
+| Redraw the rank emblems | `scripts/art/render.sh` (needs Chrome and Python 3 with Pillow) |
 
 Lint and tests must pass before you call work done; CI runs both on every push,
 and a Stop hook (`.claude/hooks/check.sh`) runs them when Lua files changed.
@@ -42,6 +43,8 @@ worktree the packager stops with "No Git, SVN, or Hg checkout found".
   `Options`, `Net` (AceComm), `Init` (version, `ns.Print`, slash command).
 - `SoulDex.toc` is the load order: every new `src/` file goes there, above
   `src\Init.lua`.
+- `art/` holds the rank emblems, generated from `scripts/art/emblem.html` by
+  `scripts/art/render.sh` (needs Chrome and Python 3 with Pillow): never hand-edit.
 - `src/RaidData.lua` is generated from Questie (GPL-3): never hand-edit, run
   `luajit scripts/gen_raids.lua <path to classicNpcDB.lua>`.
 - Not shipped (`.pkgmeta` `ignore`): `spec/`, `scripts/`, `docs/`, `CLAUDE.md`;
@@ -68,6 +71,7 @@ worktree the packager stops with "No Git, SVN, or Hg checkout found".
   issecretvalue before use (`ns.Capture.readable`/`plainString`/`plainNumber`).
 - **Libraries only through `.pkgmeta` externals** (pinned to `Release-r1403`)
   and `embeds.xml`; never commit `Libs/` or copy library code into `src/`.
+- A new rank needs its emblem (`art/rank<N>.tga`); `spec/Art_spec.lua` checks.
 - Tabs for Lua indentation; see `.editorconfig`.
 - Newly created files are left out of builds until they are `git add`ed.
 - Don't use Pokémon names or art anywhere players see it (CurseForge rules on

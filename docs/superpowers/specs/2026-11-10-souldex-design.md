@@ -239,8 +239,9 @@ The look was settled through mockups; the final versions are in
   changes ("I wanna do them all"). **[user]** For the whole window:
   - It is **380 × 280** (was 360 × 232), shaded lighter purple at the top to
     near-black at the bottom (flat fill on clients without texture gradients).
-  - The title bar starts with the Soul Shard's icon as an emblem. Right of
-    the title: the **rank chip** (the rank's name in fel green in a small dark
+  - The title bar starts with the **rank emblem** of the dex on screen (a
+    friend's while browsing; changed after 1.2.4: rank emblems.) **[user]**
+    Right of the title: the **rank chip** (the rank's name in fel green in a small dark
     box), then the tab's total and the score.
   - Under the title, in place of the rule, a 2 px **rank progress line**: a
     dark track filled in fel green as far as the way to the next rank. The
@@ -249,9 +250,9 @@ The look was settled through mockups; the final versions are in
     edge; the active tab has a fel-green underline.
   - Rows of souls have a 2 px stripe on their left edge in the soul's rarity
     colour (dull purple for ordinary mobs).
-  - A custom emblem texture is not shipped yet: a missing or unreadable
-    texture shows as a green square in game, so the game's own Soul Shard icon
-    is used until one is tested. **[call]**
+  - (changed after 1.2.4: rank emblems.) The emblems ship in `art/` as
+    64 × 64, 32-bit, uncompressed TGA: original art, one per rank (6.6); no
+    game art stands in for them. **[user]**
 
 ### 5.2 Mobs tab
 
@@ -349,8 +350,10 @@ The look was settled through mockups; the final versions are in
 
 - A header band tinted in the soul's colour (rarity or class), fading down.
   In it: an icon with a border in that colour (one of the game's icons for
-  the creature type, by its English name; the Soul Shard for other languages
-  and unknown types; a crossed-swords icon for players), the name in that
+  the creature type, by its English name; for other languages and unknown
+  types the rank emblem of the dex on screen, uncropped, on a dark backing
+  (changed after 1.2.4: rank emblems.) **[user]**; a crossed-swords icon for
+  players), the name in that
   colour, a line "Elite · Lv 11 Humanoid · Gnoll" (players: "Lv 38 Orc
   Rogue"), and the points as a badge at the top right.
 - The flavour line, set off by a bar on its left, without quote marks.
@@ -455,7 +458,8 @@ Not mocked up. Same two columns. **[user for what; call for layout]**
 (changed after 1.2.4: UI rework; it replaced a plain list of key/value lines.)
 Three parts (`View.meCard`, numbers from `View.me`):
 
-- **Rank crest**, the left column: the Soul Shard icon, the rank's name in fel
+- **Rank crest**, the left column: the rank's emblem (changed after 1.2.4: rank
+  emblems.) **[user]**, the rank's name in fel
   green, "RANK N OF 8", the score, a 4 px bar to the next rank and
   "<points> pts to <rank>" ("The highest rank" at the top).
 - **Six tiles**, two rows of three: Unique mobs, Players, Raids ("1 / 7"
@@ -573,6 +577,9 @@ earns double.
   colour; fel green for a mastery star). The points are no longer in the
   second line: they stand large on the right ("+25" over "PTS"). As it lands
   a band of light crosses it once (0.45 s). **[user]**
+- (changed after 1.2.4: rank emblems.) The popup's icon is your rank emblem
+  after the claim (so the claim that ranks you up shows the new one); the
+  rank-up popup's is the new rank's. **[user]**
 - A rank-up no longer borrows the soul's popup. A second popup appears under
   it: "RANK UP", the rank in fel green, "Rank 4 of 8 · next: Reaper at 2,500"
   ("the highest rank" at the top), and the score on the right. **[user]**
@@ -644,16 +651,20 @@ text. **[call]**
 (added after 1.2.4: rebrand.) The score earns a warlock rank. **[call on
 names and thresholds]**
 
-| Rank | Name | From (points) |
-|------|------|---------------|
-| 1 | Initiate | 0 |
-| 2 | Acolyte | 50 |
-| 3 | Soul Thief | 250 |
-| 4 | Shardbinder | 1,000 |
-| 5 | Reaper | 2,500 |
-| 6 | Soul Harvester | 5,000 |
-| 7 | Soul Tyrant | 10,000 |
-| 8 | Lord of Souls | 25,000 |
+| Rank | Name | From (points) | Emblem |
+|------|------|---------------|--------|
+| 1 | Initiate | 0 | The shard only, at 60 % scale, its faces greyed, no glow: a dull grey sliver |
+| 2 | Acolyte | 50 | Full-size violet shard on a soft violet glow |
+| 3 | Soul Thief | 250 | + the dark disc and a thin plain iron band (no rivets) |
+| 4 | Shardbinder | 1,000 | + the full band (keyline, bevel, lit and shadowed rims) with its eight rivets |
+| 5 | Reaper | 2,500 | + three ring spikes: bottom and both sides |
+| 6 | Soul Harvester | 5,000 | + five spikes, the fel-lit inner rim and fel light on the shard's lower edges |
+| 7 | Soul Tyrant | 10,000 | + the fel bolts crackling off the shard; eight spikes, evenly round the ring |
+| 8 | Lord of Souls | 25,000 | + the arcs across the shard's face, the outer fel aura, and the top three spikes drawn taller as a crown |
+
+(Emblem column added after 1.2.4: rank emblems.) Each rank keeps everything
+the rank below it has. **[user]** A new rank needs a new `art/rank<N>.tga`;
+`spec/Art_spec.lua` enforces it. **[call]**
 
 (Raised when repeat claims began to score, 6.1: a raider claiming every boss
 each week can earn over 1,000 points a week. **[call]**)
@@ -692,6 +703,12 @@ spec.) Notably the UI is split across `UI.lua` (window, tabs, panes),
 `UIList.lua` (pooled scrolling list and the shared small button),
 `UIFormat.lua` (text and colour helpers; rarity colours come from `Rarity.lua`) and `UIDetail.lua` (detail pane content), and the Friends network
 glue and tab live in `Net.lua`.
+
+(changed after 1.2.4: rank emblems.) `art/` holds the emblem textures
+(`rank1.tga` to `rank8.tga`; shipped, generated, never hand-edited);
+`scripts/art/` holds their source (`emblem.html`) and build (`render.sh`),
+which are not shipped. `Ranks.emblem(index)` gives a rank's texture path, and
+`Ranks.of(score).emblem` the one for a score. **[call]**
 
 ## 8. Left to the builder
 
@@ -843,8 +860,8 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
 **UI rework (after 1.2.4)** Everything here is drawn blind; report anything
 that overlaps, is cut off, or shows as a solid green square (a missing icon).
 - Window: larger than before, lighter purple at the top shading to near-black
-  at the bottom (a flat colour is acceptable; say which you see). The Soul
-  Shard icon sits at the left of the title. Right of the title: your rank in
+  at the bottom (a flat colour is acceptable; say which you see). The rank
+  emblem sits at the left of the title. Right of the title: your rank in
   green in a small box, then the total and score, the gear and ×. None of
   these overlap, including on the Milestones tab and while browsing a friend
   ("« My dex" button, "SoulDex · Viewing X").
@@ -854,14 +871,14 @@ that overlaps, is cut off, or shows as a solid green square (a missing icon).
   a green mark on its left edge; each soul's row has a thin stripe on its left
   (gold for elites, silver rares, orange bosses).
 - Click a mob: the card slides in. Check the tinted header, the icon (right
-  for a beast, humanoid, undead, demon, elemental; a Soul Shard otherwise),
+  for a beast, humanoid, undead, demon, elemental; the rank emblem otherwise),
   name, the line under it, the points badge at the top right, the flavour
   line with a bar beside it, the row of eight stars with "N / M to next
   star" and a bar, the four boxes (Claimed, First, Where, Last) with their
   values readable, and "« Back" at the bottom right. A raid boss and a rare
   have no star row. A player shows crossed swords, Sharded / Guild / First /
   Last, and their places below.
-- Me: icon, rank, "RANK N OF 8", score, bar and "N pts to <rank>" on the
+- Me: rank emblem, rank, "RANK N OF 8", score, bar and "N pts to <rank>" on the
   left; six boxes with a number over a small label; under them RECORDS with
   Most claimed, Nemesis, Hunting ground, Rarest trophy, Latest ("today"),
   Best day (a dash until your first claim after updating) and Zones hunted.
@@ -873,6 +890,17 @@ that overlaps, is cut off, or shows as a solid green square (a missing icon).
   boss plays a different sound too. Neither popup overlaps the other.
 - Options has four boxes; ticking "Claim chatter in chat" prints one line per
   claim, and unticking stops it.
+
+**Rank emblems (after 1.2.4)**
+- The title bar, the Me crest, both popups and the card of a mob with no
+  known type show the emblem: no green square, not upside down, not mirrored,
+  no dark or coloured box round it.
+- `/souldex` on a low and a high character (or a friend's dex): the emblem
+  differs by rank, and the title-bar one changes while browsing a friend.
+- Ranking up: both popups show the new rank's emblem.
+- The 14 px title-bar emblem is recognisable.
+- If every emblem is a green square, the client does not read this TGA form:
+  report it.
 
 **Rebrand (after 1.2.4)**
 - The popup's title and border follow the soul: purple "SOUL CLAIMED" for an
