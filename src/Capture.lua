@@ -217,21 +217,42 @@ local function isUnknownName(name)
 		or (UNKNOWNOBJECT ~= nil and name == UNKNOWNOBJECT)
 end
 
+-- True/false/nil (unreadable) for whether the unit is a player; the GUID decides when
+-- UnitIsPlayer can't.
+local function isPlayerOf(unit, guid)
+	local isPlayer = call(UnitIsPlayer, unit)
+	if readable(isPlayer) and isPlayer ~= nil then
+		return isPlayer and true or false
+	end
+	if guid then
+		return Capture.isPlayerGuid(guid)
+	end
+	return nil
+end
+
+-- The unit's details that don't need its name: { level, classification, creatureType,
+-- family, isPlayer }, each readable or nil (a "??" skull level is nil).
+function Capture.readDetails(unit)
+	local d = {
+		level = num(call(UnitLevel, unit)),
+		classification = str(call(UnitClassification, unit)),
+		creatureType = str(call(UnitCreatureType, unit)),
+		family = str(call(UnitCreatureFamily, unit)),
+		isPlayer = isPlayerOf(unit, str(call(UnitGUID, unit))),
+	}
+	if d.level and d.level < 1 then
+		d.level = nil
+	end
+	return d
+end
+
 -- The unit's details. A hidden or unknown name gives { unknown = true, isPlayer, guid }.
 -- sentName: the target name UNIT_SPELLCAST_SENT reported: if it differs from the unit's
 -- name the spell went elsewhere (a mouseover macro), so the name is not trusted. A secret
 -- sentName can't be compared, so it is not trusted either.
 function Capture.readUnit(unit, sentName)
 	local guid = str(call(UnitGUID, unit))
-	local isPlayer = call(UnitIsPlayer, unit)
-	if readable(isPlayer) and isPlayer ~= nil then
-		isPlayer = isPlayer and true or false
-	else
-		isPlayer = nil
-	end
-	if isPlayer == nil and guid then
-		isPlayer = Capture.isPlayerGuid(guid)
-	end
+	local isPlayer = isPlayerOf(unit, guid)
 	local name, realm = call(UnitName, unit)
 	if isUnknownName(name) or (sentName ~= nil and not readable(sentName)) then
 		return { unknown = true, isPlayer = isPlayer, guid = guid }
@@ -243,18 +264,16 @@ function Capture.readUnit(unit, sentName)
 			return { unknown = true, isPlayer = isPlayer, guid = guid }
 		end
 	end
+	local details = Capture.readDetails(unit)
 	local info = {
 		name = name,
 		guid = guid,
 		isPlayer = isPlayer,
-		level = num(call(UnitLevel, unit)),
-		classification = str(call(UnitClassification, unit)),
-		creatureType = str(call(UnitCreatureType, unit)),
-		family = str(call(UnitCreatureFamily, unit)),
+		level = details.level,
+		classification = details.classification,
+		creatureType = details.creatureType,
+		family = details.family,
 	}
-	if info.level and info.level < 1 then
-		info.level = nil -- "??" skull level
-	end
 	if isPlayer then
 		-- WoW: Forever: UnitName's second value is the second half of the name
 		-- ("Forgot", "Shards" for "Forgot Shards"), not a realm.
@@ -377,6 +396,96 @@ end
 
 local function chatLocked()
 	return yes(C_ChatInfo and C_ChatInfo.InChatMessagingLockdown, true) or yes(IsEncounterInProgress, true)
+end
+
+-- Soul-name whispers ---------------------------------------------------------------------
+
+-- true/false from fn(...); nil when fn is missing, errors or answers a secret.
+local function flag(fn, ...)
+	if type(fn) ~= "function" then
+		return nil
+	end
+	local ok, v = pcall(fn, ...)
+	if not ok or not readable(v) then
+		return nil
+	end
+	return v and true or false
+end
+
+-- Whether unit is there and is not the target: false when it isn't there, nil when
+-- either answer can't be read.
+local function otherThanTarget(unit)
+	local exists = flag(UnitExists, unit)
+	if not exists then
+		return exists
+	end
+	local same = flag(UnitIsUnit, unit, "target")
+	if same == nil then
+		return nil
+	end
+	return not same
+end
+
+-- Only a chat lockdown stops the whisper (a secret answer counts as locked). A boss
+-- encounter alone doesn't: if the client refuses the send, the soul stays Unknown.
+local function whisperLocked()
+	return yes(C_ChatInfo and C_ChatInfo.InChatMessagingLockdown, true)
+end
+
+-- The reads Whisper.shouldAsk decides on.
+function Capture.askState()
+	local name = call(UnitName, "target")
+	return {
+		nameHidden = not readable(name),
+		hasTarget = flag(UnitExists, "target"),
+		mouseoverOther = otherThanTarget("mouseover"),
+		focusOther = otherThanTarget("focus"),
+		chatLocked = whisperLocked(),
+		afk = flag(UnitIsAFK, "player"),
+		dnd = flag(UnitIsDND, "player"),
+	}
+end
+
+-- The player's own full name ("Forgot Shards"), the whisper's recipient, or nil.
+local function ownName()
+	return str(call(GetUnitName, "player", true))
+end
+
+-- Whispers text to the player; false when it can't be sent. The last tell target (/r)
+-- is put back afterwards.
+local function whisperSelf(text)
+	local me = ownName()
+	local fn = C_ChatInfo and C_ChatInfo.SendChatMessage or SendChatMessage
+	if not me or type(fn) ~= "function" then
+		return false
+	end
+	local hasLast = type(ChatEdit_GetLastTellTarget) == "function"
+	local lastTarget, lastType
+	if hasLast then
+		lastTarget, lastType = call(ChatEdit_GetLastTellTarget)
+	end
+	local ok = pcall(fn, text, "WHISPER", nil, me)
+	if hasLast then
+		call(ChatEdit_SetLastTellTarget, lastTarget, lastType)
+	end
+	return ok
+end
+
+-- For the chat filter: an SDX1 line to or from the player (sender GUID, arg 12, or the
+-- sender's name, with or without a "-realm"). Anything unreadable stays shown.
+local function ownMarkerLine(msg, sender, guid)
+	if not plainString(msg) or not ns.Whisper.isMarker(msg) then
+		return false
+	end
+	local myGuid = str(call(UnitGUID, "player"))
+	if myGuid and plainString(guid) and guid == myGuid then
+		return true
+	end
+	local me = ownName()
+	if me and plainString(sender) then
+		return sender == me or sender:match("^(.*)%-[^%-]*$") == me
+	end
+	return false
 end
 
 -- Guild chat through C_ChatInfo when the client has it; never raises (deprecated global).
@@ -580,6 +689,7 @@ local EVENTS = {
 	"PLAYER_ENTERING_WORLD",
 	"BAG_UPDATE_DELAYED",
 	"PLAYER_REGEN_ENABLED",
+	"CHAT_MSG_WHISPER",
 	"BANKFRAME_OPENED",
 	"BANKFRAME_CLOSED",
 	"MAIL_SHOW",
@@ -589,11 +699,14 @@ local EVENTS = {
 	"MERCHANT_SHOW",
 	"MERCHANT_CLOSED",
 }
--- Chat lockdown ending; newer clients only (see Capture.flushAnnouncements).
+-- Chat lockdown ending (see Capture.flushAnnouncements), newer clients only; and a zone
+-- change, after which a whisper reply that came in secret may be readable.
 local OPTIONAL_EVENTS = {
 	"ADDON_RESTRICTION_STATE_CHANGED",
 	"ENCOUNTER_END",
+	"ZONE_CHANGED_NEW_AREA",
 }
+local MAX_LINES = 32 -- whisper line ids kept for re-reading
 
 -- Windows a shard can arrive from without a kill (bank, mail, trade, vendor buyback):
 -- open event -> its close event.
@@ -732,6 +845,93 @@ function Capture.start(db, dex)
 		return Capture.readUnit("target", check)
 	end
 
+	-- Soul-name whispers: the pending asks, and the line ids of replies that came in secret.
+	local Whisper = ns.Whisper
+	local queue = Whisper.newQueue()
+	local whispers = { queue = queue, lines = {} } -- lines: { id, at }, oldest first
+
+	local function onName(token, name)
+		local pend = queue:get(token)
+		if pend then
+			pend.name = name
+			pend.state = "named"
+		end
+	end
+	whispers.onName = onName
+
+	-- A reply whose text and sender GUID are readable.
+	local function accept(text, guid)
+		if not plainString(text) or not plainString(guid) then
+			return
+		end
+		local token, name = Whisper.parse(text)
+		if not token or not queue:get(token) then
+			return
+		end
+		local me = str(call(UnitGUID, "player"))
+		if not me or guid ~= me then
+			return
+		end
+		if name then
+			onName(token, name)
+		else
+			queue:remove(token).state = "failed"
+		end
+	end
+
+	local function keepLine(id)
+		local lines = whispers.lines
+		lines[#lines + 1] = { id = id, at = GetTime() }
+		while #lines > MAX_LINES do
+			table.remove(lines, 1)
+		end
+	end
+
+	-- Re-reads the kept line ids from chat history; drops each once read, or after CEILING.
+	local function rereadLines()
+		if #whispers.lines == 0 or not C_ChatInfo then
+			return
+		end
+		local now, kept = GetTime(), {}
+		for _, line in ipairs(whispers.lines) do
+			local text = call(C_ChatInfo.GetChatLineText, line.id)
+			local guid = call(C_ChatInfo.GetChatLineSenderGUID, line.id)
+			if readable(text) and readable(guid) then
+				accept(text, guid)
+			elseif now - line.at < Whisper.CEILING then
+				kept[#kept + 1] = line
+			end
+		end
+		whispers.lines = kept
+	end
+
+	-- A capture whose target name is hidden: whispers the player for the name when the
+	-- guard allows. Returns the capture's info, carrying the pend when the whisper went out.
+	local function askName(info)
+		if not Whisper.shouldAsk(Capture.askState()) then
+			return info
+		end
+		local details = Capture.readDetails("target")
+		local pend = { details = details, state = "waiting" }
+		local token = queue:add(pend, GetTime())
+		if not whisperSelf(Whisper.message(token)) then
+			queue:remove(token)
+			return info
+		end
+		return { unknown = true, pend = pend, isPlayer = details.isPlayer }
+	end
+
+	local function captureInfo(castGUID, kind, now)
+		local info = targetInfo(castGUID, kind, now)
+		if info.unknown then
+			info = askName(info)
+		end
+		return info
+	end
+
+	-- The pending asks and kept line ids, for the code that resolves them and for tests.
+	Capture.whispers = whispers
+
 	-- unit, castGUID, spellID as the event gave them; returns kind, castGUID or nil when
 	-- the event is unreadable (after telling the window).
 	local function spellOf(isChannelStart, unit, castGUID, spellID)
@@ -765,7 +965,7 @@ function Capture.start(db, dex)
 		local kind, cast = spellOf(true, unit, castGUID, spellID)
 		if kind == "drainsoul" then
 			local now = GetTime()
-			local info = targetInfo(cast, kind, now)
+			local info = captureInfo(cast, kind, now)
 			window:startCapture("drainsoul", info, cast, now)
 		end
 		queueScan()
@@ -783,7 +983,7 @@ function Capture.start(db, dex)
 		local kind, cast = spellOf(false, unit, castGUID, spellID)
 		if kind == "shadowburn" then
 			local now = GetTime()
-			local info = targetInfo(cast, kind, now)
+			local info = captureInfo(cast, kind, now)
 			window:startCapture("shadowburn", info, cast, now)
 		end
 		queueScan()
@@ -798,13 +998,32 @@ function Capture.start(db, dex)
 		flushAnnouncements()
 	end
 	handlers.BAG_UPDATE_DELAYED = queueScan
+	local function reread()
+		Capture.protect(errorHandler(), rereadLines)
+	end
+
+	local function restrictionsLifted()
+		flushAnnouncements()
+		reread()
+	end
+
 	handlers.PLAYER_REGEN_ENABLED = function()
 		queueScan()
-		flushAnnouncements()
+		restrictionsLifted()
 	end
 	-- Optional: an older client without these just waits for combat to end or a reload.
-	handlers.ADDON_RESTRICTION_STATE_CHANGED = flushAnnouncements
-	handlers.ENCOUNTER_END = flushAnnouncements
+	handlers.ADDON_RESTRICTION_STATE_CHANGED = restrictionsLifted
+	handlers.ENCOUNTER_END = restrictionsLifted
+	handlers.ZONE_CHANGED_NEW_AREA = reread
+
+	-- text, sender, ..., line id (arg 11), sender GUID (arg 12)
+	handlers.CHAT_MSG_WHISPER = function(text, _, _, _, _, _, _, _, _, _, lineID, guid)
+		if readable(text) and readable(guid) then
+			accept(text, guid)
+		elseif plainNumber(lineID) and queue:count() > 0 then
+			keepLine(lineID)
+		end
+	end
 	for openEvent, closeEvent in pairs(SHARD_SOURCES) do
 		handlers[openEvent] = function()
 			sourcesOpen[openEvent] = true
@@ -822,6 +1041,15 @@ function Capture.start(db, dex)
 			Capture.protect(errorHandler(), fn, ...)
 		end
 	end)
+	-- Hides SDX1 whispers to and from yourself for the whole session (late echoes too).
+	local addFilter = (ChatFrameUtil and ChatFrameUtil.AddMessageEventFilter) or ChatFrame_AddMessageEventFilter
+	local function hideOwnMarker(_, _, msg, sender, _, _, _, _, _, _, _, _, _, guid)
+		local ok, hide = pcall(ownMarkerLine, msg, sender, guid)
+		return ok and hide or false
+	end
+	call(addFilter, "CHAT_MSG_WHISPER", hideOwnMarker)
+	call(addFilter, "CHAT_MSG_WHISPER_INFORM", hideOwnMarker)
+
 	local failed = Capture.register(frame, EVENTS, UNIT_EVENTS)
 	Capture.register(frame, OPTIONAL_EVENTS, {}) -- refusals here are not worth a warning
 	if #failed > 0 and ns.Print then

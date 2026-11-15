@@ -13,6 +13,8 @@ local STUBBED = {
 	"GetRealmName", "GetInstanceInfo", "C_Map", "GetRealZoneText", "GetZoneText", "IsInGuild",
 	"SendChatMessage", "C_ChatInfo", "IsEncounterInProgress", "PlaySound", "StopSound", "SOUNDKIT", "geterrorhandler",
 	"UNKNOWN", "UNKNOWNOBJECT", "NUM_BAG_SLOTS", "NUM_TOTAL_EQUIPPED_BAG_SLOTS", "RAID_CLASS_COLORS",
+	"UnitExists", "UnitIsUnit", "UnitIsAFK", "UnitIsDND", "GetUnitName", "ChatFrameUtil",
+	"ChatFrame_AddMessageEventFilter", "ChatEdit_GetLastTellTarget", "ChatEdit_SetLastTellTarget",
 }
 
 describe("Capture glue", function()
@@ -165,6 +167,16 @@ describe("Capture glue", function()
 		_G.NUM_BAG_SLOTS = 4
 		_G.NUM_TOTAL_EQUIPPED_BAG_SLOTS = nil
 		_G.RAID_CLASS_COLORS = nil
+		-- Unset unless a test sets them: without them SoulDex never whispers.
+		_G.UnitExists = nil
+		_G.UnitIsUnit = nil
+		_G.UnitIsAFK = nil
+		_G.UnitIsDND = nil
+		_G.GetUnitName = nil
+		_G.ChatFrameUtil = nil
+		_G.ChatFrame_AddMessageEventFilter = nil
+		_G.ChatEdit_GetLastTellTarget = nil
+		_G.ChatEdit_SetLastTellTarget = nil
 	end)
 
 	after_each(function()
@@ -177,7 +189,7 @@ describe("Capture glue", function()
 		local ns = {}
 		local pure = {
 			"Settings", "RaidData", "ForeverData", "Raids", "Points", "Rarity", "Ranks", "Flavour", "Dex", "Milestones",
-			"Friends", "Catch", "Shards",
+			"Friends", "Catch", "Whisper", "Shards",
 		}
 		for _, f in ipairs(pure) do
 			LoadAddonFile("src/" .. f .. ".lua", ns)
@@ -1019,6 +1031,320 @@ describe("Capture glue", function()
 			fire("BAG_UPDATE_DELAYED") -- before PLAYER_ENTERING_WORLD + 1 s: ignored
 			assert.equal(0, #timers)
 			assert.equal(0, count(db.shardSouls))
+		end)
+	end)
+
+	describe("soul-name whispers", function()
+		local ME_GUID = "Player-1-ME"
+		local MONK = { name = SECRET, guid = SECRET, level = SECRET, classification = "elite", creatureType = SECRET }
+		local sends, filters, tellsSet
+
+		before_each(function()
+			sends, filters, tellsSet = {}, {}, {}
+			world.locked = false
+			world.afk, world.dnd = false, false
+			world.mouseover, world.focus = nil, nil
+			world.isUnit = nil -- set to force UnitIsUnit's answer
+			world.sendFails = nil
+			world.lines = {}
+			_G.UnitExists = function(unit)
+				if unit == "target" then
+					return world.target ~= nil
+				end
+				if unit == "mouseover" or unit == "focus" then
+					return world[unit] ~= nil
+				end
+				return unit == "player"
+			end
+			_G.UnitIsUnit = function(a, b)
+				if world.isUnit ~= nil then
+					return world.isUnit
+				end
+				local function of(u)
+					return u == "target" and world.target or world[u]
+				end
+				return of(a) == of(b)
+			end
+			_G.UnitIsAFK = function() return world.afk end
+			_G.UnitIsDND = function() return world.dnd end
+			_G.GetUnitName = function(unit, full)
+				if unit == "player" and full then
+					return "Forgot Shards"
+				end
+			end
+			local targetGuid = _G.UnitGUID
+			_G.UnitGUID = function(unit)
+				if unit == "player" then
+					return ME_GUID
+				end
+				return targetGuid(unit)
+			end
+			_G.C_ChatInfo = {
+				InChatMessagingLockdown = function() return world.locked end,
+				SendChatMessage = function(text, chatType, _, target)
+					if world.sendFails then
+						error("refused")
+					end
+					sends[#sends + 1] = { text = text, chatType = chatType, target = target }
+				end,
+				GetChatLineText = function(id) return world.lines[id] and world.lines[id].text end,
+				GetChatLineSenderGUID = function(id) return world.lines[id] and world.lines[id].guid end,
+			}
+			_G.ChatFrameUtil = {
+				AddMessageEventFilter = function(event, fn) filters[#filters + 1] = { event = event, fn = fn } end,
+			}
+			_G.ChatEdit_GetLastTellTarget = function() return "Friend", "WHISPER" end
+			_G.ChatEdit_SetLastTellTarget = function(target, chatType)
+				tellsSet[#tellsSet + 1] = { target = target, chatType = chatType }
+			end
+		end)
+
+		-- CHAT_MSG_WHISPER as the client fires it: text, sender, ..., line id (11), sender GUID (12).
+		local function whisper(text, guid, lineID)
+			fire("CHAT_MSG_WHISPER", text, "Forgot Shards", "", "", "", "", 0, 0, "", 0, lineID or 1, guid)
+		end
+
+		local function tokenOf(send)
+			return send.text:match("^SDX1:([^:]+):%%t$")
+		end
+
+		local function pendOf(ns, send)
+			return ns.Capture.whispers.queue:get(tokenOf(send))
+		end
+
+		it("whispers the player once for a hidden name, with the details read", function()
+			world.target = MONK
+			local ns = boot()
+			drain("cast1", SECRET)
+			assert.equal(1, #sends)
+			assert.truthy(sends[1].text:match("^SDX1:[^:]+:%%t$"))
+			assert.equal("WHISPER", sends[1].chatType)
+			assert.equal("Forgot Shards", sends[1].target)
+			local pend = pendOf(ns, sends[1])
+			assert.equal("waiting", pend.state)
+			assert.equal("elite", pend.details.classification)
+			assert.is_nil(pend.details.level)
+			assert.is_nil(pend.details.creatureType)
+			assert.is_false(pend.details.isPlayer)
+		end)
+
+		it("asks on a hidden Shadowburn target too", function()
+			world.target = MONK
+			boot()
+			fire("UNIT_SPELLCAST_SENT", "player", SECRET, "sb1", 17877)
+			fire("UNIT_SPELLCAST_SUCCEEDED", "player", "sb1", 17877)
+			assert.equal(1, #sends)
+		end)
+
+		it("does not ask when the spell may have gone to another unit, or the state is unsure", function()
+			local cases = {
+				function() world.mouseover = { name = "Other" } end,
+				function() world.focus = { name = "Other" } end,
+				function()
+					world.mouseover = MONK
+					world.isUnit = SECRET
+				end,
+				function() world.afk = true end,
+				function() world.dnd = SECRET end,
+				function() world.locked = true end,
+				function() _G.GetUnitName = function() return SECRET end end,
+			}
+			for i, setup in ipairs(cases) do
+				world.target = MONK
+				world.mouseover, world.focus, world.isUnit = nil, nil, nil
+				world.afk, world.dnd, world.locked = false, false, false
+				local ns = boot()
+				setup()
+				drain("cast" .. i, SECRET)
+				assert.equal(0, #sends, "case " .. i)
+				assert.equal(0, ns.Capture.whispers.queue:count(), "case " .. i)
+			end
+		end)
+
+		it("still asks during a boss encounter while chat is not locked down", function()
+			world.target = MONK
+			_G.IsEncounterInProgress = function() return true end
+			boot()
+			drain("cast1", SECRET)
+			assert.equal(1, #sends)
+		end)
+
+		it("treats a secret lockdown answer as locked", function()
+			world.target = MONK
+			world.locked = SECRET
+			boot()
+			drain("cast1", SECRET)
+			assert.equal(0, #sends)
+		end)
+
+		it("does not ask for a readable name", function()
+			world.target = HOGGER
+			boot()
+			drain("cast1", "Hogger")
+			assert.equal(0, #sends)
+		end)
+
+		it("a refused send leaves no pending whisper and an Unknown soul", function()
+			world.target = MONK
+			world.sendFails = true
+			local ns, db = boot()
+			drain("cast1", SECRET)
+			assert.equal(0, ns.Capture.whispers.queue:count())
+			putShard(1, "NEW")
+			fire("BAG_UPDATE_DELAYED")
+			flush()
+			assert.is_true(db.shardSouls.NEW.soul.unknown)
+		end)
+
+		it("puts the last tell target back after sending", function()
+			world.target = MONK
+			boot()
+			drain("cast1", SECRET)
+			assert.equal(1, #sends)
+			assert.same({ { target = "Friend", chatType = "WHISPER" } }, tellsSet)
+		end)
+
+		it("a shard under a pending whisper still records an Unknown soul (for now)", function()
+			world.target = MONK
+			local _, db = boot()
+			drain("cast1", SECRET)
+			putShard(1, "NEW")
+			fire("BAG_UPDATE_DELAYED")
+			flush()
+			assert.equal(1, db.unknown["Elwynn Forest"].count)
+			assert.is_true(db.shardSouls.NEW.soul.unknown)
+		end)
+
+		it("the player's own reply names the soul; another sender's changes nothing", function()
+			world.target = MONK
+			local ns = boot()
+			drain("cast1", SECRET)
+			local pend = pendOf(ns, sends[1])
+			local token = tokenOf(sends[1])
+			whisper("SDX1:" .. token .. ":Scarlet Monk", "Player-1-OTHER")
+			assert.equal("waiting", pend.state)
+			assert.is_nil(pend.name)
+			whisper("SDX1:" .. token .. ":Scarlet Monk", ME_GUID)
+			assert.equal("named", pend.state)
+			assert.equal("Scarlet Monk", pend.name)
+		end)
+
+		it("a reply with no usable name fails the whisper", function()
+			world.target = MONK
+			local ns = boot()
+			drain("cast1", SECRET)
+			local pend = pendOf(ns, sends[1])
+			whisper("SDX1:" .. tokenOf(sends[1]) .. ":%t", ME_GUID)
+			assert.equal("failed", pend.state)
+			assert.equal(0, ns.Capture.whispers.queue:count())
+		end)
+
+		it("a reply with an unknown token, or other text, changes nothing", function()
+			world.target = MONK
+			local ns = boot()
+			drain("cast1", SECRET)
+			local pend = pendOf(ns, sends[1])
+			whisper("SDX1:zz:Scarlet Monk", ME_GUID)
+			whisper("hello", ME_GUID)
+			assert.equal("waiting", pend.state)
+			assert.equal(1, ns.Capture.whispers.queue:count())
+		end)
+
+		it("a secret reply is re-read from chat history once combat ends", function()
+			world.target = MONK
+			local ns = boot()
+			drain("cast1", SECRET)
+			local pend = pendOf(ns, sends[1])
+			whisper(SECRET, SECRET, 7)
+			assert.equal("waiting", pend.state)
+			world.lines[7] = { text = "SDX1:" .. tokenOf(sends[1]) .. ":Scarlet Monk", guid = ME_GUID }
+			fire("PLAYER_REGEN_ENABLED")
+			flush()
+			assert.equal("named", pend.state)
+			assert.equal("Scarlet Monk", pend.name)
+			assert.equal(0, #ns.Capture.whispers.lines)
+		end)
+
+		it("keeps a line that is still secret, and re-reads it on a zone change", function()
+			world.target = MONK
+			local ns = boot()
+			drain("cast1", SECRET)
+			local pend = pendOf(ns, sends[1])
+			local reply = "SDX1:" .. tokenOf(sends[1]) .. ":Scarlet Monk"
+			whisper(reply, SECRET, 9)
+			world.lines[9] = { text = reply, guid = SECRET }
+			fire("ENCOUNTER_END")
+			assert.equal("waiting", pend.state)
+			world.lines[9].guid = ME_GUID
+			fire("ZONE_CHANGED_NEW_AREA")
+			assert.equal("named", pend.state)
+		end)
+
+		it("drops a kept line id after the ceiling", function()
+			world.target = MONK
+			local ns = boot()
+			drain("cast1", SECRET)
+			local pend = pendOf(ns, sends[1])
+			whisper(SECRET, SECRET, 7)
+			world.lines[7] = { text = SECRET, guid = SECRET }
+			world.clock = world.clock + ns.Whisper.CEILING
+			fire("PLAYER_REGEN_ENABLED") -- still secret, and too old: dropped
+			assert.equal(0, #ns.Capture.whispers.lines)
+			world.lines[7] = { text = "SDX1:" .. tokenOf(sends[1]) .. ":Scarlet Monk", guid = ME_GUID }
+			fire("ADDON_RESTRICTION_STATE_CHANGED")
+			assert.equal("waiting", pend.state)
+		end)
+
+		it("keeps no line id while nothing is pending, and at most 32", function()
+			world.target = HOGGER
+			local ns = boot()
+			whisper(SECRET, SECRET, 7)
+			assert.equal(0, #ns.Capture.whispers.lines)
+			world.target = MONK
+			drain("cast1", SECRET)
+			for id = 1, 40 do
+				whisper(SECRET, SECRET, id)
+			end
+			assert.equal(32, #ns.Capture.whispers.lines)
+			assert.equal(9, ns.Capture.whispers.lines[1].id) -- the oldest went first
+		end)
+
+		describe("chat filter", function()
+			local function filterFor(event)
+				for _, f in ipairs(filters) do
+					if f.event == event then
+						return f.fn
+					end
+				end
+			end
+
+			local function hides(event, msg, sender, guid)
+				return filterFor(event)(nil, event, msg, sender, "", "", "", "", 0, 0, "", 0, 1, guid) == true
+			end
+
+			it("hides SDX1 lines to and from the player only", function()
+				boot()
+				for _, event in ipairs({ "CHAT_MSG_WHISPER", "CHAT_MSG_WHISPER_INFORM" }) do
+					assert.is_true(hides(event, "SDX1:1:Scarlet Monk", "Forgot Shards", ME_GUID))
+					assert.is_true(hides(event, "SDX1:1:%t", "Forgot Shards", SECRET))
+					assert.is_true(hides(event, "SDX1:1:%t", "Forgot Shards-Home", nil))
+					assert.is_false(hides(event, "SDX1:1:Scarlet Monk", "Someone", "Player-1-OTHER"))
+					assert.is_false(hides(event, "SDX1:1:Scarlet Monk", SECRET, SECRET))
+					assert.is_false(hides(event, "hello", "Forgot Shards", ME_GUID))
+					assert.is_false(hides(event, SECRET, "Forgot Shards", ME_GUID))
+				end
+				assert.equal(2, #filters)
+			end)
+
+			it("falls back to ChatFrame_AddMessageEventFilter", function()
+				_G.ChatFrameUtil = nil
+				_G.ChatFrame_AddMessageEventFilter = function(event, fn)
+					filters[#filters + 1] = { event = event, fn = fn }
+				end
+				boot()
+				assert.equal(2, #filters)
+				assert.is_true(hides("CHAT_MSG_WHISPER", "SDX1:1:Scarlet Monk", "Forgot Shards", ME_GUID))
+			end)
 		end)
 	end)
 
