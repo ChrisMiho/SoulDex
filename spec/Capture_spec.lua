@@ -756,6 +756,16 @@ describe("Capture glue", function()
 				assert.equal(before, #printed)
 			end)
 
+			it("shows the new rank's emblem on the soul popup of a claim that ranks you up", function()
+				local ns = bootRanks({ popup = true, sound = false, announce = false })
+				local emblems = {}
+				ns.Toast.show = function(_, _, _, _, emblem) emblems[#emblems + 1] = emblem end
+				ns.Toast.showRank = function() end
+				catchHogger("cast1", 1, "A")
+				assert.equal(ns.Ranks.emblem(2), emblems[1])
+				assert.not_equal(ns.Ranks.emblem(1), emblems[1])
+			end)
+
 			it("tells the guild from the announcing rank on, when announcements are on", function()
 				local sentChat = {}
 				_G.IsInGuild = function() return true end

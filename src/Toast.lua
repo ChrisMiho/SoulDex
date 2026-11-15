@@ -167,12 +167,15 @@ local function build(offset)
 end
 
 -- Builds the frames ahead of time, so the first catch of a session doesn't pay for them,
--- their backdrops and the icon on top of the bag scan (a visible hitch). Run when the
+-- their backdrops and the emblem texture file (loaded here by setting the first rank's;
+-- show/showRank set the real one) on top of the bag scan (a visible hitch). Run when the
 -- world first loads and when the popup is switched on (Capture.prepareFor).
 function Toast.prepare()
 	if not frames.soul then
 		frames.soul = build(TOP_OFFSET)
 		frames.rank = build(RANK_OFFSET)
+		frames.soul.icon:SetTexture(ns.Ranks.emblem(1))
+		frames.rank.icon:SetTexture(ns.Ranks.emblem(1))
 	end
 end
 

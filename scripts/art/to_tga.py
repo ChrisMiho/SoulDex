@@ -14,6 +14,9 @@ def main():
 	if len(sys.argv) != 3:
 		sys.exit("usage: to_tga.py <in.png> <out.tga>")
 	image = Image.open(sys.argv[1]).convert("RGBA")
+	width, height = image.size
+	if width != height or width < 64:
+		sys.exit("to_tga.py: input must be square and at least 64 px, got %d x %d" % (width, height))
 	image = image.resize((64, 64), Image.LANCZOS)
 	image.save(sys.argv[2])
 

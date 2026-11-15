@@ -662,8 +662,8 @@ names and thresholds]**
 | 7 | Soul Tyrant | 10,000 | + the fel bolts crackling off the shard; eight spikes, evenly round the ring |
 | 8 | Lord of Souls | 25,000 | + the arcs across the shard's face, the outer fel aura, and the top three spikes drawn taller as a crown |
 
-(Emblem column added after 1.2.4: rank emblems.) Each rank keeps everything
-the rank below it has. **[user]** A new rank needs a new `art/rank<N>.tga`;
+(Emblem column added after 1.2.4: rank emblems.) Each rank builds on
+the one below it. **[user]** A new rank needs a new `art/rank<N>.tga`;
 `spec/Art_spec.lua` enforces it. **[call]**
 
 (Raised when repeat claims began to score, 6.1: a raider claiming every boss
@@ -892,15 +892,19 @@ that overlaps, is cut off, or shows as a solid green square (a missing icon).
   claim, and unticking stops it.
 
 **Rank emblems (after 1.2.4)**
-- The title bar, the Me crest, both popups and the card of a mob with no
-  known type show the emblem: no green square, not upside down, not mirrored,
-  no dark or coloured box round it.
+- Quit the game fully and start it again before these checks: the client
+  only picks up newly added addon files at a full restart, and `/reload` does
+  not load new texture files.
+- The title bar, the Me crest and both popups show the emblem: no green
+  square, not upside down, not mirrored, no dark or coloured box round it.
+- The card of a mob with no known type shows the emblem whole, not cropped,
+  on a dark square with the soul-coloured border.
 - `/souldex` on a low and a high character (or a friend's dex): the emblem
   differs by rank, and the title-bar one changes while browsing a friend.
 - Ranking up: both popups show the new rank's emblem.
 - The 14 px title-bar emblem is recognisable.
-- If every emblem is a green square, the client does not read this TGA form:
-  report it.
+- If every emblem is still a green square after a full restart, the client
+  does not read this TGA form: report it.
 
 **Rebrand (after 1.2.4)**
 - The popup's title and border follow the soul: purple "SOUL CLAIMED" for an

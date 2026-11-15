@@ -42,8 +42,9 @@ function Pane:setCard(card, keepScroll)
 	ns.UIList.gradient(p.band, "VERTICAL", color, 0, color, 0.3)
 	UI.fill(p.iconEdge, color)
 	p.icon:SetTexture(card.icon or ns.Ranks.emblem(1))
-	-- The emblem is drawn whole; a game icon has its border cropped off.
-	if card.ownArt then
+	-- The emblem is drawn whole (also as the fallback); a game icon has its border cropped off.
+	local own = card.ownArt or not card.icon
+	if own then
 		p.icon:SetTexCoord(0, 1, 0, 1)
 	else
 		p.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
