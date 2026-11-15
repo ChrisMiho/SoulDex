@@ -1,34 +1,79 @@
+<p align="center">
+  <img src="docs/curseforge/images/banner-1200x400.png" alt="SoulDex: every Soul Shard remembers whose soul it holds" width="100%">
+</p>
+
+<p align="center">
+  <a href="https://github.com/ChrisMiho/SoulDex/releases/latest"><img src="https://img.shields.io/github/v/release/ChrisMiho/SoulDex?label=release&color=8a5cd0" alt="Latest release"></a>
+  <a href="https://github.com/ChrisMiho/SoulDex/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/ChrisMiho/SoulDex/ci.yml?branch=main&label=CI" alt="CI"></a>
+  <img src="https://img.shields.io/badge/WoW-Forever-9482c9" alt="WoW: Forever">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/licence-GPL--3.0-c9a8ff" alt="GPL-3.0"></a>
+</p>
+
 # SoulDex
 
-A collection dex for your Soul Shards. A World of Warcraft: Forever addon for
+**A collection dex for your Soul Shards.** A World of Warcraft: Forever addon for
 warlocks: every time a Soul Shard lands in your bags, the mob or player it came
-from is "caught" and recorded in your dex. Collect them, earn points and
+from is *caught* and recorded in your dex. Collect them, earn points and
 milestones, and compare with other SoulDex users.
+
+Type `/souldex` or `/dex` in game to open it.
 
 ## Features
 
-- Three collections: **Mobs** (grouped by place), **Players** (grouped by class)
-  and **Raids** (a fixed list of every vanilla raid creature, so you can finish it).
-- A popup and sound for each new catch, points for first catches, and milestones.
-- Hover a Soul Shard in your bags to see whose soul it holds and where it was taken.
-- **Friends**: a leaderboard of SoulDex users in your party, raid and guild, plus
-  anyone you add by name. Browse their dex read-only; what you lack is highlighted.
-- Optional guild announcements for big moments only.
+### ◆ Mobs: every shard is a soul caught
+
+Every creature you've drained, grouped by zone and dungeon, in its rarity colour.
+Click any soul for its level and type, a flavour line, how many times you caught
+it, and when and where you caught it first.
+
+![Mobs tab](docs/curseforge/images/feature-1-mobs.png)
+
+### ◆ Raids: the one collection you can finish
+
+A fixed list of every creature in every vanilla raid, from Zul'Gurub to
+Naxxramas. Uncaught souls show as `? ? ?`, and bosses are marked before you
+catch them.
+
+![Raids tab](docs/curseforge/images/feature-2-raids.png)
+
+### ◆ Your shards remember
+
+Hover a Soul Shard in your bags and its tooltip names the soul inside, with where
+and when you took it. The soul follows its shard through bags, the bank and relogs.
+
+![Shard tooltips](docs/curseforge/images/feature-3-catch.png)
+
+### ◆ Players, and rivals
+
+Every player you've sharded, grouped by class. **Friends** is a leaderboard of
+SoulDex users in your party, raid and guild, plus anyone you add by name. Browse
+their dex read-only; what you lack is highlighted.
+
+![Players and Friends tabs](docs/curseforge/images/feature-4-players-friends.png)
+
+### ◆ Score, stats and milestones
+
+A popup and sound for each new catch, points for first catches (1 normal, 5 elite,
+10 rare or player, 25 boss), milestones, and a **Me** tab with your stats. Guild
+announcements are optional and for big moments only.
+
+![Me and Milestones tabs](docs/curseforge/images/feature-5-me-milestones.png)
+
+<sub>The images are illustrations of the in-game window.</sub>
 
 ## Usage
 
+`/dex` is short for `/souldex`: every command works with either one.
+
 | Command | What it does |
 |---------|--------------|
-| `/souldex` (or `/dex`) | Open or close the SoulDex window |
-| `/souldex options` | Open the settings (also the gear on the window) |
-| `/souldex add <name>` | Add a friend by name |
-| `/souldex remove <name>` | Remove a friend |
+| `/souldex` or `/dex` | Open or close the SoulDex window |
+| `/souldex options` or `/dex options` | Open the settings (also the gear on the window) |
+| `/souldex add <name>` or `/dex add <name>` | Add a friend by name |
+| `/souldex remove <name>` or `/dex remove <name>` | Remove a friend |
 
-### Settings
-
-- New-catch popup on/off
-- New-catch sound on/off
-- Guild announcements on/off
+The new-catch popup, the sound and guild announcements each have their own
+on/off switch in the settings.
 
 ## Install
 

@@ -1,4 +1,4 @@
-![SoulDex](BANNER_IMAGE_URL)
+![SoulDex](https://media.forgecdn.net/attachments/2207/172/banner-1200x400-png.png)
 
 ## Every Soul Shard remembers whose soul it holds
 
@@ -7,30 +7,44 @@ each time a shard lands in your bags, the mob or player it came from is *caught*
 recorded in your dex. Fill it, earn points and milestones, and compare with other
 SoulDex users in your guild.
 
-Made for **World of Warcraft: Forever**.
+Made for **World of Warcraft: Forever**. Type `/souldex` or `/dex` to open it.
 
 ---
 
-### ◆ Three collections
+### ◆ Mobs: every shard is a soul caught
 
-- **Mobs**: every creature you've drained, grouped by zone and dungeon. Elites, rares
-  and bosses show in their usual colours.
-- **Players**: every player you've sharded, grouped by class.
-- **Raids**: a fixed list of every creature in every vanilla raid (Zul'Gurub, Molten
-  Core, Onyxia's Lair, Blackwing Lair, Ruins and Temple of Ahn'Qiraj, Naxxramas).
-  Uncaught souls show as `? ? ?` and bosses are marked before you catch them. This is
-  the one collection you can finish.
+Every creature you've drained, grouped by zone and dungeon. Elites, rares and bosses
+show in their usual colours. Click any soul for its details: level and type, a short
+flavour line, how many times you caught it, and when and where you caught it first.
 
-Click any soul for its details: level and type, a short flavour line, how many times
-you caught it, and when and where you caught it first.
+![Mobs tab](https://media.forgecdn.net/attachments/2207/171/feature-1-mobs-png.png)
+
+### ◆ Raids: the one collection you can finish
+
+A fixed list of every creature in every vanilla raid: Zul'Gurub, Molten Core, Onyxia's
+Lair, Blackwing Lair, Ruins and Temple of Ahn'Qiraj, and Naxxramas. Uncaught souls show
+as `? ? ?`, and bosses are marked before you catch them.
+
+![Raids tab](https://media.forgecdn.net/attachments/2207/170/feature-2-raids-png.png)
 
 ### ◆ Your shards remember
 
-Hover a Soul Shard in your bags and the tooltip tells you whose soul it holds, and
-where and when you took it. The soul follows its shard through your bags, the bank and
-relogs.
+Hover a Soul Shard in your bags and its tooltip names the soul inside, in its rarity
+colour, with where and when you took it. The soul follows its shard through your bags,
+the bank and relogs.
 
-### ◆ A small game on top
+![Shard tooltips](https://media.forgecdn.net/attachments/2207/197/feature-3-catch-png.png)
+
+### ◆ Players, and rivals
+
+Every player you've sharded, grouped by class. SoulDex users in your party, raid and
+guild appear on a friends leaderboard on their own; add anyone else with
+`/souldex add <name>`. Browse a friend's dex, read-only: what they have and you don't
+is highlighted.
+
+![Players and Friends tabs](https://media.forgecdn.net/attachments/2207/168/feature-4-players-friends-png.png)
+
+### ◆ Score, stats and milestones
 
 - A **popup and a sound** when you catch a soul for the first time. Repeat catches stay quiet.
 - **Points** for each first catch: 1 for a normal mob, 5 for an elite, 10 for a rare
@@ -39,25 +53,23 @@ relogs.
 - A **Me** tab with your score, souls taken, most-caught mob, top zone and your rank
   among friends.
 
-### ◆ Friends
-
-SoulDex users in your party, raid and guild appear on a leaderboard on their own. Add
-anyone else with `/souldex add <name>`. Browse a friend's dex, read-only: what they
-have and you don't is highlighted.
-
 Guild announcements are **for big moments only** (from 100 unique mobs, 25 player
 souls, and raid completions), never for every catch. They switch off with one tick.
+
+![Me and Milestones tabs](https://media.forgecdn.net/attachments/2207/167/feature-5-me-milestones-png.png)
 
 ---
 
 ### Commands
 
+`/dex` is short for `/souldex`: every command works with either one.
+
 | Command | What it does |
 |---|---|
 | `/souldex` or `/dex` | Open or close the window |
-| `/souldex options` | Settings (also the gear on the window) |
-| `/souldex add <name>` | Add a friend by name |
-| `/souldex remove <name>` | Remove a friend |
+| `/souldex options` or `/dex options` | Settings (also the gear on the window) |
+| `/souldex add <name>` or `/dex add <name>` | Add a friend by name |
+| `/souldex remove <name>` or `/dex remove <name>` | Remove a friend |
 
 ### Settings
 
@@ -74,15 +86,4 @@ addon have no soul to show.
 
 Raid creature lists are based on Classic Era data and may differ slightly from Forever.
 
----
-
-### Feedback
-
-Bug reports and ideas are welcome in the comments. Each file on the Files tab lists
-what changed in that version.
-
-Raid creature data (NPC IDs, names, raid and boss flag) comes from
-[Questie](https://github.com/Questie/Questie) (GPL-3). Uses AceComm-3.0, CallbackHandler-1.0
-and LibStub from Ace3.
-
-*Drain freely. Every soul counts.*
+*Images are illustrations of the in-game window.*

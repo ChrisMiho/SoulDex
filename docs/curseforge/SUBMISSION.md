@@ -41,8 +41,11 @@ CurseForge reviews every new project by hand; that can take a few days.
 
 ## 3. Description
 
-1. Upload `images/banner-1200x400.png` (Images tab or drag into the editor) and copy its URL.
-2. Open `description.md`, replace `BANNER_IMAGE_URL` on the first line with that URL.
+1. Upload the banner and the five `feature-*.png` images on the Media tab, and copy each
+   one's URL.
+2. In `description.md`, replace the placeholders with those URLs: `BANNER_IMAGE_URL`,
+   `MOBS_IMAGE_URL` (feature 1), `RAIDS_IMAGE_URL` (2), `TOOLTIP_IMAGE_URL` (3),
+   `FRIENDS_IMAGE_URL` (4), `ME_IMAGE_URL` (5).
 3. Paste the whole file into the description, with the editor set to **Markdown**. If the
    project only offers the WYSIWYG editor, paste it into a Markdown previewer first
    (e.g. VS Code preview) and copy the rendered text across.
