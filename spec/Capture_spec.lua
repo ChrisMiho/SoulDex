@@ -1148,30 +1148,28 @@ describe("Capture glue", function()
 			assert.equal(1, #sends)
 		end)
 
-		it("does not ask when the spell may have gone to another unit, or the state is unsure", function()
-			local cases = {
-				function() world.mouseover = { name = "Other" } end,
-				function() world.focus = { name = "Other" } end,
-				function()
-					world.mouseover = MONK
-					world.isUnit = SECRET
-				end,
-				function() world.afk = true end,
-				function() world.dnd = SECRET end,
-				function() world.locked = true end,
-				function() _G.GetUnitName = function() return SECRET end end,
-			}
-			for i, setup in ipairs(cases) do
+		-- One test per case: each boots its own addon, and globals are restored after each.
+		for _, case in ipairs({
+			{ "the mouse is over another unit", function() world.mouseover = { name = "Other" } end },
+			{ "the focus is another unit", function() world.focus = { name = "Other" } end },
+			{ "UnitIsUnit is secret", function()
+				world.mouseover = MONK
+				world.isUnit = SECRET
+			end },
+			{ "the player is AFK", function() world.afk = true end },
+			{ "DND is secret", function() world.dnd = SECRET end },
+			{ "chat is locked down", function() world.locked = true end },
+			{ "the player's own name is secret", function() _G.GetUnitName = function() return SECRET end end },
+		}) do
+			it("does not ask when " .. case[1], function()
 				world.target = MONK
-				world.mouseover, world.focus, world.isUnit = nil, nil, nil
-				world.afk, world.dnd, world.locked = false, false, false
 				local ns = boot()
-				setup()
-				drain("cast" .. i, SECRET)
-				assert.equal(0, #sends, "case " .. i)
-				assert.equal(0, ns.Capture.whispers.queue:count(), "case " .. i)
-			end
-		end)
+				case[2]()
+				drain("cast1", SECRET)
+				assert.equal(0, #sends)
+				assert.equal(0, ns.Capture.whispers.queue:count())
+			end)
+		end
 
 		it("still asks during a boss encounter while chat is not locked down", function()
 			world.target = MONK
@@ -1189,16 +1187,18 @@ describe("Capture glue", function()
 			assert.equal(0, #sends)
 		end)
 
-		it("does not ask when the cast named a readable unit but the target's name is hidden", function()
-			for _, channelCast in ipairs({ "cast1", "other" }) do -- SENT reading used / cross-checked by name
+		-- SENT reading used (same cast id) / cross-checked by name (another cast id).
+		for _, channelCast in ipairs({ "cast1", "other" }) do
+			it("does not ask when the cast named a readable unit but the target's name is hidden ("
+				.. channelCast .. ")", function()
 				world.target = MONK
 				local ns = boot()
 				fire("UNIT_SPELLCAST_SENT", "player", "Party Member", "cast1", 1120)
 				fire("UNIT_SPELLCAST_CHANNEL_START", "player", channelCast, 1120)
-				assert.equal(0, #sends, channelCast)
-				assert.equal(0, ns.Capture.whispers.queue:count(), channelCast)
-			end
-		end)
+				assert.equal(0, #sends)
+				assert.equal(0, ns.Capture.whispers.queue:count())
+			end)
+		end
 
 		it("still asks when both the SENT name and the target's name are hidden, cast ids differing", function()
 			world.target = MONK
@@ -1549,23 +1549,42 @@ describe("Capture glue", function()
 				assert.is_nil(db.unknown["Elwynn Forest"])
 			end)
 
-			it("a secret combat answer and a chat lockdown stop the clock too", function()
-				local setups = {
-					function() _G.InCombatLockdown = function() return SECRET end end,
-					function() world.locked = true end,
-				}
-				for i, setup in ipairs(setups) do
+			for _, case in ipairs({
+				{ "a secret combat answer", function() _G.InCombatLockdown = function() return SECRET end end },
+				{ "a chat lockdown", function() world.locked = true end },
+			}) do
+				it(case[1] .. " stops the clock too", function()
 					world.target = MONK
-					_G.InCombatLockdown = nil
-					world.locked = false
-					world.bags[0] = {}
 					local _, db = boot()
 					drain("cast1", SECRET)
 					newShard(1, "NEW")
-					setup()
+					case[2]()
 					wait(90)
-					assert.is_nil(db.unknown["Elwynn Forest"], "case " .. i)
-				end
+					assert.is_nil(db.unknown["Elwynn Forest"])
+					assert.is_false(db.shardSouls.NEW.soul)
+				end)
+			end
+
+			it("a reply that arrives after its whisper timed out changes nothing", function()
+				world.target = MONK
+				local ns, db, caught = bootCaught()
+				drain("cast1", SECRET)
+				local token = tokenOf(sends[1])
+				newShard(1, "NEW")
+				wait(61)
+				assert.equal(1, db.unknown["Elwynn Forest"].count)
+				assert.equal(1, #caught)
+				whisper("SDX1:" .. token .. ":Scarlet Monk", ME_GUID)
+				world.lines[7] = { text = "SDX1:" .. token .. ":Scarlet Monk", guid = ME_GUID }
+				whisper(SECRET, SECRET, 7) -- the same reply arriving secret, re-read later
+				fire("PLAYER_REGEN_ENABLED")
+				flush()
+				assert.equal(1, db.unknown["Elwynn Forest"].count)
+				assert.same({}, db.mobs)
+				assert.is_true(db.shardSouls.NEW.soul.unknown)
+				assert.equal(ns.Capture.UNKNOWN_SOUL, db.shardSouls.NEW.soul.name)
+				assert.equal(1, #caught)
+				assert.equal(0, ns.Capture.whispers.queue:count())
 			end)
 
 			it("two held shards each get their own name", function()
