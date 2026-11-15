@@ -234,9 +234,19 @@ existing options list.)
 | `CHAT_MSG_WHISPER` text / line id (arg 11) / sender GUID (arg 12) | all readable, `%t` expanded | all readable |
 | `ChatFrameUtil.AddMessageEventFilter`, `ChatFrame_AddMessageEventFilter`, `ChatEdit_Get/SetLastTellTarget`, `C_ChatInfo.GetChatLineText` | present | — |
 
+Boss encounter (Arcanist Doan, SM Library): before the pull everything as
+above (reply `SDXP:Arcanist Doan`). During the encounter:
+`InChatMessagingLockdown` = true, `IsEncounterInProgress` = true,
+`UnitIsAFK`/`UnitIsDND` = secret. Sending anyway did **not** raise in `pcall`;
+the client blocked it with `ADDON_ACTION_BLOCKED` and showed the red
+"Interface action failed because of an AddOn" error. So the lockdown check
+before sending is required (not just tidy): a send during lockdown is a visible
+error, never a name.
+
 So: the 5.2 guard works; the whisper recipient is `GetUnitName("player", true)`;
 creature type and family are recorded missing in dungeons and filled later
-(5.4). Boss encounters not probed yet; chat lockdown there leaves Unknown.
+(5.4). **Bosses killed during their encounter stay Unknown souls** (known
+limitation): the name can't be asked for while chat is locked.
 
 ## 8. In game (adds to spec section 9)
 
