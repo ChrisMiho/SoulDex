@@ -115,29 +115,13 @@ never recording a wrong name.
 (`@targettarget`, `@party1target`, unit-frame click-casting) pass this
 guard and could name the wrong creature. Documented as a known limitation.
 
-### 5.2a SoulDex macros (only if needed)
+### 5.2a No macros
 
-**[user]** "bake in creating these macros as well if this is the only way."
-
-A macro the player presses sends the whisper from a key press, not from
-addon code, and casts at the same unit `%t` names:
-
-    #showtooltip Drain Soul
-    /cast [@target] Drain Soul
-    /w <player's own name> SDX1:%t
-
-(and the same for Shadowburn). A macro can't carry a per-cast token, so a
-macro reply has the fixed marker `SDX1:` with no token and is matched to the
-one capture waiting for a name that was opened within a few seconds (none or
-two waiting → ignored). A capture opened from a SoulDex macro needs no
-5.2 guard.
-
-Built **only if** the probe (8.6) shows the addon's own whisper is blocked
-mid-combat in dungeons. Then: an options-panel button "Create SoulDex
-macros" makes per-character macros (`CreateMacro`, out of combat only; it
-updates rather than duplicates existing ones, and says so if the macro slots
-are full). The addon whisper stays for out-of-combat drains. If the probe
-shows addon whispers work mid-combat, the macros are not built.
+**[user]** "I don't want to burden users with macros." Whispers are sent
+only by the addon, as Shard Source does; the player sets nothing up. When the
+client refuses the send (chat lockdown, boss encounter) that capture stays an
+Unknown soul. Macros were considered (a key-press whisper gets past addon
+chat restrictions and pins `%t` to the cast's unit) and dropped.
 
 ### 5.3 Receiving the reply
 
@@ -248,7 +232,6 @@ existing options list.)
 6. **Open questions only the client can answer, checked first with a quick
    probe:** can the whisper be sent mid-combat in a dungeon; is `UnitIsUnit`
    readable there; are `UnitClassification`/`UnitCreatureType` readable there.
-   If sending mid-combat is blocked, build the macros (5.2a); if
-   `UnitIsUnit` is unreadable, 5.2 needs rethinking before building. The
-   probe also tries a macro `/w <me> SDX1:%t` mid-combat, to confirm a
-   key-press whisper gets through when the addon's own is blocked.
+   If sending mid-combat is blocked, the feature still names drains whose
+   whisper could be sent (out of combat) and leaves the rest Unknown; if
+   `UnitIsUnit` is unreadable, 5.2 needs rethinking before building.
