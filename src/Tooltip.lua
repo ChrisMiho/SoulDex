@@ -9,8 +9,9 @@ ns.Tooltip = Tooltip
 
 local UNKNOWN_COLOR = "9d9d9d"
 
--- The two lines for a soul { name, color, zone, time, unknown }: "Soul of <name>" (or a
--- grey "Unknown soul") and "<zone> · <date>".
+-- The two lines for a soul { name, color, zone, time, unknown, pending }: "Soul of <name>"
+-- (or a grey "Unknown soul") and "<zone> · <date>" ("<zone> · name pending" for a shard
+-- still waiting for its soul's name).
 function Tooltip.lines(soul, dateFn)
 	local first
 	if soul.unknown then
@@ -19,15 +20,31 @@ function Tooltip.lines(soul, dateFn)
 		first = "Soul of |cff" .. (soul.color or "ffffff") .. (soul.name or "?") .. "|r"
 	end
 	local second = soul.zone or ""
-	if soul.time and dateFn then
+	if soul.pending then
+		second = second ~= "" and (second .. " \194\183 name pending") or "name pending"
+	elseif soul.time and dateFn then
 		second = second .. " \194\183 " .. dateFn("%d %b %Y", soul.time)
 	end
 	return first, second
 end
 
+-- The shard's soul; a shard held for its soul's name shows as an Unknown soul for now.
 local function soulFor(guid)
 	local db = ns.db
-	return db and ns.Shards.soulOf(db.shardSouls, guid)
+	if not db then
+		return nil
+	end
+	local soul = ns.Shards.soulOf(db.shardSouls, guid)
+	if soul then
+		return soul
+	end
+	local held = ns.Shards.pendingOf(db.shardSouls, guid)
+	if held then
+		local ctx = type(held.ctx) == "table" and held.ctx or {}
+		local zone = type(ctx.zone) == "string" and ctx.zone or nil
+		return { name = ns.Capture.UNKNOWN_SOUL, unknown = true, pending = true, zone = zone }
+	end
+	return nil
 end
 
 -- The tooltip's first line (the item name), or nil if it can't be found.

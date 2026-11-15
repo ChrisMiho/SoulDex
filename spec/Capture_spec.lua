@@ -1511,6 +1511,46 @@ describe("Capture glue", function()
 				assert.equal("Scarlet Abbot", db.shardSouls.gB.soul.name)
 			end)
 
+			it("a player named by whisper is stored under Name-Realm", function()
+				world.target = { name = SECRET, guid = SECRET, level = 20, player = true }
+				local _, db = boot()
+				drain("cast1", SECRET)
+				newShard(1, "NEW")
+				whisper("SDX1:" .. tokenOf(sends[1]) .. ":Forgot Shards", ME_GUID)
+				assert.is_not_nil(db.players["Forgot Shards-Home"])
+				assert.is_nil(db.players["Forgot Shards-"])
+				assert.equal("Forgot Shards", db.shardSouls.NEW.soul.name)
+			end)
+
+			-- A capture lives at most Catch.MAX_LIFE (20 s), less than the 60 s timeout, so in
+			-- play a whisper that fails before its shard fails by reply; a timeout gives the
+			-- same state ("failed"), checked on Capture.record directly.
+			it("a whisper that fails before its shard: the shard is one Unknown soul at the scan", function()
+				world.target = MONK
+				local ns, db = boot()
+				drain("cast1", SECRET)
+				local pend = pendOf(ns, sends[1])
+				whisper("SDX1:" .. tokenOf(sends[1]) .. ":%t", ME_GUID)
+				assert.equal("failed", pend.state)
+				assert.is_nil(db.unknown["Elwynn Forest"])
+				newShard(1, "NEW")
+				assert.equal(1, db.unknown["Elwynn Forest"].count)
+				assert.is_true(db.shardSouls.NEW.soul.unknown)
+				assert.is_nil(ns.Shards.pendingOf(db.shardSouls, "NEW"))
+				wait(120)
+				assert.equal(1, db.unknown["Elwynn Forest"].count)
+			end)
+
+			it("Capture.record of a timed-out whisper records one Unknown soul and holds nothing", function()
+				local ns, db = boot()
+				local pend = { token = "1", state = "failed", details = {} } -- as the ticker leaves an expired pend
+				local soul, after, park = ns.Capture.record(ns.dex, { info = { unknown = true, pend = pend } })
+				assert.is_nil(park)
+				assert.is_true(soul.unknown)
+				assert.equal("unknown", after.entry.kind)
+				assert.equal(1, db.unknown["Elwynn Forest"].count)
+			end)
+
 			it("a shard still held at login becomes one Unknown soul, once", function()
 				local ctx = { time = 5000, zone = "Scarlet Monastery", group = "Dungeons" }
 				local ns, db = boot({
@@ -1900,6 +1940,20 @@ describe("Capture glue", function()
 			assert.equal(0, #tip.lines)
 			ns.Tooltip.onItem(tip, { id = 6265, guid = "U" })
 			assert.equal("|cff9d9d9dUnknown soul|r", tip.lines[1])
+		end)
+
+		it("a shard held for its soul's name shows a grey Unknown soul, name pending", function()
+			local ns = load()
+			withSouls(ns)
+			ns.db.shardSouls.H = {
+				soul = false, seen = 1, pending = { token = "1", ctx = { zone = "Scarlet Monastery", time = 1 } },
+			}
+			local tip = tipStub()
+			ns.Tooltip.onItem(tip, { id = 6265, guid = "H" })
+			assert.same({ "|cff9d9d9dUnknown soul|r", "Scarlet Monastery \194\183 name pending" }, tip.lines)
+			tip = tipStub()
+			ns.Tooltip.onItem(tip, { id = 6265, guid = "B" }) -- an ordinary soulless shard: still nothing
+			assert.equal(0, #tip.lines)
 		end)
 
 		it("finds the GUID from the bag slot when the data GUID is secret", function()
