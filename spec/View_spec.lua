@@ -28,6 +28,7 @@ describe("View", function()
 	before_each(function()
 		ns = {
 			RaidData = {
+				{ key = "BD", name = "The Barrow Deeps", tbd = true, mobs = {} },
 				{
 					key = "MC",
 					name = "Molten Core",
@@ -202,10 +203,43 @@ describe("View", function()
 		it("reports progress in data order", function()
 			dex:recordRaid(mob("Core Hound"), ctx("Molten Core", "Dungeons"), 409, 11671)
 			local rows = View.raids(dex)
-			assert.equal(2, #rows)
-			assert.same({ instanceID = 409, name = "Molten Core", caught = 1, total = 3, done = false }, rows[1])
+			assert.equal(3, #rows)
+			assert.same({ key = "MC", instanceID = 409, name = "Molten Core", caught = 1, total = 3, done = false,
+				tbd = false }, rows[2])
 			dex:recordRaid(mob("Zed"), ctx("Zul'Gurub", "Dungeons"), 309, 1)
-			assert.is_true(View.raids(dex)[2].done)
+			assert.is_true(View.raids(dex)[3].done)
+		end)
+
+		it("lists a TBD raid first, uncounted", function()
+			local rows = View.raids(dex)
+			assert.same({ key = "BD", name = "The Barrow Deeps", caught = 0, total = 0, done = false, tbd = true },
+				rows[1])
+		end)
+
+		it("counts what was claimed in a TBD raid once its id is known", function()
+			dex:raidFor(3001, "The Barrow Deeps")
+			dex:recordRaid(mob("Barrow Thing"), ctx("The Barrow Deeps", "Raids"), 3001, 555)
+			local row = View.raids(dex)[1]
+			assert.equal(3001, row.instanceID)
+			assert.equal(1, row.caught)
+			assert.is_false(row.done)
+			local mobs = View.raidMobs(dex, 3001, nil)
+			assert.equal(1, #mobs)
+			assert.equal("Barrow Thing", mobs[1].name)
+		end)
+
+		it("keeps TBD raids out of the header and Me totals", function()
+			dex:raidFor(3001, "The Barrow Deeps")
+			dex:recordRaid(mob("Barrow Thing"), ctx("The Barrow Deeps", "Raids"), 3001, 555)
+			local _, right = View.header(dex, "Raids")
+			assert.truthy(right:find("^0/4"))
+			local card = View.meCard(dex, nil, nil, 0)
+			assert.equal("Raids", card.tiles[3].label)
+			assert.equal("0 / 2", card.tiles[3].value)
+		end)
+
+		it("returns no rows for a raid with no id yet", function()
+			assert.same({}, View.raidMobs(dex, nil, nil))
 		end)
 
 		it("tolerates an unknown raid mob without a name", function()

@@ -53,7 +53,8 @@ local function definitions(dex)
 	end
 
 	group = "Raids"
-	local raids = ns.Raids.list()
+	-- Raids whose creature list is still TBD are left out until their data ships.
+	local raids = ns.Raids.completable()
 	for _, raid in ipairs(raids) do
 		local caught, total = dex:raidProgress(raid.instanceID)
 		add("raid_" .. raid.key, raid.name .. " Drained", "every soul", true, caught, total)

@@ -146,16 +146,36 @@ function View.playersOf(dex, class, other)
 	return rows
 end
 
+-- Souls kept under a raid whose creature list is still TBD (0 until its instance id is known).
+local function claimedIn(dex, instanceID)
+	local n = 0
+	if instanceID ~= nil then
+		for _, entry in pairs(dex.db.raids) do
+			if entry.instanceID == instanceID then
+				n = n + 1
+			end
+		end
+	end
+	return n
+end
+
+-- A TBD raid is listed but not counted: total 0, never done, caught = souls kept there.
 function View.raids(dex)
 	local rows = {}
 	for _, raid in ipairs(ns.Raids.list()) do
 		local caught, total = dex:raidProgress(raid.instanceID)
+		local tbd = raid.tbd == true
+		if tbd then
+			caught, total = claimedIn(dex, raid.instanceID), 0
+		end
 		rows[#rows + 1] = {
+			key = raid.key,
 			instanceID = raid.instanceID,
 			name = raid.name,
 			caught = caught,
 			total = total,
 			done = total > 0 and caught == total,
+			tbd = tbd,
 		}
 	end
 	return rows
@@ -491,7 +511,7 @@ function View.meCard(dex, friendsStore, me, now)
 	local tiles = {
 		{ label = "Unique mobs", value = value["Unique mobs"] },
 		{ label = "Players", value = value["Players"] },
-		{ label = "Raids", value = value["Raids completed"] .. " / " .. #ns.Raids.list() },
+		{ label = "Raids", value = value["Raids completed"] .. " / " .. #ns.Raids.completable() },
 		{ label = "Mastery", value = value["Mastery stars"], color = "FEL", star = true },
 		{ label = "Souls taken", value = value["Souls taken"] },
 	}

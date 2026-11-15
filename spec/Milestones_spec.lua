@@ -32,6 +32,7 @@ describe("Milestones", function()
 	before_each(function()
 		ns = {
 			RaidData = {
+				{ key = "BD", name = "The Barrow Deeps", tbd = true, mobs = {} },
 				{
 					key = "MC",
 					name = "Molten Core",
@@ -112,8 +113,17 @@ describe("Milestones", function()
 		assert.is_nil(got.raids_all)
 	end)
 
+	it("leaves TBD raids out of the raid milestones", function()
+		local ids = {}
+		for _, item in ipairs(ns.Milestones.list(dex)) do
+			ids[item.id] = item
+		end
+		assert.is_nil(ids.raid_BD)
+		assert.equal(2, ids.raids_all.goal) -- Molten Core and Empty Raid; not the TBD one
+	end)
+
 	it("earns raids_all when every raid in the list is complete", function()
-		ns.RaidData[2] = nil
+		ns.RaidData[3] = nil
 		dex:recordRaid(mob("Lucifron"), ctx(), 409, 12118)
 		dex:recordRaid(mob("Core Hound"), ctx(), 409, 11671)
 		local got = byId(ns.Milestones.check(dex, 5))
