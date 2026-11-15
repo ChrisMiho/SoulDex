@@ -105,9 +105,12 @@ rejects that case by comparing the SENT event's target name with the
 target's, which is impossible when both are secret.
 
 Rule: only ask when the spell's target can be shown to be the current target.
-Ask only if, at SENT time, there is a target and neither `mouseover` nor
-`focus` is a different unit from `target` (`UnitIsUnit`, each value checked;
-anything unreadable or unknown → don't ask). A normal Drain Soul cast with the
+Ask only if, at the moment the whisper is sent (channel start / Shadowburn
+success, the same handler, so `%t` and the check see the same target), there
+is a target and neither `mouseover` nor `focus` is a different unit from
+`target` (`UnitIsUnit`, each value checked; anything unreadable or unknown →
+don't ask). Also never ask when the cast's SENT event named a readable unit
+while the target's name is secret: the spell went somewhere else. A normal Drain Soul cast with the
 mouse resting on another mob therefore stays Unknown. That's the price of
 never recording a wrong name.
 
