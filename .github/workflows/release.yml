@@ -23,11 +23,11 @@ jobs:
         with:
           fetch-depth: 0 # full history, for the changelog
 
-      # The zip is always SoulDex-v<version>-forever.zip (and the CurseForge
-      # label v<version>-forever); scripts/build.sh uses the same name.
+      # The zip and its CurseForge display name are always
+      # SoulDex-v<version>-forever.zip; scripts/build.sh uses the same name.
       - uses: BigWigsMods/packager@v2.6.1
         with:
-          args: -n "{package-name}-{project-version}-forever:{project-version}-forever"
+          args: -n "{package-name}-{project-version}-forever:{package-name}-{project-version}-forever.zip"
         env:
           GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
           CF_API_KEY: ${{ secrets.CF_API_KEY }}

@@ -80,7 +80,7 @@ Files tab → **Upload File**:
 | Field | Fill in |
 |-------|---------|
 | File | the `SoulDex-v<version>-forever.zip` zip |
-| Display name | `SoulDex <version>` |
+| Display name | `SoulDex-v<version>-forever.zip` (same as the file) |
 | Release type | **Release** |
 | Game version | **Forever** (1.60.1 / interface 16001; tick every Forever version listed) |
 | Changelog | that version's lines from `CHANGELOG.md` (Markdown) |
