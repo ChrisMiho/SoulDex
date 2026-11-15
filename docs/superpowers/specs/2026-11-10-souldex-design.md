@@ -148,13 +148,19 @@ death detection is used; the capture window below replaces the death queue.)
 - **Unknown soul [user].** When the target's name is hidden (secret, empty,
   or "Unknown"), or there is no target name at all (a focus or mouseover
   macro), the catch is recorded as an Unknown soul in that zone (see 4.4).
-  Players whose name is hidden go there too.
+  Players whose name is hidden go there too. A hidden name is first asked for
+  by the soul-name whisper (next bullet); Unknown is the fallback when it
+  can't be asked for or no name comes back.
 - **Soul-name whisper [user].** (changed after 1.2.4: in dungeons the target's
   name and GUID are secret, which made every dungeon catch an Unknown soul.)
   The game still expands `%t` to the target's name when you send chat, so at
   Drain Soul channel start or Shadowburn success SoulDex sends
   `SDX1:<token>:%t` as a whisper to `GetUnitName("player", true)`, and reads
-  the name from the reply. It sends only when all of these hold:
+  the name from the reply. The token is short hex built from the send time
+  and a counter, so a reply to a whisper sent before a `/reload` can't match
+  a new one. It sends only when all of these hold:
+  - the chat filter that hides `SDX1:` lines was installed (no filter API, no
+    whisper);
   - the target's name is secret (not a name mismatch);
   - a target exists, and `mouseover` and `focus` are not a different unit
     (`UnitIsUnit`; anything unreadable means no);
@@ -166,8 +172,11 @@ death detection is used; the capture window below replaces the death queue.)
   sender GUID is the player's own, and its name is plain (no `|`, `:`,
   newline, `%t`, empty or overlong). A reply that arrives secret (combat) is
   re-read from chat history when restrictions lift. `SDX1:` whispers to and
-  from the player are hidden by a chat filter, and `/r` is put back after
-  sending. A shard whose name is pending is held: its tooltip shows the grey
+  from the player are hidden by a chat filter (a reply whose text arrives
+  secret can't be checked, so it may show), and `/r` is put back after
+  sending, and again when the reply arrives or the wait ends if it then
+  points at the player. A shard whose name is pending is held: its tooltip
+  shows the grey
   "Unknown soul" with "<zone> · name pending", and nothing is recorded. When
   the name arrives it is recorded like an open-world catch (popup, sound,
   points). With no reply it becomes an Unknown soul after 60 s of unrestricted
@@ -175,7 +184,7 @@ death detection is used; the capture window below replaces the death queue.)
   shard still pending at login becomes one Unknown soul. In a dungeon the
   creature type and family are secret, so a soul named this way is recorded
   without them; a later catch of the same creature fills them in and tops up
-  its points. Full reasoning and probe results: `docs/superpowers/specs/2026-11-15-soul-name-whisper-design.md`.
+  its points (a top-up counts toward a rank-up). Full reasoning and probe results: `docs/superpowers/specs/2026-11-15-soul-name-whisper-design.md`.
 - Recorded with the catch: date and time, your level, the zone (and subzone
   if known), and **your** map coordinates at that moment (the source's own
   position isn't available). **[call]**
@@ -214,6 +223,10 @@ death detection is used; the capture window below replaces the death queue.)
 - **Raid mobs:** matched by NPC ID (taken from the GUID) against the raid data
   list, so same-named mobs in different raids stay apart. **[call]**
   Raid mobs are recorded **only** in the Raids collection, not under Mobs. **[call]**
+  Exception: a raid creature named by the soul-name whisper (4.2) has no GUID,
+  so no NPC ID: it is recorded as a mob under Mobs > Raids, like a raid
+  SoulDex doesn't list, and doesn't count toward its raid's list or Raid
+  Reaper. **[accepted, whisper design record 5.4]**
   (changed after 1.2.4: Forever raids.) A raid the data lists without an
   instance ID (a TBD raid, 5.4) is matched by its instance name the first time
   a soul is claimed inside a raid-type instance: the name `GetInstanceInfo`
@@ -820,8 +833,11 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
 
 **Soul-name whisper** (in a dungeon; details in
 `docs/superpowers/specs/2026-11-15-soul-name-whisper-design.md`)
-- Drain Soul a mob out of combat -> the popup shows its real name, with points;
-  no `SDX1:` line is ever visible in chat.
+- **Test this first:** Drain Soul a mob out of combat -> the popup shows its
+  real name, with points, and no red "Interface action failed" error appears
+  (the whisper is sent from a spell event, not a key press; this was never
+  probed). No `SDX1:` line shows in chat in normal play (a reply that arrives
+  as a secret value can't be filtered and may show; see Known limitations).
 - Same mid-pull -> the popup comes within a few seconds (after combat at the
   latest).
 - During a boss encounter -> the shard ends as an Unknown soul (chat is
@@ -830,8 +846,8 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
   other mob's name.
 - `/reload` within a few seconds of a drain -> that shard is an Unknown soul
   after the reload, counted once.
-- After a drain in a dungeon, `/r` still targets whoever last whispered you,
-  not yourself.
+- After a drain in a dungeon, and again after its popup, `/r` still targets
+  whoever last whispered you, not yourself.
 - While a name is pending, hovering the shard shows the grey "Unknown soul"
   with "<zone> · name pending", then "Soul of <name>" once it arrives.
 
@@ -1044,8 +1060,13 @@ that overlaps, is cut off, or shows as a solid green square (a missing icon).
   boss 25, until it is listed.
 - A friend's souls from a TBD raid show only once your own client has learned
   that raid's instance ID.
-- WoW: Forever can hide target names (secret values): those catches are only
-  counted as "Unknown soul" per zone.
+- WoW: Forever can hide target names (secret values): SoulDex asks for them
+  with a self-whisper; when it can't ask or no name comes back, the catch is
+  counted as an "Unknown soul" per zone.
+- A raid creature named by whisper has no NPC ID: it goes under Mobs > Raids,
+  not its raid's list, and doesn't count toward Raid Reaper. **[accepted]**
+- A whisper reply that arrives as a secret value can't be checked by the chat
+  filter and may show its `SDX1:` line in chat (not seen in testing).
 - Bosses killed during their encounter stay Unknown souls: chat is locked
   then, and sending anyway shows a red "Interface action failed" error, so
   SoulDex never sends.

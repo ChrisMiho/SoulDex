@@ -89,11 +89,14 @@ and one whisper is sent:
 
     SDX1:<token>:%t     to the player's own full name, "WHISPER"
 
-- `<token>`: a short id unique to this session (counter + time), mapped to
-  the capture.
+- `<token>`: a short id, mapped to the capture: lowercase hex of the send
+  time (`GetTime()` in ms, low 20 bits) followed by a per-session counter, so
+  a reply to a whisper sent before a `/reload` can't match a new token (the
+  counter restarts, the time doesn't). Never contains `:`.
 - One whisper per capture, never retried against a different target.
-- Not sent when chat is locked down, or when the guard in 5.2 fails: the
-  capture stays plain Unknown, as today.
+- Not sent when chat is locked down, when the guard in 5.2 fails, or when no
+  chat filter could be installed (5.3; the lines would show): the capture
+  stays plain Unknown, as today.
 - The readable details (level, classification, creature type, family,
   isPlayer) are read at the same moment and kept on the capture.
 
@@ -141,13 +144,17 @@ chat restrictions and pins `%t` to the cast's unit) and dropped.
 - **[my call]** Not sent while the player is AFK or DND (the auto-reply would
   show a line the filters don't cover; values checked, unreadable → don't
   send). After sending, the last-tell target (`/r`) is put back to what it
-  was, if the client exposes it. Chat addons that read `CHAT_MSG_WHISPER`
-  themselves (WIM, Prat, ElvUI) may still show the line: a documented known
+  was, if the client exposes it, and again when the reply arrives or the wait
+  ends if it then points at the player (the incoming reply can set it; a
+  friend who whispered meanwhile keeps it). Chat addons that read
+  `CHAT_MSG_WHISPER` themselves (WIM, Prat, ElvUI) may still show the line: a documented known
   gap, not handled.
 - Chat filters (`ChatFrame_AddMessageEventFilter` or the newer
   `ChatFrameUtil.AddMessageEventFilter`) hide `CHAT_MSG_WHISPER` and
   `CHAT_MSG_WHISPER_INFORM` lines starting `SDX1:` sent by/to the player, for
-  the whole session (late echoes included).
+  the whole session (late echoes included). No filter API, no whisper. A line
+  whose text arrives as a secret value can't be checked and stays shown
+  (known limitation; not seen in testing).
 
 ### 5.4 Holding the shard
 
@@ -169,7 +176,8 @@ chat restrictions and pins `%t` to the cast's unit) and dropped.
 - **[my call]** If classification, creature type or family are unreadable,
   the name is still recorded with those fields missing (points as a normal
   mob). `Dex` gains a small change: a later catch of the same creature fills
-  any missing field, and if that raises its rarity, its points are topped up.
+  any missing field, and if that raises its rarity, its points are topped up
+  (the top-up counts toward a rank-up).
   Points only ever go up, so nothing is "taken back". If the probe in 8.6
   shows these are readable in dungeons, this branch is just a safety net.
 - Raids: with no NPC id, a raid catch named by whisper is recorded as a mob
@@ -250,8 +258,10 @@ limitation): the name can't be asked for while chat is locked.
 
 ## 8. In game (adds to spec section 9)
 
-1. In a dungeon, Drain Soul a mob out of combat → popup with its real name;
-   no `SDX1:` line visible in chat.
+1. **First:** in a dungeon, Drain Soul a mob out of combat → popup with its
+   real name, and no red "Interface action failed" error (the send comes from
+   a spell event, not a key press; never probed). No `SDX1:` line in chat in
+   normal play (a reply arriving as a secret value may show).
 2. Same mid-pull → popup within a few seconds (after combat at the latest).
 3. During a boss encounter → shard ends as Unknown soul (chat locked), no
    error.
