@@ -674,8 +674,11 @@ describe("Capture glue", function()
 		it("shows the popup and a chat line when a repeat claim earns a mastery star", function()
 			world.target = HOGGER
 			local ns, db, printed = boot({ settings = { popup = true, sound = false, announce = false } })
-			local shown = {}
-			ns.Toast.show = function(result) shown[#shown + 1] = result end
+			local shown, emblems = {}, {}
+			ns.Toast.show = function(result, _, _, _, emblem)
+				shown[#shown + 1] = result
+				emblems[#emblems + 1] = emblem
+			end
 			for i = 1, 10 do
 				world.clock = world.clock + 10
 				drain("cast" .. i, "Hogger")
@@ -688,6 +691,7 @@ describe("Capture glue", function()
 			assert.is_false(shown[2].isNew)
 			assert.truthy(table.concat(printed, "\n"):find("Mastery: Hogger reached |cff9dff3a1 star|r (+2 pts).", 1, true))
 			assert.equal(7, ns.dex:score())
+			assert.equal(ns.Ranks.of(ns.dex:score()).emblem, emblems[2])
 			assert.is_not_nil(db.mobs.Hogger)
 		end)
 
@@ -1248,15 +1252,6 @@ describe("Capture glue", function()
 			assert.equal("Nowhere", ns.Toast.subtitle({ kind = "unknown", points = 0 }, "Nowhere"))
 			assert.equal("+25", ns.Toast.pointsText(raid))
 			assert.equal("+0", ns.Toast.pointsText({}))
-		end)
-		it("finds the shard icon without the removed GetItemIcon", function()
-			local ns = load()
-			local byId = { GetItemIconByID = function(id) return id == 6265 and 134075 or nil end }
-			assert.equal(134075, ns.Toast.shardIcon(byId, nil))
-			assert.equal(42, ns.Toast.shardIcon(nil, function() return 42 end))
-			assert.equal(ns.Toast.SHARD_ICON_FILE, ns.Toast.shardIcon(nil, nil))
-			local blocked = { GetItemIconByID = function() error("blocked") end }
-			assert.equal(ns.Toast.SHARD_ICON_FILE, ns.Toast.shardIcon(blocked, nil))
 		end)
 		it("runs every catch hook even when one errors", function()
 			local ns = load()

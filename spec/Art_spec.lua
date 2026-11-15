@@ -40,6 +40,16 @@ describe("Art", function()
 		end
 	end)
 
+	it("names the game's Soul Shard icon nowhere in the addon", function()
+		for line in io.lines("SoulDex.toc") do
+			local path = line:match("^(src\\.+%.lua)%s*$")
+			if path then
+				path = path:gsub("\\", "/")
+				assert.is_nil(bytes(path):find("Gem_Amethyst", 1, true), path)
+			end
+		end
+	end)
+
 	it("has no art for ranks that don't exist", function()
 		assert.is_nil(bytes("art/rank" .. (#ns.Ranks.LIST + 1) .. ".tga"))
 	end)

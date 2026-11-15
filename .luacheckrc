@@ -50,7 +50,6 @@ read_globals = {
 	"GetInstanceInfo",
 	"GetNumGroupMembers",
 	"GetNumGuildMembers",
-	"GetItemIcon",
 	"GetRealZoneText",
 	"GetRealmName",
 	"GetTime",

@@ -498,10 +498,11 @@ local function rankUp(db, rank)
 	end
 end
 
-local function popup(db, result, entry, rank)
+local function popup(db, dex, result, entry, rank)
 	local settings = db.settings
 	if settings.popup and ns.Toast then
-		ns.Toast.show(result, entry.info, entry.ctx, entry.color)
+		-- The score already includes this catch, so a rank-up shows the new emblem in both popups.
+		ns.Toast.show(result, entry.info, entry.ctx, entry.color, ns.Ranks.of(dex:score()).emblem)
 		if rank then
 			ns.Toast.showRank(rank)
 		end
@@ -520,7 +521,7 @@ local function afterCatch(db, dex, result, entry)
 	if result.isNew or result.stars then
 		-- A frame later, so the popup and its sound don't land on the bag scan's frame.
 		C_Timer.After(0, function()
-			Capture.protect(errorHandler(), popup, db, result, entry, rank)
+			Capture.protect(errorHandler(), popup, db, dex, result, entry, rank)
 		end)
 	end
 	if rank then

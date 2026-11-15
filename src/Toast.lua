@@ -10,21 +10,6 @@ local TOP_OFFSET, SLIDE_DISTANCE = -140, 30
 local RANK_OFFSET = TOP_OFFSET - HEIGHT - 8 -- the rank-up popup sits under the soul's
 local SHINE_TIME, SHINE_W = 0.45, 26 -- one pass of light across the popup as it lands
 
-Toast.SHARD_ICON_FILE = "Interface\\Icons\\INV_Misc_Gem_Amethyst_02"
-
--- The Soul Shard icon. GetItemIcon is gone on WoW: Forever; C_Item.GetItemIconByID replaces it.
--- itemApi is C_Item (or nil), legacy is GetItemIcon (or nil); falls back to the icon file.
-function Toast.shardIcon(itemApi, legacy)
-	local getter = itemApi and itemApi.GetItemIconByID or legacy
-	if getter then
-		local ok, icon = pcall(getter, ns.Shards.ITEM_ID)
-		if ok and icon and ns.Capture.readable(icon) then
-			return icon
-		end
-	end
-	return Toast.SHARD_ICON_FILE
-end
-
 -- Second line: "<zone> · Soul #<total>", where total is how many different souls the dex
 -- holds after this claim; a star earned on a soul you already have shows its claim count
 -- instead; with neither, the zone alone. The points are drawn large on the right.
@@ -125,7 +110,6 @@ local function build(offset)
 	frame.icon = frame:CreateTexture(nil, "ARTWORK")
 	frame.icon:SetSize(38, 38)
 	frame.icon:SetPoint("LEFT", 12, 0)
-	frame.icon:SetTexture(Toast.shardIcon(C_Item, GetItemIcon))
 
 	frame.pts = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
 	frame.pts:SetPoint("RIGHT", -10, 4)
@@ -209,11 +193,13 @@ local function present(frame, accent, title)
 end
 
 -- result: Dex.record* result; info: the mob/player details; ctx: catch context (needs zone);
--- color: the soul's hex colour (the same one its shard tooltip uses). A second catch
--- replaces the first.
-function Toast.show(result, info, ctx, color)
+-- color: the soul's hex colour (the same one its shard tooltip uses); emblem: the texture
+-- path of the rank emblem to show (the first rank's when nil). A second catch replaces
+-- the first.
+function Toast.show(result, info, ctx, color, emblem)
 	Toast.prepare()
 	local frame = frames.soul
+	frame.icon:SetTexture(emblem or ns.Ranks.emblem(1))
 	local border, title = Toast.accent(color, result.stars)
 	frame.title:SetText(Toast.title(info, result.stars))
 	frame.name:SetText("|cff" .. (color or "ffffff") .. Toast.nameLine(info) .. "|r")
@@ -224,10 +210,11 @@ function Toast.show(result, info, ctx, color)
 end
 
 -- The rank-up popup, under the soul's: the new rank, what comes next, and the score.
--- rank: ns.Ranks.of / gained.
+-- rank: ns.Ranks.of / gained; its emblem is shown on the left.
 function Toast.showRank(rank)
 	Toast.prepare()
 	local frame = frames.rank
+	frame.icon:SetTexture(rank.emblem or ns.Ranks.emblem(rank.index))
 	frame.title:SetText("RANK UP")
 	frame.name:SetText("|cff" .. FEL .. rank.name .. "|r")
 	frame.sub:SetText(Toast.rankSub(rank))

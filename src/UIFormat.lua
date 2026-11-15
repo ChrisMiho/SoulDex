@@ -304,7 +304,8 @@ end
 -- a cell then shows a dash; sub, badge, quote and stars are left out.
 
 -- An icon for each creature type, from the game's own icons. Keyed by the English type
--- name; other client languages and unknown types get the Soul Shard.
+-- name; unknown types and other client languages have none, and the window shows the
+-- rank emblem instead.
 local ICONS = "Interface\\Icons\\"
 local TYPE_ICONS = {
 	Beast = "Ability_Hunter_BeastTaming",
@@ -318,12 +319,12 @@ local TYPE_ICONS = {
 	Critter = "Spell_Nature_Polymorph",
 }
 F.PLAYER_ICON = ICONS .. "Ability_DualWield"
-F.SHARD_ICON = ICONS .. "INV_Misc_Gem_Amethyst_02"
 F.CARD_STARS = 8
 
+-- The icon path for a creature type, or nil when it has none.
 function F.typeIcon(creatureType)
 	local icon = creatureType and TYPE_ICONS[creatureType]
-	return icon and (ICONS .. icon) or F.SHARD_ICON
+	return icon and (ICONS .. icon) or nil
 end
 
 local function cell(label, value)

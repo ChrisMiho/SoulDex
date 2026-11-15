@@ -41,7 +41,13 @@ function Pane:setCard(card, keepScroll)
 
 	ns.UIList.gradient(p.band, "VERTICAL", color, 0, color, 0.3)
 	UI.fill(p.iconEdge, color)
-	p.icon:SetTexture(card.icon or F.SHARD_ICON)
+	p.icon:SetTexture(card.icon or ns.Ranks.emblem(1))
+	-- The emblem is drawn whole; a game icon has its border cropped off.
+	if card.ownArt then
+		p.icon:SetTexCoord(0, 1, 0, 1)
+	else
+		p.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+	end
 	p.title:SetText(card.title or "")
 	UI.textColor(p.title, color)
 	p.sub:SetText(card.sub or "")
@@ -134,10 +140,14 @@ local function buildParts(frame, width)
 	p.iconEdge = frame:CreateTexture(nil, "ARTWORK")
 	p.iconEdge:SetSize(ICON + 2, ICON + 2)
 	p.iconEdge:SetPoint("TOPLEFT", PAD, -6)
+	-- Behind the icon, so the border colour doesn't show through an emblem's transparent corners.
+	p.iconBack = frame:CreateTexture(nil, "ARTWORK", nil, 1)
+	p.iconBack:SetSize(ICON, ICON)
+	p.iconBack:SetPoint("TOPLEFT", PAD + 1, -7)
+	UI.fill(p.iconBack, "14101c")
 	p.icon = frame:CreateTexture(nil, "OVERLAY")
 	p.icon:SetSize(ICON, ICON)
 	p.icon:SetPoint("TOPLEFT", PAD + 1, -7)
-	p.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
 	p.badge = CreateFrame("Frame", nil, frame, "BackdropTemplate")
 	p.badge:SetSize(40, 15)

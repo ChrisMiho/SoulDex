@@ -255,7 +255,10 @@ describe("UIFormat", function()
 			assert.is_nil(card.badge)
 			assert.is_nil(card.quote)
 			assert.is_nil(card.stars)
-			assert.equal(F.SHARD_ICON, card.icon) -- no creature type: the Soul Shard
+			assert.is_nil(card.icon) -- no creature type: the window supplies the rank emblem
+			assert.is_nil(F.typeIcon(nil))
+			assert.is_nil(F.typeIcon("Aberration"))
+			assert.is_nil(F.SHARD_ICON)
 		end)
 
 		it("falls back to the place when there are no coordinates (raids), and has no stars for a boss", function()

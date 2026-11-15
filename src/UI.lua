@@ -53,7 +53,7 @@ local state = {
 }
 
 local frame, titleLeft, titleRight, divider, myDexButton
-local chip, rankFill
+local chip, rankFill, emblem
 local leftList, rightList, fullList, pane
 local meBox, crest, tiles, recordList
 local friendsBox, friendsLeft, friendsRight, friendsNote
@@ -83,17 +83,23 @@ end
 
 local function detailCard(tab, value)
 	local dex, View = dexNow(), ns.View
+	local card
 	if tab == "Mobs" then
 		local d = View.mobDetail(dex, value, state.sel.Mobs)
-		return d and F.mobCard(d)
+		card = d and F.mobCard(d)
 	elseif tab == "Players" then
 		local d = View.playerDetail(dex, value)
-		return d and F.playerCard(d, nil, RAID_CLASS_COLORS, LOCALIZED_CLASS_NAMES_MALE)
+		card = d and F.playerCard(d, nil, RAID_CLASS_COLORS, LOCALIZED_CLASS_NAMES_MALE)
 	elseif tab == "Raids" then
 		local d = View.raidDetail(dex, value)
-		return d and F.mobCard(d)
+		card = d and F.mobCard(d)
 	end
-	return nil
+	-- A card with no icon of its own wears the rank emblem of the dex on screen.
+	if card and not card.icon then
+		card.icon = ns.Ranks.of(dex:score()).emblem
+		card.ownArt = true
+	end
+	return card
 end
 
 local function closeDetail(instant)
@@ -175,6 +181,7 @@ local function drawMe(dex, keepScroll)
 		card = ns.View.meCard(dex, ns.db and ns.db.friends, ns.Net and ns.Net.me(dex), time())
 	end
 	local rank = ns.Ranks.of(dex:score())
+	crest.icon:SetTexture(rank.emblem)
 	crest.rank:SetText(rank.name)
 	crest.place:SetText("RANK " .. rank.index .. " OF " .. rank.count)
 	crest.score:SetText(ns.View.thousands(rank.score) .. " pts")
@@ -242,6 +249,7 @@ draw = function(action)
 	-- The rank of the dex on screen: its name on the chip, its progress on the line below.
 	local rank = ns.Ranks.of(dex:score())
 	chip.label:SetText(rank.name)
+	emblem:SetTexture(rank.emblem)
 	chip:SetWidth(math.ceil(chip.label:GetStringWidth() or 0) + 12)
 	local fill = L.barWidth(rank.progress, BODY_W)
 	setShown(rankFill, fill ~= nil)
@@ -335,12 +343,10 @@ local function buildTitle()
 		savePosition()
 	end)
 
-	-- The emblem: the Soul Shard's own icon.
-	local emblem = bar:CreateTexture(nil, "ARTWORK")
+	-- The emblem of the rank of the dex on screen; the refresh sets its texture.
+	emblem = bar:CreateTexture(nil, "ARTWORK")
 	emblem:SetSize(TITLE_H - 4, TITLE_H - 4)
 	emblem:SetPoint("LEFT", 1, 0)
-	emblem:SetTexture(F.SHARD_ICON)
-	emblem:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
 	local close = textButton(bar, "\195\151", 14)
 	close:SetPoint("RIGHT", 0, 1)
@@ -412,8 +418,6 @@ local function buildMe(body)
 	crest.icon = crest:CreateTexture(nil, "ARTWORK")
 	crest.icon:SetSize(52, 52)
 	crest.icon:SetPoint("TOP", 0, -8)
-	crest.icon:SetTexture(F.SHARD_ICON)
-	crest.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 	crest.rank = crest:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 	crest.rank:SetPoint("TOP", crest.icon, "BOTTOM", 0, -6)
 	UI.textColor(crest.rank, FEL)
