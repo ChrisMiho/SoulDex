@@ -3,7 +3,8 @@ local _, ns = ...
 -- Pure module: remembers each Soul Shard by its item GUID, so a soul follows its shard
 -- through moves, bag sorting and relogs.
 -- Map: { [itemGUID] = { soul = <soul table> | false, seen = <epoch seconds> } }, where
--- false means "a shard we have seen, but it has no soul".
+-- false means "a shard we have seen, but it has no soul". A shard whose soul's name is
+-- still being fetched is { soul = false, pending = { token, ctx }, seen }.
 
 local Shards = {}
 ns.Shards = Shards
@@ -12,7 +13,11 @@ Shards.ITEM_ID = 6265 -- the Soul Shard item
 Shards.FORGET_AFTER = 30 * 86400 -- a baseline drops shards not seen for 30 days
 
 local function valid(entry)
-	return type(entry) == "table" and (entry.soul == false or type(entry.soul) == "table")
+	if type(entry) ~= "table" or not (entry.soul == false or type(entry.soul) == "table") then
+		return false
+	end
+	local pending = entry.pending
+	return pending == nil or (type(pending) == "table" and type(pending.token) == "string")
 end
 
 -- map: the saved map; present: readable shard GUIDs now in the bags; baseline (quiet):
@@ -35,7 +40,7 @@ function Shards.update(map, present, baseline, now, prune)
 			seenNow[guid] = true
 			local entry = newMap[guid]
 			if entry then
-				newMap[guid] = { soul = entry.soul, seen = now }
+				newMap[guid] = { soul = entry.soul, pending = entry.pending, seen = now }
 			elseif baseline then
 				newMap[guid] = { soul = false, seen = now }
 				quietNew = quietNew + 1
@@ -68,4 +73,53 @@ function Shards.soulOf(map, guid)
 		return entry.soul
 	end
 	return nil
+end
+
+-- Returns a copy of map with guid waiting for a soul's name: pending = { token, ctx }.
+function Shards.assignPending(map, guid, token, ctx, now)
+	local out = {}
+	for k, v in pairs(map) do
+		out[k] = v
+	end
+	out[guid] = { soul = false, pending = { token = token, ctx = ctx }, seen = now }
+	return out
+end
+
+-- The pending { token, ctx } of a shard, or nil.
+function Shards.pendingOf(map, guid)
+	if type(map) ~= "table" or guid == nil then
+		return nil
+	end
+	local entry = map[guid]
+	if type(entry) == "table" and type(entry.pending) == "table" then
+		return entry.pending
+	end
+	return nil
+end
+
+-- The guid of the shard waiting on token, or nil.
+function Shards.findPending(map, token)
+	if type(map) ~= "table" or token == nil then
+		return nil
+	end
+	for guid, entry in pairs(map) do
+		if type(entry) == "table" and type(entry.pending) == "table" and entry.pending.token == token then
+			return guid
+		end
+	end
+	return nil
+end
+
+-- Every pending shard as { guid, pending }, sorted by guid.
+function Shards.allPending(map)
+	local out = {}
+	for guid, entry in pairs(map) do
+		if type(entry) == "table" and type(entry.pending) == "table" then
+			out[#out + 1] = { guid = guid, pending = entry.pending }
+		end
+	end
+	table.sort(out, function(a, b)
+		return a.guid < b.guid
+	end)
+	return out
 end
