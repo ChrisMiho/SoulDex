@@ -831,9 +831,12 @@ function Capture.start(db, dex)
 	-- when the cast ids match; otherwise the target read now, cross-checked against the
 	-- name a SENT of the same spell under SENT_CHECK s ago reported (a mouseover macro
 	-- whose channel event carries another, nil or secret cast id).
+	-- Second value: true when the SENT used gave a readable target name. With the target's
+	-- name hidden, that means the spell named some other, readable unit (a click-cast on a
+	-- unit frame), so the target's name must not be asked for.
 	local function targetInfo(castGUID, kind, now)
 		if sent and sent.kind == kind and castGUID and sent.castGUID == castGUID and now - sent.time <= SENT_TTL then
-			return sent.info
+			return sent.info, sent.targetName ~= nil
 		end
 		local check
 		if sent and sent.kind == kind and now - sent.time <= SENT_CHECK then
@@ -842,7 +845,7 @@ function Capture.start(db, dex)
 			end
 			check = sent.targetName
 		end
-		return Capture.readUnit("target", check)
+		return Capture.readUnit("target", check), check ~= nil
 	end
 
 	-- Soul-name whispers: the pending asks, and the line ids of replies that came in secret.
@@ -921,9 +924,11 @@ function Capture.start(db, dex)
 		return { unknown = true, pend = pend, isPlayer = details.isPlayer }
 	end
 
+	-- Called from the CHANNEL_START / SUCCEEDED handler itself: the guard is read in the
+	-- same handler as the send, so %t and the checked target are the same moment.
 	local function captureInfo(castGUID, kind, now)
-		local info = targetInfo(castGUID, kind, now)
-		if info.unknown then
+		local info, sentNamedUnit = targetInfo(castGUID, kind, now)
+		if info.unknown and not sentNamedUnit then
 			info = askName(info)
 		end
 		return info

@@ -1177,6 +1177,25 @@ describe("Capture glue", function()
 			assert.equal(0, #sends)
 		end)
 
+		it("does not ask when the cast named a readable unit but the target's name is hidden", function()
+			for _, channelCast in ipairs({ "cast1", "other" }) do -- SENT reading used / cross-checked by name
+				world.target = MONK
+				local ns = boot()
+				fire("UNIT_SPELLCAST_SENT", "player", "Party Member", "cast1", 1120)
+				fire("UNIT_SPELLCAST_CHANNEL_START", "player", channelCast, 1120)
+				assert.equal(0, #sends, channelCast)
+				assert.equal(0, ns.Capture.whispers.queue:count(), channelCast)
+			end
+		end)
+
+		it("still asks when both the SENT name and the target's name are hidden, cast ids differing", function()
+			world.target = MONK
+			boot()
+			fire("UNIT_SPELLCAST_SENT", "player", SECRET, "cast1", 1120)
+			fire("UNIT_SPELLCAST_CHANNEL_START", "player", "other", 1120)
+			assert.equal(1, #sends)
+		end)
+
 		it("does not ask for a readable name", function()
 			world.target = HOGGER
 			boot()
