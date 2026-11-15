@@ -168,7 +168,7 @@ function Net.leaderRows(rows, selected)
 		out[#out + 1] = {
 			text = i .. ". " .. r.name .. (r.isMe and " (you)" or ""),
 			color = color,
-			right = tostring(r.score),
+			right = ns.View.thousands(r.score),
 			rightColor = r.online and C.MUTED or C.DIM,
 			value = (not r.isMe) and r.name or nil,
 			selected = (not r.isMe) and r.name == selected,
@@ -199,7 +199,8 @@ function Net.personLines(row, entry, fmt)
 	local lines = {
 		{ text = row.name, color = C.WHITE, right = status, rightColor = statusColor, big = true },
 		{ hr = true },
-		{ text = "Score", color = C.MUTED, right = row.score .. " pts", rightColor = C.GREEN },
+		{ text = "Rank", color = C.MUTED, right = ns.Ranks.of(row.score).name, rightColor = C.FEL },
+		{ text = "Score", color = C.MUTED, right = ns.View.thousands(row.score) .. " pts", rightColor = C.GREEN },
 		kv("Unique mobs", tostring(row.mobs)),
 		kv("Players", tostring(row.players)),
 		kv("Raids completed", tostring(row.raids)),

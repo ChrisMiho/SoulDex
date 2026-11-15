@@ -4,7 +4,8 @@ local _, ns = ...
 local Settings = {}
 ns.Settings = Settings
 
-Settings.DEFAULTS = { popup = true, sound = true, announce = true }
+-- chatter: a chat line in the warlock's voice for every claim; off unless asked for.
+Settings.DEFAULTS = { popup = true, sound = true, announce = true, chatter = false }
 
 -- Returns a new table with every default key present; non-booleans fall back to the default.
 function Settings.normalise(t)

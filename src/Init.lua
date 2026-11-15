@@ -62,14 +62,20 @@ SlashCmdList.SOULDEX = function(msg)
 	end
 end
 
--- The one chat line after login or /reload, so the player can see the addon is on.
+-- The one chat line after login or /reload, so the player can see the addon is on; with
+-- the dex loaded it names their rank: "v1.3.0 loaded. Reaper, 612 pts. Type ...".
 function ns.Greeting()
 	-- The packager stamps tags as they are ("v1.1.0"); add the "v" only when it is missing.
 	local version = ns.version
 	if version ~= "dev" and not version:find("^v") then
 		version = "v" .. version
 	end
-	return version .. " loaded. Type /souldex or /dex to open."
+	local rank = ""
+	if ns.dex and ns.Ranks then
+		local score = ns.dex:score()
+		rank = "|cff9dff3a" .. ns.Ranks.of(score).name .. "|r, " .. score .. " pts. "
+	end
+	return version .. " loaded. " .. rank .. "Type /souldex or /dex to open."
 end
 
 local frame = CreateFrame("Frame")

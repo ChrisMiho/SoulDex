@@ -233,3 +233,32 @@ function Flavour.line(name, creatureType, family, zone)
 		return values[key]
 	end))
 end
+
+-- One chat line in the warlock's voice for a claim (the "Claim chatter" setting).
+-- count: how many times this soul has now been claimed; points: what this claim scored.
+local FIRST = {
+	"{name}'s soul is yours.",
+	"Another for the collection: {name}.",
+	"{name}, claimed. They always look so surprised.",
+	"{name} is a shard now. An improvement.",
+}
+local AGAIN = {
+	"{name}'s soul is yours. That's {count}.",
+	"{name} again. That's {count}.",
+	"{name}, number {count}. They never learn.",
+	"Shard {count} from {name}. Reliable.",
+}
+
+function Flavour.chatter(name, count, points)
+	if type(name) ~= "string" or name == "" then
+		return nil
+	end
+	count = type(count) == "number" and count or 1
+	local list = count > 1 and AGAIN or FIRST
+	local line = list[(hash(name) + count) % #list + 1]
+	line = line:gsub("{name}", (name:gsub("%%", "%%%%"))):gsub("{count}", tostring(count))
+	if type(points) == "number" and points > 0 then
+		line = line .. " (+" .. points .. " pts)"
+	end
+	return line
+end

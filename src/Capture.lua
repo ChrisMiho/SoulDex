@@ -427,9 +427,10 @@ local function milestones(db, dex)
 	local settings = db.settings
 	for _, m in ipairs(ns.Milestones.check(dex, time())) do
 		Capture.protect(errorHandler(), function()
-			ns.Print("Milestone earned: " .. m.text)
+			local label = ns.Milestones.label(m)
+			ns.Print("Milestone earned: " .. label)
 			if m.announce and settings.announce then
-				announce(db, "SoulDex: " .. m.text .. "!")
+				announce(db, "SoulDex: " .. label .. "!")
 			end
 		end)
 	end
@@ -437,6 +438,20 @@ end
 
 local function catchSound()
 	return SOUNDKIT and SOUNDKIT.UI_EPICLOOT_TOAST or FALLBACK_SOUND
+end
+
+local LEVEL_UP_SOUND = 888
+
+-- The sound for a claim: the level-up fanfare for a new rank, a heavier chime for a boss
+-- (first claim or not: 25 points or more from a creature), else the usual one.
+function Capture.soundFor(result, rank)
+	if rank then
+		return SOUNDKIT and SOUNDKIT.LEVEL_UP or LEVEL_UP_SOUND
+	end
+	if result.kind ~= "player" and (result.points or 0) >= ns.Points.BOSS then
+		return SOUNDKIT and SOUNDKIT.UI_LEGENDARY_LOOT_TOAST or catchSound()
+	end
+	return catchSound()
 end
 
 -- The game reads a sound from disk the first time it plays, which stalls that frame: the
@@ -464,22 +479,64 @@ function Capture.prepareFor(db, key)
 	end
 end
 
-local function popup(db, result, entry)
+-- The rank this catch earned (ns.Ranks.gained), or nil: only a catch that scored can.
+local function rankGained(dex, result)
+	if not ns.Ranks or type(result.points) ~= "number" or result.points <= 0 then
+		return nil
+	end
+	local score = dex:score()
+	return ns.Ranks.gained(score - result.points, score)
+end
+
+-- A chat line for every rank-up; guild chat from Ranks.ANNOUNCE_FROM on (when switched on).
+local function rankUp(db, rank)
+	local place = " (rank " .. rank.index .. " of " .. rank.count .. ")."
+	ns.Print("Rank up: you are now |cff9dff3a" .. rank.name .. "|r" .. place)
+	if db.settings.announce and rank.index >= ns.Ranks.ANNOUNCE_FROM then
+		announce(db, "SoulDex: reached the rank of " .. rank.name .. "!")
+	end
+end
+
+local function popup(db, result, entry, rank)
 	local settings = db.settings
 	if settings.popup and ns.Toast then
 		ns.Toast.show(result, entry.info, entry.ctx, entry.color)
+		if rank then
+			ns.Toast.showRank(rank)
+		end
 	end
 	if settings.sound then
-		pcall(PlaySound, catchSound())
+		pcall(PlaySound, Capture.soundFor(result, rank))
 	end
 end
 
 -- Each step is protected: nothing here can skip the catch hooks.
 local function afterCatch(db, dex, result, entry)
-	if result.isNew then
+	local ok, rank = pcall(rankGained, dex, result)
+	if not ok then
+		rank = nil
+	end
+	if result.isNew or result.stars then
 		-- A frame later, so the popup and its sound don't land on the bag scan's frame.
 		C_Timer.After(0, function()
-			Capture.protect(errorHandler(), popup, db, result, entry)
+			Capture.protect(errorHandler(), popup, db, result, entry, rank)
+		end)
+	end
+	if rank then
+		Capture.protect(errorHandler(), rankUp, db, rank)
+	end
+	if db.settings.chatter and ns.Flavour.chatter and result.kind ~= "unknown" then
+		Capture.protect(errorHandler(), function()
+			local line = ns.Flavour.chatter(entry.info.name, result.count, result.points)
+			if line then
+				ns.Print(line)
+			end
+		end)
+	end
+	if result.stars then
+		Capture.protect(errorHandler(), function()
+			local stars = result.stars .. (result.stars == 1 and " star" or " stars")
+			ns.Print("Mastery: " .. entry.info.name .. " reached |cff9dff3a" .. stars .. "|r (+" .. result.points .. " pts).")
 		end)
 	end
 	Capture.protect(errorHandler(), milestones, db, dex)

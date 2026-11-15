@@ -1,6 +1,7 @@
--- The dex window: title bar, six tabs, two scrolling lists (or one full-width list
--- for Milestones) and the slide-in detail pane (src/UIDetail.lua). Game code; the
--- row and line contents come from the pure ns.View and ns.UIFormat.
+-- The dex window: title bar with the rank chip and progress line, six tabs, two scrolling
+-- lists (or one full-width list for Milestones, or the rank crest, tiles and records of
+-- the Me tab) and the slide-in trophy card (src/UIDetail.lua). Game code; the row and
+-- card contents come from the pure ns.View and ns.UIFormat.
 local _, ns = ...
 
 local UI = {}
@@ -9,15 +10,16 @@ ns.UI = UI
 local F = ns.UIFormat
 local C = F.COLORS
 
-local WIDTH, HEIGHT = 360, 232
-local PAD = 6
-local TITLE_H, TAB_H = 18, 18
+local WIDTH, HEIGHT = 380, 280
+local PAD = 7
+local TITLE_H, TAB_H = 20, 18
 local LEFT_W = 124
 local BODY_W = WIDTH - 2 * PAD
-local BODY_H = HEIGHT - 2 * PAD - TITLE_H - TAB_H - 4
+local BODY_H = HEIGHT - 2 * PAD - TITLE_H - TAB_H - 10
 local RIGHT_X = LEFT_W + 5 -- right list starts after the divider
 local PANE_X = LEFT_W + 3 -- the detail pane covers the right list
 local LEFT_ROW_H, RIGHT_ROW_H = 16, 17
+local FULL_ROW_H = 16 -- Me and Milestones: the rank lines and nine stats fit without scrolling
 
 UI.TABS = { "Me", "Mobs", "Players", "Raids", "Milestones", "Friends" }
 
@@ -26,6 +28,11 @@ UI.FRIENDS_LEFT_W, UI.FRIENDS_RIGHT_W, UI.FRIENDS_H = LEFT_W, BODY_W - RIGHT_X, 
 
 local WINDOW_BG, BORDER, DIVIDER = "14101c", "6b4fa0", "3d2d5c"
 local TAB_BG = "251b36"
+local SHADE_TOP, SHADE_BOTTOM = "241835", "0b0812" -- the window's top-to-bottom shading
+local TRACK, FILL, FEL = "2d2240", "7dff6a", "9dff3a"
+local CHIP_BG, CHIP_EDGE = "0a1404", "3d6b1f"
+local TILE_BG, TILE_EDGE = "151020", "231a35"
+local TILE_H, TILE_GAP = 30, 3
 
 -- Shared painting helpers (src/UIList.lua), kept on UI for callers.
 local L = ns.UIList
@@ -40,12 +47,15 @@ local state = {
 	owner = nil, -- whose dex it is when browsing a friend
 	compare = nil, -- the dex rows are compared with while browsing (Task 13)
 	sel = {}, -- selection on the left, per tab
+	msOpen = {}, -- Milestones groups whose earned rows are showing
 	detail = nil, -- { tab, value } of the open detail pane
 	friendsBuilder = nil,
 }
 
 local frame, titleLeft, titleRight, divider, myDexButton
+local chip, rankFill
 local leftList, rightList, fullList, pane
+local meBox, crest, tiles, recordList
 local friendsBox, friendsLeft, friendsRight, friendsNote
 local tabButtons = {}
 
@@ -71,17 +81,17 @@ end
 
 -- Drawing ---------------------------------------------------------------------------
 
-local function detailLines(tab, value)
+local function detailCard(tab, value)
 	local dex, View = dexNow(), ns.View
 	if tab == "Mobs" then
 		local d = View.mobDetail(dex, value, state.sel.Mobs)
-		return d and F.mobDetailLines(d)
+		return d and F.mobCard(d)
 	elseif tab == "Players" then
 		local d = View.playerDetail(dex, value)
-		return d and F.playerDetailLines(d, nil, RAID_CLASS_COLORS, LOCALIZED_CLASS_NAMES_MALE)
+		return d and F.playerCard(d, nil, RAID_CLASS_COLORS, LOCALIZED_CLASS_NAMES_MALE)
 	elseif tab == "Raids" then
 		local d = View.raidDetail(dex, value)
-		return d and F.mobDetailLines(d)
+		return d and F.mobCard(d)
 	end
 	return nil
 end
@@ -94,12 +104,12 @@ local function closeDetail(instant)
 end
 
 local function openDetail(value)
-	local lines = detailLines(state.tab, value)
-	if not lines then
+	local card = detailCard(state.tab, value)
+	if not card then
 		return
 	end
 	state.detail = { tab = state.tab, value = value }
-	pane:open(lines)
+	pane:open(card)
 end
 
 local draw
@@ -113,8 +123,9 @@ end
 local function styleTabs()
 	for _, button in ipairs(tabButtons) do
 		local on = button.tab == state.tab
-		UI.backdrop(button, on and DIVIDER or TAB_BG, DIVIDER)
+		UI.backdrop(button, on and DIVIDER or TAB_BG, on and BORDER or DIVIDER)
 		UI.textColor(button.label, on and C.WHITE or C.TEXT)
+		setShown(button.underline, on)
 	end
 end
 
@@ -126,7 +137,8 @@ local function drawLists(dex, keepLeft, keepRight)
 		local place = F.pick(places, "place", state.sel.Mobs)
 		state.sel.Mobs = place
 		leftRows = F.placeRows(places, place)
-		rightRows = place and F.mobRows(View.mobsAt(dex, place, other())) or { F.note("No souls caught yet.") }
+		rightRows = place and F.mobRows(View.mobsAt(dex, place, other()))
+			or { F.note("No souls claimed yet. Go drain something.") }
 	elseif tab == "Players" then
 		local classes = View.classes(dex)
 		local class = F.pick(classes, "class", state.sel.Players)
@@ -144,15 +156,53 @@ local function drawLists(dex, keepLeft, keepRight)
 	rightList:set(rightRows, openDetail, keepRight)
 end
 
--- The Me tab. Browsing a friend shows their numbers and no rank.
+-- The Me tab: the rank crest on the left, six tiles and the records list on the right.
+-- Browsing a friend shows their rank and numbers, and no place among friends.
 local function drawMe(dex, keepScroll)
-	local lines
+	local card
 	if state.owner then
-		lines = ns.View.me(dex, false, nil, 0)
+		card = ns.View.meCard(dex, false, nil, 0)
 	else
-		lines = ns.View.me(dex, ns.db and ns.db.friends, ns.Net and ns.Net.me(dex), time())
+		card = ns.View.meCard(dex, ns.db and ns.db.friends, ns.Net and ns.Net.me(dex), time())
 	end
-	fullList:set(F.meLines(lines), nil, keepScroll)
+	local rank = ns.Ranks.of(dex:score())
+	crest.rank:SetText(rank.name)
+	crest.place:SetText("RANK " .. rank.index .. " OF " .. rank.count)
+	crest.score:SetText(ns.View.thousands(rank.score) .. " pts")
+	if rank.nextName then
+		crest.next:SetText(ns.View.thousands(rank.toNext) .. " pts to |cff" .. FEL .. rank.nextName .. "|r")
+	else
+		crest.next:SetText("The highest rank")
+	end
+	local fill = L.barWidth(rank.progress, LEFT_W - 16)
+	setShown(crest.fill, fill ~= nil)
+	if fill then
+		crest.fill:SetWidth(fill)
+	end
+	for i, tile in ipairs(tiles) do
+		local data = card.tiles[i]
+		setShown(tile, data ~= nil)
+		if data then
+			local value = tostring(data.value or F.DASH)
+			tile.value:SetText(data.star and (value .. " " .. F.MARKS.FEL_STAR) or value)
+			UI.textColor(tile.value, data.color and C[data.color] or C.WHITE)
+			tile.label:SetText(data.label:upper())
+		end
+	end
+	local rows = { { text = "RECORDS", color = C.HEADER, header = true } }
+	for _, line in ipairs(F.recordLines(card.records, time(), nil, RAID_CLASS_COLORS)) do
+		rows[#rows + 1] = line
+	end
+	recordList:set(rows, nil, keepScroll)
+end
+
+-- A click on a Milestones group's "N earned" row opens or closes its earned milestones.
+local function toggleMilestones(value)
+	local group = type(value) == "string" and value:match("^group:(.+)$")
+	if group then
+		state.msOpen[group] = not state.msOpen[group] or nil
+		draw("refresh")
+	end
 end
 
 local function drawFriends()
@@ -177,9 +227,18 @@ draw = function(action)
 		left = "SoulDex \194\183 Viewing " .. state.owner
 		titleLeft:SetPoint("LEFT", myDexButton, "RIGHT", 5, 0)
 	else
-		titleLeft:SetPoint("LEFT", 2, 0)
+		titleLeft:SetPoint("LEFT", TITLE_H, 0)
 	end
-	titleLeft:SetPoint("RIGHT", titleRight, "LEFT", -6, 0)
+	titleLeft:SetPoint("RIGHT", chip, "LEFT", -6, 0)
+	-- The rank of the dex on screen: its name on the chip, its progress on the line below.
+	local rank = ns.Ranks.of(dex:score())
+	chip.label:SetText(rank.name)
+	chip:SetWidth(math.ceil(chip.label:GetStringWidth() or 0) + 12)
+	local fill = L.barWidth(rank.progress, BODY_W)
+	setShown(rankFill, fill ~= nil)
+	if fill then
+		rankFill:SetWidth(fill)
+	end
 	setShown(myDexButton, state.owner ~= nil)
 	titleLeft:SetText(left)
 	titleRight:SetText(right)
@@ -188,9 +247,9 @@ draw = function(action)
 	local collection = tab == "Mobs" or tab == "Players" or tab == "Raids"
 	leftList:show(collection)
 	rightList:show(collection)
-	local full = tab == "Milestones" or tab == "Me"
-	fullList:show(full)
-	setShown(divider, not full)
+	fullList:show(tab == "Milestones")
+	setShown(meBox, tab == "Me")
+	setShown(divider, tab ~= "Milestones")
 	setShown(friendsBox, tab == "Friends")
 
 	if collection then
@@ -198,16 +257,17 @@ draw = function(action)
 	elseif tab == "Me" then
 		drawMe(dex, keepRight)
 	elseif tab == "Milestones" then
-		fullList:set(F.milestoneRows(ns.Milestones.list(dex)), nil, keepRight)
+		local rows = F.milestoneGroups(ns.Milestones.list(dex), ns.Milestones.GROUPS, state.msOpen)
+		fullList:set(rows, toggleMilestones, keepRight)
 	else
 		drawFriends()
 	end
 
 	local detail = state.detail
 	if detail then
-		local lines = detail.tab == tab and detailLines(tab, detail.value)
-		if lines then
-			pane:setLines(lines, true)
+		local card = detail.tab == tab and detailCard(tab, detail.value)
+		if card then
+			pane:setCard(card, true)
 		else
 			closeDetail(true)
 		end
@@ -266,6 +326,13 @@ local function buildTitle()
 		savePosition()
 	end)
 
+	-- The emblem: the Soul Shard's own icon.
+	local emblem = bar:CreateTexture(nil, "ARTWORK")
+	emblem:SetSize(TITLE_H - 4, TITLE_H - 4)
+	emblem:SetPoint("LEFT", 1, 0)
+	emblem:SetTexture(F.SHARD_ICON)
+	emblem:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+
 	local close = textButton(bar, "\195\151", 14)
 	close:SetPoint("RIGHT", 0, 1)
 	close:SetScript("OnClick", function()
@@ -290,7 +357,15 @@ local function buildTitle()
 
 	titleRight = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	titleRight:SetPoint("RIGHT", gear, "LEFT", -6, 0)
-	UI.textColor(titleRight, C.TITLE)
+	UI.textColor(titleRight, C.TEXT)
+	-- The rank chip, left of the totals.
+	chip = CreateFrame("Frame", nil, bar, "BackdropTemplate")
+	chip:SetSize(60, 14)
+	chip:SetPoint("RIGHT", titleRight, "LEFT", -6, 0)
+	UI.backdrop(chip, CHIP_BG, CHIP_EDGE)
+	chip.label = chip:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	chip.label:SetPoint("CENTER", 0, 0)
+	UI.textColor(chip.label, FEL)
 	-- "« My dex": shown while browsing a friend's dex (draw anchors the title after it).
 	myDexButton = UI.button(bar, "\194\171 My dex", 56, 14, function()
 		UI.showDex(nil, nil)
@@ -299,22 +374,86 @@ local function buildTitle()
 	myDexButton:Hide()
 
 	titleLeft = bar:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-	titleLeft:SetPoint("LEFT", 2, 0)
-	titleLeft:SetPoint("RIGHT", titleRight, "LEFT", -6, 0)
+	titleLeft:SetPoint("LEFT", TITLE_H, 0)
+	titleLeft:SetPoint("RIGHT", chip, "LEFT", -6, 0)
 	titleLeft:SetJustifyH("LEFT")
 	titleLeft:SetWordWrap(false)
 	UI.textColor(titleLeft, C.TITLE)
 
-	local rule = frame:CreateTexture(nil, "ARTWORK")
-	rule:SetHeight(1)
-	rule:SetPoint("TOPLEFT", bar, "BOTTOMLEFT", 0, 0)
-	rule:SetPoint("TOPRIGHT", bar, "BOTTOMRIGHT", 0, 0)
-	UI.fill(rule, DIVIDER)
+	-- Under the title: the rank progress line, a track with a fel-green fill.
+	local track = frame:CreateTexture(nil, "BORDER")
+	track:SetHeight(2)
+	track:SetPoint("TOPLEFT", bar, "BOTTOMLEFT", 0, -1)
+	track:SetPoint("TOPRIGHT", bar, "BOTTOMRIGHT", 0, -1)
+	UI.fill(track, TRACK)
+	rankFill = frame:CreateTexture(nil, "ARTWORK")
+	rankFill:SetHeight(2)
+	rankFill:SetPoint("TOPLEFT", bar, "BOTTOMLEFT", 0, -1)
+	UI.fill(rankFill, FEL)
+end
+
+-- The Me tab: the rank crest in the left column, tiles and records in the right.
+local function buildMe(body)
+	meBox = CreateFrame("Frame", nil, body)
+	meBox:SetAllPoints()
+
+	crest = CreateFrame("Frame", nil, meBox)
+	crest:SetPoint("TOPLEFT", 0, 0)
+	crest:SetSize(LEFT_W, BODY_H)
+	crest.icon = crest:CreateTexture(nil, "ARTWORK")
+	crest.icon:SetSize(52, 52)
+	crest.icon:SetPoint("TOP", 0, -8)
+	crest.icon:SetTexture(F.SHARD_ICON)
+	crest.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+	crest.rank = crest:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	crest.rank:SetPoint("TOP", crest.icon, "BOTTOM", 0, -6)
+	UI.textColor(crest.rank, FEL)
+	crest.place = crest:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	crest.place:SetPoint("TOP", crest.rank, "BOTTOM", 0, -2)
+	crest.place:SetTextHeight(8)
+	UI.textColor(crest.place, C.HEADER)
+	crest.score = crest:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+	crest.score:SetPoint("TOP", crest.place, "BOTTOM", 0, -8)
+	UI.textColor(crest.score, C.WHITE)
+	local track = crest:CreateTexture(nil, "BORDER")
+	track:SetSize(LEFT_W - 16, 4)
+	track:SetPoint("TOP", crest.score, "BOTTOM", 0, -7)
+	UI.fill(track, TRACK)
+	crest.fill = crest:CreateTexture(nil, "ARTWORK")
+	crest.fill:SetHeight(4)
+	crest.fill:SetPoint("LEFT", track, "LEFT", 0, 0)
+	UI.fill(crest.fill, FILL)
+	crest.next = crest:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	crest.next:SetPoint("TOP", track, "BOTTOM", 0, -5)
+	crest.next:SetWidth(LEFT_W - 8)
+	UI.textColor(crest.next, C.MUTED)
+
+	local rightW = BODY_W - RIGHT_X
+	local tileW = (rightW - 2 * TILE_GAP) / 3
+	tiles = {}
+	for i = 1, 6 do
+		local tile = CreateFrame("Frame", nil, meBox, "BackdropTemplate")
+		local col, row = (i - 1) % 3, math.floor((i - 1) / 3)
+		tile:SetSize(tileW, TILE_H)
+		tile:SetPoint("TOPLEFT", RIGHT_X + col * (tileW + TILE_GAP), -2 - row * (TILE_H + TILE_GAP))
+		UI.backdrop(tile, TILE_BG, TILE_EDGE)
+		tile.value = tile:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+		tile.value:SetPoint("TOP", 0, -4)
+		tile.label = tile:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+		tile.label:SetPoint("BOTTOM", 0, 3)
+		tile.label:SetTextHeight(7.5)
+		UI.textColor(tile.label, C.HEADER)
+		tiles[i] = tile
+	end
+	local top = 2 + 2 * (TILE_H + TILE_GAP) + 2
+	recordList = UI.newList(meBox, rightW, BODY_H - top, LEFT_ROW_H, true)
+	recordList.frame:SetPoint("TOPLEFT", RIGHT_X, -top)
+	meBox:Hide()
 end
 
 local function buildBody()
 	local body = CreateFrame("Frame", nil, frame)
-	body:SetPoint("TOPLEFT", PAD, -(PAD + TITLE_H + 2))
+	body:SetPoint("TOPLEFT", PAD, -(PAD + TITLE_H + 6))
 	body:SetSize(BODY_W, BODY_H)
 	if body.SetClipsChildren then
 		body:SetClipsChildren(true) -- the detail pane slides in from outside
@@ -324,7 +463,7 @@ local function buildBody()
 	leftList.frame:SetPoint("TOPLEFT", 0, 0)
 	rightList = UI.newList(body, BODY_W - RIGHT_X, BODY_H, RIGHT_ROW_H, true)
 	rightList.frame:SetPoint("TOPLEFT", RIGHT_X, 0)
-	fullList = UI.newList(body, BODY_W, BODY_H, RIGHT_ROW_H, true)
+	fullList = UI.newList(body, BODY_W, BODY_H, FULL_ROW_H, true)
 	fullList.frame:SetPoint("TOPLEFT", 0, 0)
 
 	divider = body:CreateTexture(nil, "ARTWORK")
@@ -346,6 +485,8 @@ local function buildBody()
 	friendsNote:SetText("Friends arrive soon")
 	UI.textColor(friendsNote, C.MUTED)
 
+	buildMe(body)
+
 	pane = ns.UIDetail.create(body, PANE_X, BODY_W - PANE_X, BODY_H, function()
 		state.detail = nil
 	end)
@@ -359,6 +500,12 @@ local function buildTabs()
 		button.label = button:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 		button.label:SetPoint("CENTER", 0, 0)
 		button.label:SetText(name)
+		-- The active tab's fel-green underline.
+		button.underline = button:CreateTexture(nil, "OVERLAY")
+		button.underline:SetHeight(2)
+		button.underline:SetPoint("BOTTOMLEFT", 3, 0)
+		button.underline:SetPoint("BOTTOMRIGHT", -3, 0)
+		UI.fill(button.underline, FEL)
 		button:SetSize(math.max(34, math.ceil(button.label:GetStringWidth() or 0) + 14), TAB_H - 2)
 		if previous then
 			button:SetPoint("LEFT", previous, "RIGHT", 2, 0)
@@ -382,6 +529,11 @@ local function build()
 	frame:SetClampedToScreen(true)
 	frame:EnableMouse(true)
 	UI.backdrop(frame, WINDOW_BG, BORDER, 0.97)
+	-- Shading: lighter purple at the top fading to near-black at the bottom.
+	local shade = frame:CreateTexture(nil, "BACKGROUND", nil, 1)
+	shade:SetPoint("TOPLEFT", 1, -1)
+	shade:SetPoint("BOTTOMRIGHT", -1, 1)
+	L.gradient(shade, "VERTICAL", SHADE_BOTTOM, 0.97, SHADE_TOP, 0.97)
 	placeWindow()
 	table.insert(UISpecialFrames, "SoulDexFrame") -- Escape closes it
 	buildTitle()

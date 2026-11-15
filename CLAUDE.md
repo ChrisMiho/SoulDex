@@ -12,7 +12,9 @@ document. A change to behaviour is not done until the spec and the code agree.
 
 ## Commands
 
-Run from the repo root. On Windows, `.sh` scripts need Git Bash.
+Run from the repo root. On Windows, `.sh` scripts need Git Bash. On macOS the
+build needs a newer bash than the system one: `brew install bash` (the script
+finds it by itself).
 
 | Task | Command |
 |------|---------|
@@ -25,14 +27,14 @@ Run from the repo root. On Windows, `.sh` scripts need Git Bash.
 
 Lint and tests must pass before you call work done; CI runs both on every push,
 and a Stop hook (`.claude/hooks/check.sh`) runs them when Lua files changed.
-The build output goes to `.release/` (git-ignored). The default game folder in
-`scripts/build.sh` is the Windows one; elsewhere set `WOW_ADDONS_DIR` or use
-`--no-install`. The build only works in a normal checkout: inside a git
+The build output goes to `.release/` (git-ignored). `scripts/build.sh` installs into
+the standard game folder for Windows or macOS, or into `WOW_ADDONS_DIR` when
+set; when no game folder is found it makes the zip and skips the install. The build only works in a normal checkout: inside a git
 worktree the packager stops with "No Git, SVN, or Hg checkout found".
 
 ## Layout
 
-- **Pure modules** (no WoW API, busted-tested): `Settings`, `Raids`, `Points`,
+- **Pure modules** (no WoW API, busted-tested): `Settings`, `Raids`, `Points`, `Ranks`,
   `Rarity`, `Flavour`, `Dex`, `Milestones`, `View`, `Comm`, `Friends`, `Catch`,
   `Shards`, `UIFormat`.
 - **Game-facing** (frames, events, chat): `Capture` (secret-value guards,

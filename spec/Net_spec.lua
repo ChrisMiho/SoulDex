@@ -7,8 +7,8 @@ describe("Net", function()
 			Print = function() end,
 		}
 		local files = {
-			"Settings", "Raids", "Points", "Rarity", "Flavour", "Dex", "Milestones", "View", "UIFormat", "Comm", "Friends",
-			"Shards", "Capture", "Net",
+			"Settings", "Raids", "Points", "Rarity", "Ranks", "Flavour", "Dex", "Milestones", "View", "UIFormat", "Comm",
+			"Friends", "Shards", "Capture", "Net",
 		}
 		for _, file in ipairs(files) do
 			LoadAddonFile("src/" .. file .. ".lua", ns)
@@ -159,11 +159,13 @@ describe("Net", function()
 			local lines = Net.personLines(row, { summary = {}, seen = 86400 * 300 }, os.date)
 			assert.equal("Bob", lines[1].text)
 			assert.equal("offline", lines[1].right)
-			assert.equal("120 pts", lines[3].right)
-			assert.equal("30", lines[4].right)
-			assert.equal("2", lines[5].right)
-			assert.equal("1", lines[6].right)
-			assert.equal("Last seen", lines[7].text)
+			assert.equal("Rank", lines[3].text)
+			assert.equal("Acolyte", lines[3].right)
+			assert.equal("120 pts", lines[4].right)
+			assert.equal("30", lines[5].right)
+			assert.equal("2", lines[6].right)
+			assert.equal("1", lines[7].right)
+			assert.equal("Last seen", lines[8].text)
 
 			local fresh = Net.personLines({ name = "Cid", score = 0, mobs = 0, players = 0, raids = 0 }, { added = true })
 			assert.equal("Not heard from yet.", fresh[#fresh].text)

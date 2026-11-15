@@ -137,6 +137,8 @@ describe("UIFormat", function()
 			assert.equal("7dff6a", rows[1].rightColor)
 			assert.equal("1/3", rows[2].right)
 			assert.is_true(rows[2].selected)
+			assert.is_nil(rows[1].bar) -- done: the tick says it
+			assert.equal(1 / 3, rows[2].bar)
 		end)
 
 		it("hides uncaught raid mobs, keeps boss skulls, and only caught rows click", function()
@@ -163,99 +165,164 @@ describe("UIFormat", function()
 			assert.same({ "10 unique souls | 3 Nov 26", "50 unique souls | 12/50", "Completed X | 0/0" }, texts(rows))
 			assert.equal("ffffff", rows[1].color)
 			assert.equal("6e6385", rows[2].color)
+			assert.is_nil(rows[1].bar)
+			assert.equal(12 / 50, rows[2].bar)
+			assert.is_nil(rows[3].bar)
+		end)
+
+		it("names a milestone in fel green when it has a title", function()
+			local rows = F.milestoneRows({
+				{
+					id = "a", title = "First Harvest", text = "10 unique mobs",
+					earned = stamp(2026, 11, 3), progress = 12, goal = 10,
+				},
+				{ id = "b", title = "Soul Collector", text = "50 unique mobs", progress = 60, goal = 50 },
+			}, os.date)
+			assert.equal("|cff9dff3aFirst Harvest|r \194\183 10 unique mobs", rows[1].text)
+			assert.equal("9a8fb0", rows[1].color)
+			assert.equal("Soul Collector \194\183 50 unique mobs", rows[2].text)
+			assert.equal("50/50", rows[2].right)
+			assert.equal(1, rows[2].bar)
+		end)
+
+		it("puts mastery stars in front of a row's count", function()
+			assert.equal("3" .. F.MARKS.FEL_STAR .. " \195\151212", F.masteryCount(3, 212))
+			assert.equal("\195\1514", F.masteryCount(nil, 4))
+			assert.equal("\195\1514", F.masteryCount(0, 4))
+			local rows = F.mobRows({ { name = "Wolf", count = 30, stars = 2 }, { name = "Boar", count = 1 } })
+			assert.equal("2" .. F.MARKS.FEL_STAR .. " \195\15130", rows[1].right)
+			assert.equal("\195\1511", rows[2].right)
+			assert.are_not.equal(F.MARKS.STAR, F.MARKS.FEL_STAR) -- not the elite mark
 		end)
 	end)
 
-	describe("detail lines", function()
-		it("draws a full mob detail in spec order", function()
-			local lines = F.mobDetailLines({
-				name = "Hogger",
-				classification = "elite",
-				levelText = "Lv 11",
-				typeText = "Humanoid \194\183 Gnoll",
-				flavour = "Loud.",
-				place = "Elwynn Forest",
-				count = 2,
-				first = stamp(2026, 11, 3),
-				last = stamp(2026, 11, 9),
-				myLevel = 12,
-				x = 26.4,
-				y = 89.1,
-				points = 25,
+	describe("trophy card", function()
+		local function cells(card)
+			local out = {}
+			for i, c in ipairs(card.cells) do
+				out[i] = c.label .. " | " .. c.value
+			end
+			return out
+		end
+
+		it("builds a full mob card", function()
+			local card = F.mobCard({
+				name = "Hogger", classification = "elite", levelText = "Lv 11", typeText = "Humanoid \194\183 Gnoll",
+				creatureType = "Humanoid", flavour = "Loud.", count = 12, first = stamp(2026, 11, 3), myLevel = 12,
+				x = 26.4, y = 89.1, last = stamp(2026, 11, 9), points = 7,
+				mastery = { stars = 1, count = 12, from = 10, to = 25 },
 			}, os.date)
+			assert.equal("Hogger", card.title)
+			assert.equal("ffd25a", card.color)
+			assert.equal("Elite \194\183 Lv 11 Humanoid \194\183 Gnoll", card.sub)
+			assert.equal("7 pts", card.badge)
+			assert.equal("Loud.", card.quote)
+			assert.equal("Interface\\Icons\\Ability_Rogue_Disguise", card.icon)
 			assert.same({
-				"Hogger | Elite",
-				"Lv 11 Humanoid \194\183 Gnoll",
-				"\"Loud.\"",
-				"--",
-				"Caught | \195\1512",
-				"First | 3 Nov 26 \194\183 you Lv 12",
-				"Where | 26.4, 89.1",
-				"Last | 9 Nov 26",
-				"--",
-				"25 pts",
-			}, texts(lines))
-			assert.is_true(lines[1].big)
-			assert.is_true(lines[3].wrap)
+				"Claimed | \195\15112", "First | 3 Nov 26 \194\183 Lv 12", "Where | 26.4, 89.1", "Last | 9 Nov 26",
+			}, cells(card))
+			assert.same({ lit = 1, total = 8, text = "12 / 25 to next star", bar = 2 / 15 }, card.stars)
+			assert.equal(F.MARKS.FEL_STAR, F.starText(card.stars):sub(1, #F.MARKS.FEL_STAR))
 		end)
 
-		it("never shows nil for a friend's bare mob", function()
-			local lines = F.mobDetailLines({ name = "Wolf", typeText = "" }, os.date)
+		it("never shows nil for a friend's bare mob, and leaves out what it lacks", function()
+			local card = F.mobCard({ name = "Wolf", typeText = "", flavour = "" }, os.date)
 			local d = F.DASH
+			assert.same({ "Claimed | " .. d, "First | " .. d, "Where | " .. d, "Last | " .. d }, cells(card))
+			assert.equal("ffffff", card.color)
+			assert.is_nil(card.sub)
+			assert.is_nil(card.badge)
+			assert.is_nil(card.quote)
+			assert.is_nil(card.stars)
+			assert.equal(F.SHARD_ICON, card.icon) -- no creature type: the Soul Shard
+		end)
+
+		it("falls back to the place when there are no coordinates (raids), and has no stars for a boss", function()
+			local card = F.mobCard({ name = "Lucifron", place = "Molten Core", count = 3, points = 75 }, os.date)
+			assert.equal("Where | Molten Core", cells(card)[3])
+			assert.is_nil(card.stars)
+		end)
+
+		it("shows stars past the row of eight as +N", function()
+			local card = F.mobCard({ name = "Boar", mastery = { stars = 11, count = 2600, from = 2500, to = 3000 } })
+			assert.equal(8, card.stars.lit)
+			assert.equal(3, card.stars.extra)
+			assert.truthy(F.starText(card.stars):find(" +3", 1, true))
+		end)
+
+		it("builds a player card with its places below", function()
+			local card = F.playerCard({
+				name = "Stab", class = "ROGUE", levelRace = "Lv 38 Orc", guild = "Knives", count = 5,
+				first = stamp(2026, 11, 2), firstLevel = 36, last = stamp(2026, 11, 7), lastLevel = 38, points = 13,
+				places = { { zone = "Stranglethorn", x = 1, y = 2, count = 4 }, { zone = "Duskwood", count = 1 } },
+			}, os.date, { ROGUE = { r = 1, g = 0.96, b = 0.41 } }, { ROGUE = "Rogue" })
+			assert.equal("fff569", card.color)
+			assert.equal("Lv 38 Orc Rogue", card.sub)
+			assert.equal("13 pts", card.badge)
+			assert.equal(F.PLAYER_ICON, card.icon)
 			assert.same({
-				"Wolf",
-				"--",
-				"Caught | " .. d,
-				"First | " .. d,
-				"Where | " .. d,
-				"Last | " .. d,
-			}, texts(lines))
+				"Sharded | \195\1515", "Guild | <Knives>", "First | 2 Nov 26 \194\183 Lv 36", "Last | 7 Nov 26 \194\183 Lv 38",
+			}, cells(card))
+			assert.equal("Stranglethorn", card.lines[1].text)
+			assert.equal("1.0, 2.0  \195\1514", card.lines[1].right)
+			assert.equal("\195\1511", card.lines[2].right)
+			local bare = F.playerCard({ name = "Cid", levelRace = "", places = {} }, os.date, nil, nil)
+			assert.is_nil(bare.sub)
+			assert.equal("Guild | " .. F.DASH, cells(bare)[2])
+		end)
+	end)
+
+	describe("milestone groups", function()
+		local items = {
+			{ id = "a", group = "Mobs", title = "First Harvest", text = "10 mobs", earned = 100, progress = 12, goal = 10 },
+			{ id = "b", group = "Mobs", title = "Soul Collector", text = "50 mobs", earned = 900, progress = 60, goal = 50 },
+			{ id = "c", group = "Mobs", title = "A Hundred Voices", text = "100 mobs", progress = 60, goal = 100 },
+			{ id = "d", group = "Players", title = "First Blood", text = "First player soul", progress = 0, goal = 1 },
+		}
+
+		it("puts what is left to earn on top and folds the earned ones away", function()
+			local rows = F.milestoneGroups(items, { "Mobs", "Players", "Raids" }, {}, os.date)
+			assert.equal("MOBS", rows[1].text)
+			assert.equal("2 of 3", rows[1].right)
+			assert.truthy(rows[2].text:find("A Hundred Voices", 1, true))
+			assert.equal(0.6, rows[2].bar)
+			assert.truthy(rows[3].text:find("2 earned", 1, true))
+			assert.equal("group:Mobs", rows[3].value)
+			assert.equal("show", rows[3].right)
+			assert.equal("PLAYERS", rows[4].text)
+			assert.equal("0 of 1", rows[4].right)
+			assert.equal(5, #rows) -- no Raids header: nothing in that group
 		end)
 
-		it("falls back to the place when there are no coordinates (raids)", function()
-			local lines = F.mobDetailLines({ name = "Lucifron", place = "Molten Core", count = 1, typeText = "" }, os.date)
-			assert.equal("Where | Molten Core", texts(lines)[5])
+		it("opens a group's earned milestones, newest first", function()
+			local rows = F.milestoneGroups(items, { "Mobs", "Players" }, { Mobs = true }, os.date)
+			assert.equal("hide", rows[3].right)
+			assert.truthy(rows[4].text:find("Soul Collector", 1, true))
+			assert.truthy(rows[5].text:find("First Harvest", 1, true))
+			assert.equal("PLAYERS", rows[6].text)
 		end)
+	end)
 
-		it("draws a full player detail", function()
-			local lines = F.playerDetailLines({
-				name = "Stabbyface",
-				class = "ROGUE",
-				levelRace = "Lv 38 Orc",
-				guild = "Blood Fang",
-				count = 5,
-				first = stamp(2026, 11, 2),
-				firstLevel = 34,
-				last = stamp(2026, 11, 9),
-				lastLevel = 38,
-				points = 15,
-				places = {
-					{ zone = "Hillsbrad", x = 52.1, y = 47.3, count = 3 },
-					{ zone = "Arathi", count = 2 },
-				},
-			}, os.date, { ROGUE = { r = 1, g = 0.96, b = 0.41 } }, { ROGUE = "Schurke" })
-			assert.same({
-				"Stabbyface",
-				"Lv 38 Orc Schurke", -- the client's class name
-				"<Blood Fang>",
-				"--",
-				"Sharded | \195\1515",
-				"First | 2 Nov 26 \194\183 Lv 34",
-				"Last | 9 Nov 26 \194\183 Lv 38",
-				"--",
-				"Hillsbrad | 52.1, 47.3  \195\1513",
-				"Arathi | \195\1512",
-				"--",
-				"15 pts",
-			}, texts(lines))
-			assert.equal("fff569", lines[1].color)
-		end)
-
-		it("never shows nil for a friend's bare player", function()
-			local lines = F.playerDetailLines({ name = "Stab", levelRace = "", places = {} }, os.date, nil)
-			local d = F.DASH
-			assert.same({ "Stab", "--", "Sharded | " .. d, "First | " .. d, "Last | " .. d }, texts(lines))
-			assert.equal("ffffff", lines[1].color)
+	describe("records", function()
+		it("words each record", function()
+			local now = 86400 * 100 + 50
+			local lines = F.recordLines({
+				{ label = "Most claimed", text = "Wolf \195\15114" },
+				{ label = "Nemesis", name = "Stab", count = 5, class = "ROGUE" },
+				{ label = "Rarest trophy", name = "Ragnaros", classification = "worldboss" },
+				{ label = "Latest", name = "Boar", time = now - 10 },
+				{ label = "Latest", name = "Boar", time = now - 86400 },
+				{ label = "Best day", souls = 41, time = stamp(2026, 11, 9) },
+				{ label = "Best day" },
+			}, now, os.date, { ROGUE = { r = 1, g = 0.96, b = 0.41 } })
+			assert.equal("Wolf \195\15114", lines[1].right)
+			assert.equal("Stab \195\1515", lines[2].right)
+			assert.equal("fff569", lines[2].rightColor)
+			assert.equal("ff9a5a", lines[3].rightColor)
+			assert.equal("Boar \194\183 today", lines[4].right)
+			assert.equal("Boar \194\183 yesterday", lines[5].right)
+			assert.equal("41 souls \194\183 9 Nov 26", lines[6].right)
+			assert.equal(F.DASH, lines[7].right)
 		end)
 	end)
 end)

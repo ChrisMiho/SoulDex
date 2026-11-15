@@ -178,9 +178,106 @@ describe("Dex", function()
 		assert.equal(10, db.raids[12118].minLevel)
 		local r2 = dex:recordRaid(mob("Lucifron", { level = 12 }), ctx("Molten Core"), 409, 12118)
 		assert.is_false(r2.isNew)
-		assert.equal(0, r2.points)
+		assert.equal(25, r2.points) -- a boss scores again on every claim
+		assert.equal(50, dex:score())
 		assert.equal(2, db.raids[12118].count)
 		assert.equal(12, db.raids[12118].maxLevel)
+	end)
+
+	describe("claiming a soul again", function()
+		local DAY = 86400
+		local function at(t, zone)
+			return ctx(zone, { time = t })
+		end
+
+		it("earns a mob mastery stars at 10, 25 and on, each worth points once", function()
+			local last
+			for i = 1, 10 do
+				last = dex:recordMob(mob("Wolf"), at(1000 + i))
+				if i > 1 and i < 10 then
+					assert.equal(0, last.points)
+					assert.is_nil(last.stars)
+				end
+			end
+			assert.equal(1, last.stars)
+			assert.equal(1, last.points)
+			assert.equal(10, last.count)
+			assert.equal(2, dex:score()) -- 1 for the first claim, 1 for the star
+			for _ = 11, 25 do
+				last = dex:recordMob(mob("Wolf"), at(2000, "Westfall")) -- claims in any zone count
+			end
+			assert.equal(2, last.stars)
+			assert.equal(3, dex:score())
+			local stars, count, from, to = dex:stars(db.mobs.Wolf)
+			assert.same({ 2, 25, 25, 50 }, { stars, count, from, to })
+			assert.equal(2, dex:masteryStars())
+		end)
+
+		it("doubles star points for an elite", function()
+			for i = 1, 10 do
+				dex:recordMob(mob("Hogger", { classification = "elite" }), at(1000 + i))
+			end
+			assert.equal(5 + 2, dex:score())
+		end)
+
+		it("credits claims made before the update: stars come from the saved counts", function()
+			db.mobs.Boar = {
+				name = "Boar", classification = "normal", points = 1,
+				places = { A = { count = 600 }, B = { count = 450 } },
+			}
+			assert.equal(8, (dex:stars(db.mobs.Boar)))
+			assert.equal(1 + 38, dex:score())
+			db.raids[12118] = { name = "Lucifron", instanceID = 409, count = 4, points = 25 }
+			assert.equal(39 + 100, dex:score())
+			assert.is_nil(dex:stars(db.raids[12118]))
+		end)
+
+		it("pays a rare again once a day, and never stars it", function()
+			local rare = mob("Mor'Ladim", { classification = "rare" })
+			assert.equal(10, dex:recordMob(rare, at(DAY * 10 + 5)).points)
+			assert.equal(0, dex:recordMob(rare, at(DAY * 10 + 500)).points) -- same day
+			assert.equal(2, dex:recordMob(rare, at(DAY * 11 + 5)).points)
+			assert.equal(0, dex:recordMob(rare, at(DAY * 11 + 90)).points)
+			assert.equal(2, dex:recordMob(rare, at(DAY * 14)).points)
+			assert.equal(14, dex:score())
+			assert.is_nil(dex:stars(db.mobs["Mor'Ladim"]))
+		end)
+
+		it("pays a player again 3 points, once a day for each player", function()
+			local bob = { name = "Bob", realm = "Forever", level = 30 }
+			local cid = { name = "Cid", realm = "Forever", level = 30 }
+			assert.equal(10, dex:recordPlayer(bob, at(DAY * 10)).points)
+			assert.equal(0, dex:recordPlayer(bob, at(DAY * 10 + 60)).points)
+			assert.equal(10, dex:recordPlayer(cid, at(DAY * 10 + 70)).points)
+			assert.equal(3, dex:recordPlayer(bob, at(DAY * 11)).points)
+			assert.equal(3, dex:recordPlayer(cid, at(DAY * 11 + 1)).points)
+			for i = 1, 20 do
+				assert.equal(0, dex:recordPlayer(bob, at(DAY * 11 + 100 + i)).points) -- farming one player pays nothing
+			end
+			assert.equal(26, dex:score())
+			-- a clock that went backwards pays nothing
+			assert.equal(0, dex:recordPlayer(bob, at(DAY * 9)).points)
+		end)
+
+		it("stars raid trash but not raid bosses", function()
+			for i = 1, 10 do
+				dex:recordRaid(mob("Core Hound", { classification = "elite" }), at(1000 + i, "Molten Core"), 409, 11671)
+			end
+			assert.equal(1, (dex:stars(db.raids[11671])))
+			assert.equal(5 + 2, dex:score())
+		end)
+
+		it("takes a friend's dex at face value", function()
+			local theirs = ns.Dex.new({
+				flat = true,
+				mobs = { Wolf = { name = "Wolf", classification = "normal", points = 31, places = { A = { count = 1000 } } } },
+				raids = { [5] = { name = "X", instanceID = 409, count = 3, points = 75 } },
+				players = { ["Bob-R"] = { name = "Bob", count = 9, points = 14 } },
+			})
+			assert.equal(31 + 75 + 14, theirs:score())
+			assert.equal(8, (theirs:stars(theirs.db.mobs.Wolf))) -- a well-farmed mob is not mistaken for a boss
+			assert.is_nil(theirs:stars(theirs.db.raids[5]))
+		end)
 	end)
 
 	it("a new raid slot whose name is already a mob gives no total (no repeated Soul #N)", function()
@@ -266,5 +363,20 @@ describe("Dex", function()
 			d:recordUnknown(ctx())
 			assert.equal(1, old.unknown["Elwynn Forest"].count)
 		end)
+	end)
+
+	it("keeps today's count and the best day so far", function()
+		local DAY = 86400
+		for i = 1, 3 do
+			dex:recordMob(mob("Wolf" .. i), ctx(nil, { time = DAY * 5 + i }))
+		end
+		dex:recordPlayer({ name = "Bob", realm = "R", level = 9 }, ctx(nil, { time = DAY * 5 + 50 }))
+		assert.same({ day = 5, count = 4, time = DAY * 5 + 1 }, db.today)
+		assert.equal(4, db.best.count)
+		dex:recordUnknown(ctx(nil, { time = DAY * 6 + 1 })) -- a quieter day doesn't replace the best
+		assert.equal(1, db.today.count)
+		assert.equal(6, db.today.day)
+		assert.equal(4, db.best.count)
+		assert.equal(5, db.best.day)
 	end)
 end)

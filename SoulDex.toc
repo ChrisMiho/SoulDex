@@ -1,6 +1,6 @@
 ## Interface: 16001
 ## Title: SoulDex
-## Notes: A collection dex for your Soul Shards.
+## Notes: Their souls. Your collection. Turns every Soul Shard into a trophy.
 ## Author: ChrisMiho
 ## Version: @project-version@
 ## Category: Miscellaneous
@@ -13,6 +13,7 @@ src\RaidData.lua
 src\Raids.lua
 src\Points.lua
 src\Rarity.lua
+src\Ranks.lua
 src\Flavour.lua
 src\Dex.lua
 src\Milestones.lua

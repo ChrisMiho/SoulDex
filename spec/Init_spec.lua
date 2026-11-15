@@ -55,6 +55,13 @@ describe("Init", function()
 			assert.equal("v1.2.0 loaded. Type /souldex or /dex to open.", ns.Greeting())
 		end)
 
+		it("names the rank once the dex is loaded", function()
+			local ns = load()
+			LoadAddonFile("src/Ranks.lua", ns)
+			ns.dex = { score = function() return 612 end }
+			assert.equal("dev loaded. |cff9dff3aSoul Thief|r, 612 pts. Type /souldex or /dex to open.", ns.Greeting())
+		end)
+
 		it("keeps the packager's own v (no vv)", function()
 			_G.C_AddOns = { GetAddOnMetadata = function() return "v1.1.0" end }
 			local ns = load()

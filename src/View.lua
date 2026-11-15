@@ -75,6 +75,12 @@ function View.places(dex)
 	return rows
 end
 
+-- A row's mastery stars, or nil when it has none to show (Dex.stars).
+local function starCount(dex, entry)
+	local stars = dex:stars(entry)
+	return stars and stars > 0 and stars or nil
+end
+
 function View.mobsAt(dex, place, other)
 	local rows = {}
 	for name, mob in pairs(dex.db.mobs) do
@@ -84,6 +90,7 @@ function View.mobsAt(dex, place, other)
 				name = name,
 				count = record.count,
 				classification = mob.classification,
+				stars = starCount(dex, mob),
 				highlight = other ~= nil and other.db.mobs[name] == nil,
 			}
 		end
@@ -176,6 +183,7 @@ function View.raidMobs(dex, instanceID, other)
 			name = entry and mob.name or nil,
 			boss = mob.boss == true,
 			count = entry and entry.count or nil,
+			stars = entry and starCount(dex, entry) or nil,
 			caught = entry ~= nil,
 			known = true,
 			highlight = entry ~= nil and isNew(mob.id),
@@ -190,6 +198,7 @@ function View.raidMobs(dex, instanceID, other)
 				name = entry.name,
 				boss = false,
 				count = entry.count,
+				stars = starCount(dex, entry),
 				caught = true,
 				known = false,
 				highlight = isNew(npcID),
@@ -242,6 +251,15 @@ local function firstPlace(mob)
 	return best
 end
 
+-- { stars, count, from, to } for the detail pane's Mastery line, or nil (Dex.stars).
+local function mastery(dex, entry)
+	local stars, count, from, to = dex:stars(entry)
+	if not stars then
+		return nil
+	end
+	return { stars = stars, count = count, from = from, to = to }
+end
+
 function View.mobDetail(dex, name, place)
 	local mob = dex.db.mobs[name]
 	if not mob then
@@ -260,6 +278,7 @@ function View.mobDetail(dex, name, place)
 		classification = mob.classification,
 		levelText = levelText(mob.minLevel, mob.maxLevel),
 		typeText = typeText(mob.creatureType, mob.family),
+		creatureType = mob.creatureType,
 		flavour = ns.Flavour.line(mob.name or name, mob.creatureType, mob.family, firstZone),
 		place = place,
 		count = record.count,
@@ -268,7 +287,8 @@ function View.mobDetail(dex, name, place)
 		myLevel = record.myLevel,
 		x = record.x,
 		y = record.y,
-		points = mob.points,
+		points = dex:worth(mob),
+		mastery = mastery(dex, mob),
 	}
 end
 
@@ -306,7 +326,7 @@ function View.playerDetail(dex, key)
 		firstLevel = player.firstLevel,
 		last = player.last,
 		lastLevel = player.lastLevel,
-		points = player.points,
+		points = dex:worth(player, true),
 		places = places,
 	}
 end
@@ -323,6 +343,7 @@ function View.raidDetail(dex, npcID)
 		classification = entry.classification,
 		levelText = levelText(entry.minLevel, entry.maxLevel),
 		typeText = typeText(entry.creatureType, entry.family),
+		creatureType = entry.creatureType,
 		flavour = ns.Flavour.line(entry.name, entry.creatureType, entry.family, zone),
 		place = zone,
 		count = entry.count,
@@ -331,10 +352,12 @@ function View.raidDetail(dex, npcID)
 		myLevel = entry.myLevel,
 		x = nil,
 		y = nil,
-		points = entry.points,
+		points = dex:worth(entry),
+		mastery = mastery(dex, entry),
 	}
 end
 
+-- 1264 -> "1,264".
 local function thousands(n)
 	local text = tostring(math.floor(n))
 	local formatted
@@ -344,6 +367,8 @@ local function thousands(n)
 	until n == 0
 	return text
 end
+
+View.thousands = thousands
 
 local DASH, TIMES = View.DASH, View.TIMES
 
@@ -433,13 +458,13 @@ function View.me(dex, friendsStore, me, now)
 	end
 
 	local lines = {
-		{ label = "Score", value = thousands(dex:score()) .. " pts", color = "GREEN" },
 		{ label = "Unique mobs", value = tostring(dex:uniqueMobs()) },
 		{ label = "Players", value = tostring(dex:uniquePlayers()) },
 		{ label = "Raids completed", value = tostring(dex:raidsCompleted()) },
-		{ label = "Souls taken", value = tostring(souls) },
+		{ label = "Mastery stars", value = thousands(dex:masteryStars()), color = "FEL" },
+		{ label = "Souls taken", value = thousands(souls) },
 		{ label = "Zones visited", value = tostring(zones) },
-		{ label = "Most caught", value = countedText(mobName, mobCount) },
+		{ label = "Most claimed", value = countedText(mobName, mobCount) },
 		{ label = "Top zone", value = countedText(zoneName, zoneCount) },
 	}
 	if unknown > 0 then
@@ -449,6 +474,92 @@ function View.me(dex, friendsStore, me, now)
 		lines[#lines + 1] = { label = "Friends rank", value = rank }
 	end
 	return lines
+end
+
+-- The Me tab's tiles and records (spec 5.8), on top of View.me's numbers.
+--   tiles:   { label, value, color? } x6
+--   records: { label, name?, count?, time?, souls?, class?, classification?, text? }
+-- Browsing a friend (friendsStore == false) swaps the friends tile for zones.
+local RARITY_ORDER = { elite = 1, rare = 2, rareelite = 2, worldboss = 3 }
+
+function View.meCard(dex, friendsStore, me, now)
+	local db = dex.db
+	local value = {}
+	for _, line in ipairs(View.me(dex, friendsStore, me, now)) do
+		value[line.label] = line.value
+	end
+	local tiles = {
+		{ label = "Unique mobs", value = value["Unique mobs"] },
+		{ label = "Players", value = value["Players"] },
+		{ label = "Raids", value = value["Raids completed"] .. " / " .. #ns.Raids.list() },
+		{ label = "Mastery", value = value["Mastery stars"], color = "FEL", star = true },
+		{ label = "Souls taken", value = value["Souls taken"] },
+	}
+	if friendsStore == false then
+		tiles[6] = { label = "Zones", value = value["Zones visited"] }
+	else
+		tiles[6] = { label = "Among friends", value = value["Friends rank"] }
+	end
+
+	-- Most claimed and hunting ground come ready-made ("Wolf ×14"); the rest are found here.
+	local nemesis, rarest, latest
+	local function newer(name, entry, extra)
+		if entry.last and (not latest or entry.last > latest.time) then
+			latest = { name = name, time = entry.last, class = extra and extra.class,
+				classification = entry.classification }
+		end
+	end
+	local function rarer(name, entry)
+		local order = ns.Points.rule(entry, db.flat) == "boss" and 3 or RARITY_ORDER[entry.classification] or 0
+		local first = entry.first or math.huge
+		if not rarest or order > rarest.order or (order == rarest.order and first < rarest.first) then
+			rarest = { name = name, order = order, first = first, classification = entry.classification }
+			if order == 3 then
+				rarest.classification = "worldboss"
+			end
+		end
+	end
+	for name, mob in pairs(db.mobs) do
+		newer(mob.name or name, mob)
+		rarer(mob.name or name, mob)
+	end
+	for _, entry in pairs(db.raids) do
+		if entry.name then
+			newer(entry.name, entry)
+			rarer(entry.name, entry)
+		end
+	end
+	for key, player in pairs(db.players) do
+		local name = player.name or key
+		newer(name, player, player)
+		local count = player.count or 0
+		if not nemesis or count > nemesis.count or (count == nemesis.count and name < nemesis.name) then
+			nemesis = { name = name, count = count, class = player.class }
+		end
+	end
+
+	local records = {
+		{ label = "Most claimed", text = value["Most claimed"] },
+		{ label = "Nemesis", name = nemesis and nemesis.name, count = nemesis and nemesis.count,
+			class = nemesis and nemesis.class },
+		{ label = "Hunting ground", text = value["Top zone"] },
+		{ label = "Rarest trophy", name = rarest and rarest.name, classification = rarest and rarest.classification },
+		{ label = "Latest", name = latest and latest.name, time = latest and latest.time,
+			class = latest and latest.class, classification = latest and latest.classification },
+	}
+	local best = db.best
+	if type(best) == "table" and (best.count or 0) > 0 then
+		records[#records + 1] = { label = "Best day", souls = best.count, time = best.time }
+	else
+		records[#records + 1] = { label = "Best day" }
+	end
+	if friendsStore ~= false then
+		records[#records + 1] = { label = "Zones hunted", text = value["Zones visited"] }
+	end
+	if value["Unknown souls"] then
+		records[#records + 1] = { label = "Unknown souls", text = value["Unknown souls"] }
+	end
+	return { tiles = tiles, records = records }
 end
 
 function View.header(dex, tab)

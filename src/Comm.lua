@@ -109,7 +109,7 @@ function Comm.encodeDex(db)
 		local m = mobs[key]
 		local head = {
 			"M", clean(m.name or key), clean(m.classification), clean(m.creatureType), clean(m.family),
-			int(m.minLevel), int(m.maxLevel), int(m.points),
+			int(m.minLevel), int(m.maxLevel), int(ns.Points.mobWorth(m)),
 		}
 		local zones = sortedKeys(m.places or {})
 		if #zones == 0 then
@@ -133,14 +133,14 @@ function Comm.encodeDex(db)
 	for _, key in ipairs(sortedKeys(players)) do
 		local p = players[key]
 		lines[#lines + 1] = table.concat({
-			"P", clean(key), clean(p.name), clean(p.class), clean(p.race), int(p.count), int(p.points),
+			"P", clean(key), clean(p.name), clean(p.class), clean(p.race), int(p.count), int(ns.Points.playerWorth(p)),
 		}, TAB)
 	end
 	local raids = db.raids or {}
 	for _, id in ipairs(sortedKeys(raids)) do
 		local r = raids[id]
 		lines[#lines + 1] = table.concat({
-			"X", int(id), int(r.instanceID), clean(r.name), int(r.count), int(r.points), r.known and "1" or "0",
+			"X", int(id), int(r.instanceID), clean(r.name), int(r.count), int(ns.Points.mobWorth(r)), r.known and "1" or "0",
 		}, TAB)
 	end
 	return table.concat(lines, "\n")
@@ -229,7 +229,8 @@ function Comm.decodeDex(str)
 	if #head ~= 2 or head[1] ~= "D" or not versionOk(head[2]) then
 		return nil
 	end
-	local db = { mobs = {}, places = {}, players = {}, raids = {} }
+	-- flat: each entry's points is its full worth as the sender scored it (Dex.worth).
+	local db = { mobs = {}, places = {}, players = {}, raids = {}, flat = true }
 	for i = 2, #lines do
 		local f = split(lines[i], TAB)
 		local decode = decoders[f[1]]

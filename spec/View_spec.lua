@@ -106,6 +106,28 @@ describe("View", function()
 		end)
 	end)
 
+	describe("mastery", function()
+		it("puts stars on rows and the way to the next star in the details", function()
+			for _ = 1, 12 do
+				dex:recordMob(mob("Wolf"), ctx("Elwynn Forest"))
+			end
+			dex:recordMob(mob("Boar"), ctx("Elwynn Forest"))
+			local rows = View.mobsAt(dex, "Elwynn Forest")
+			assert.is_nil(rows[1].stars) -- Boar: none yet
+			assert.equal(1, rows[2].stars)
+			local d = View.mobDetail(dex, "Wolf", "Elwynn Forest")
+			assert.same({ stars = 1, count = 12, from = 10, to = 25 }, d.mastery)
+			assert.equal(2, d.points) -- first claim and one star
+			assert.equal("2", (function()
+				for _, line in ipairs(View.me(dex, nil, nil, 0)) do
+					if line.label == "Mastery stars" then
+						return tostring(tonumber(line.value) + 1)
+					end
+				end
+			end)())
+		end)
+	end)
+
 	describe("mobsAt", function()
 		it("lists A-Z with counts and highlights what other lacks", function()
 			dex:recordMob(mob("Wolf"), ctx("Elwynn Forest"))
@@ -286,15 +308,13 @@ describe("View", function()
 		it("shows dashes for an empty dex and hides Unknown souls", function()
 			local lines = View.me(dex, nil, nil, 100)
 			assert.same({
-				"Score", "Unique mobs", "Players", "Raids completed", "Souls taken",
-				"Zones visited", "Most caught", "Top zone", "Friends rank",
+				"Unique mobs", "Players", "Raids completed", "Mastery stars", "Souls taken",
+				"Zones visited", "Most claimed", "Top zone", "Friends rank",
 			}, labels(lines))
 			local v = values(lines)
-			assert.equal("0 pts", v.Score)
-			assert.equal("GREEN", lines[1].color)
 			assert.equal("0", v["Souls taken"])
 			assert.equal("0", v["Zones visited"])
-			assert.equal(DASH, v["Most caught"])
+			assert.equal(DASH, v["Most claimed"])
 			assert.equal(DASH, v["Top zone"])
 			assert.equal(DASH, v["Friends rank"])
 		end)
@@ -309,7 +329,7 @@ describe("View", function()
 			local v = values(View.me(dex, nil, nil, 100))
 			assert.equal("6", v["Souls taken"])
 			assert.equal("2", v["Zones visited"])
-			assert.equal("Wolf " .. TIMES .. "3", v["Most caught"])
+			assert.equal("Wolf " .. TIMES .. "3", v["Most claimed"])
 			assert.equal("Westfall " .. TIMES .. "3", v["Top zone"])
 			assert.equal("3", v["Unique mobs"])
 			assert.equal("1", v.Players)
@@ -319,7 +339,7 @@ describe("View", function()
 			dex:recordMob(mob("Zebra"), ctx("Durotar", "Kalimdor"))
 			dex:recordMob(mob("Aardvark"), ctx("Elwynn Forest"))
 			local v = values(View.me(dex, nil, nil, 100))
-			assert.equal("Aardvark " .. TIMES .. "1", v["Most caught"])
+			assert.equal("Aardvark " .. TIMES .. "1", v["Most claimed"])
 			assert.equal("Durotar " .. TIMES .. "1", v["Top zone"])
 		end)
 
@@ -360,7 +380,7 @@ describe("View", function()
 			local v = values(View.me(dex, nil, nil, 0))
 			assert.equal("3", v["Souls taken"])
 			assert.equal("1", v["Zones visited"])
-			assert.equal("Wolf " .. TIMES .. "1", v["Most caught"])
+			assert.equal("Wolf " .. TIMES .. "1", v["Most claimed"])
 		end)
 
 		it("ranks you among the friends you have seen", function()
@@ -400,6 +420,54 @@ describe("View", function()
 		it("adds thousands separators", function()
 			dex.db.mobs.Big = { name = "Big", points = 1840, places = {} }
 			assert.equal("1,840 pts", select(2, View.header(dex, "Friends")))
+		end)
+	end)
+
+	describe("meCard", function()
+		it("gives six tiles and the records, from what the dex holds", function()
+			local DAY = 86400
+			for i = 1, 3 do
+				dex:recordMob(mob("Wolf"), { time = DAY * 3 + i, myLevel = 9, zone = "Elwynn Forest", group = "Eastern Kingdoms" })
+			end
+			dex:recordMob(mob("Hogger", { classification = "elite" }),
+				{ time = DAY * 4, myLevel = 9, zone = "Elwynn Forest", group = "Eastern Kingdoms" })
+			for _ = 1, 2 do
+				dex:recordPlayer({ name = "Stab", realm = "R", level = 30, class = "ROGUE" },
+					{ time = DAY * 2, myLevel = 9, zone = "Westfall", group = "Eastern Kingdoms" })
+			end
+			dex:recordPlayer({ name = "Ann", realm = "R", level = 30, class = "MAGE" },
+				{ time = DAY * 2, myLevel = 9, zone = "Westfall", group = "Eastern Kingdoms" })
+			local card = View.meCard(dex, nil, nil, DAY * 4)
+			local tiles = {}
+			for i, t in ipairs(card.tiles) do
+				tiles[i] = t.label .. "=" .. tostring(t.value)
+			end
+			assert.equal(6, #tiles)
+			assert.equal("Unique mobs=2", tiles[1])
+			assert.equal("Players=2", tiles[2])
+			assert.equal("Souls taken=7", tiles[5])
+			assert.equal("Among friends", card.tiles[6].label)
+			local rec = {}
+			for _, r in ipairs(card.records) do
+				rec[r.label] = r
+			end
+			assert.equal("Stab", rec.Nemesis.name)
+			assert.equal(2, rec.Nemesis.count)
+			assert.equal("ROGUE", rec.Nemesis.class)
+			assert.equal("Hogger", rec["Rarest trophy"].name)
+			assert.equal("Hogger", rec.Latest.name)
+			assert.equal(DAY * 4, rec.Latest.time)
+			assert.equal(3, rec["Best day"].souls)
+			assert.truthy(rec["Most claimed"].text:find("Wolf", 1, true))
+			assert.truthy(rec["Hunting ground"].text:find("Elwynn Forest", 1, true))
+		end)
+
+		it("works on an empty dex and swaps the friends tile when browsing", function()
+			local card = View.meCard(dex, false, nil, 0)
+			assert.equal("Zones", card.tiles[6].label)
+			for _, r in ipairs(card.records) do
+				assert.is_nil(r.name, r.label)
+			end
 		end)
 	end)
 end)

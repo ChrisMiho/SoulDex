@@ -122,9 +122,23 @@ describe("Comm", function()
 		assert.is_nil(d.mobs.Wolf.first)
 	end)
 
+	it("sends each soul's full worth, and the copy is scored at face value", function()
+		local db = { mobs = {}, places = {}, players = {}, raids = {} }
+		db.mobs.Wolf = { name = "Wolf", classification = "normal", points = 1, places = { Z = { count = 25 } } }
+		db.players["Bob-R"] = { name = "Bob", count = 3, points = 10, bonus = 2 }
+		db.raids[12118] = { name = "Lucifron", instanceID = 409, count = 3, points = 25, known = true }
+		local mine = ns.Dex.new(db)
+		local d = Comm.decodeDex(Comm.encodeDex(db))
+		assert.is_true(d.flat)
+		assert.equal(3, d.mobs.Wolf.points)
+		assert.equal(12, d.players["Bob-R"].points)
+		assert.equal(75, d.raids[12118].points)
+		assert.equal(mine:score(), ns.Dex.new(d):score())
+	end)
+
 	it("handles an empty dex", function()
 		local d = Comm.decodeDex(Comm.encodeDex({}))
-		assert.same({ mobs = {}, places = {}, players = {}, raids = {} }, d)
+		assert.same({ mobs = {}, places = {}, players = {}, raids = {}, flat = true }, d)
 	end)
 
 	it("cleans tabs, newlines and pipes from names", function()

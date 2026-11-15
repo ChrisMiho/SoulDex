@@ -11,6 +11,8 @@ local C = F.COLORS
 
 local BORDER = "6b4fa0"
 local SELECTED, HOVER, ROW_LINE, RULE = "3a2a55", "2a2040", "1d1629", "2d2240"
+local BAR_TRACK, BAR_FILL, BAR_H = "2d2240", "7dff6a", 2
+local MARK = "9dff3a" -- the fel-green marker on the selected row
 
 local BACKDROP = {
 	bgFile = "Interface\\Buttons\\WHITE8X8",
@@ -28,6 +30,26 @@ end
 function L.fill(texture, hex, alpha)
 	local r, g, b = F.hexRGB(hex)
 	texture:SetColorTexture(r, g, b, alpha or 1)
+end
+
+-- Shades a texture from one colour to another: "VERTICAL" runs bottom to top,
+-- "HORIZONTAL" left to right. Clients name the call differently; where neither works
+-- the texture is filled flat with the end colour.
+function L.gradient(texture, orientation, fromHex, fromAlpha, toHex, toAlpha)
+	local r1, g1, b1 = F.hexRGB(fromHex)
+	local r2, g2, b2 = F.hexRGB(toHex)
+	texture:SetColorTexture(1, 1, 1, 1)
+	if texture.SetGradient and CreateColor then
+		local from, to = CreateColor(r1, g1, b1, fromAlpha), CreateColor(r2, g2, b2, toAlpha)
+		if pcall(texture.SetGradient, texture, orientation, from, to) then
+			return
+		end
+	end
+	if texture.SetGradientAlpha
+		and pcall(texture.SetGradientAlpha, texture, orientation, r1, g1, b1, fromAlpha, r2, g2, b2, toAlpha) then
+		return
+	end
+	texture:SetColorTexture(r2, g2, b2, toAlpha)
 end
 
 function L.backdrop(frame, bg, border, alpha)
@@ -62,6 +84,15 @@ function L.button(parent, text, width, height, onClick)
 		button:SetScript("OnClick", onClick)
 	end
 	return button
+end
+
+-- Width in pixels of a progress bar's fill for a 0..1 fraction, or nil when there is
+-- nothing to draw (no fraction, or an empty bar: a texture can't be 0 wide).
+function L.barWidth(fraction, full)
+	if type(fraction) ~= "number" or fraction <= 0 then
+		return nil
+	end
+	return math.max(1, math.floor(full * math.min(fraction, 1) + 0.5))
 end
 
 function L.setShown(obj, shown)
@@ -134,6 +165,11 @@ function List:row(i)
 	row.sel = row:CreateTexture(nil, "BACKGROUND")
 	row.sel:SetAllPoints()
 	L.fill(row.sel, SELECTED)
+	-- Left edge: the selection marker, or a stripe in the row's own colour (item.stripe).
+	row.mark = row:CreateTexture(nil, "ARTWORK")
+	row.mark:SetWidth(2)
+	row.mark:SetPoint("TOPLEFT", 0, -2)
+	row.mark:SetPoint("BOTTOMLEFT", 0, 2)
 	row.hover = row:CreateTexture(nil, "HIGHLIGHT")
 	row.hover:SetAllPoints()
 	L.fill(row.hover, HOVER)
@@ -142,6 +178,16 @@ function List:row(i)
 	row.line:SetPoint("BOTTOMLEFT")
 	row.line:SetPoint("BOTTOMRIGHT")
 	L.fill(row.line, ROW_LINE)
+	-- Progress bar along the bottom (item.bar): a track and its fill.
+	row.track = row:CreateTexture(nil, "BORDER")
+	row.track:SetHeight(BAR_H)
+	row.track:SetPoint("BOTTOMLEFT", 4, 0)
+	row.track:SetPoint("BOTTOMRIGHT", -4, 0)
+	L.fill(row.track, BAR_TRACK)
+	row.bar = row:CreateTexture(nil, "ARTWORK")
+	row.bar:SetHeight(BAR_H)
+	row.bar:SetPoint("BOTTOMLEFT", 4, 0)
+	L.fill(row.bar, BAR_FILL)
 	row.rule = row:CreateTexture(nil, "BORDER")
 	row.rule:SetHeight(1)
 	row.rule:SetPoint("LEFT", 2, 0)
@@ -181,14 +227,25 @@ function List:set(items, onClick, keepScroll)
 			h = math.max(h, math.ceil(left:GetStringHeight() or 0) + 3)
 		else
 			left:SetWordWrap(false)
-			left:SetPoint("LEFT", 4, 0)
+			left:SetPoint("LEFT", item.stripe and 7 or 4, 0)
 			left:SetPoint("RIGHT", right, "LEFT", -4, 0)
 		end
 		L.setShown(left, not item.hr)
 		L.setShown(right, not item.hr)
 		L.setShown(row.rule, item.hr)
 		L.setShown(row.sel, item.selected)
-		L.setShown(row.line, self.lines and not item.hr and not item.header)
+		local mark = item.selected and MARK or item.stripe
+		if mark then
+			L.fill(row.mark, mark)
+		end
+		L.setShown(row.mark, mark ~= nil and mark ~= false)
+		local bar = L.barWidth(item.bar, self.width - 8)
+		if bar then
+			row.bar:SetWidth(bar)
+		end
+		L.setShown(row.bar, bar ~= nil)
+		L.setShown(row.track, item.bar ~= nil)
+		L.setShown(row.line, self.lines and not item.hr and not item.header and item.bar == nil)
 		row.value = item.value
 		row.onClick = onClick
 		row:EnableMouse(item.value ~= nil and onClick ~= nil)

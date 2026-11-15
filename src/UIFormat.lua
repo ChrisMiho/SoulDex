@@ -1,7 +1,8 @@
 -- Display rows for the dex window (pure; no WoW API except the date() fallback in
 -- F.dateText when no formatter is passed). Turns View rows and details
 -- into plain line descriptors the window paints:
---   { text, color, right, rightColor, value, selected, header, hr, big, wrap }
+--   { text, color, right, rightColor, value, selected, header, hr, big, wrap, bar, stripe }
+-- `bar` is 0..1: a thin progress bar along the bottom of the row.
 -- `value` is what a click passes back (nil = not clickable); colours are hex "rrggbb".
 local _, ns = ...
 
@@ -17,7 +18,8 @@ local C = {
 	UNKNOWN = "4d4360",
 	DIM = "6e6385",
 	GREEN = "7dff6a",
-	FLAVOUR = "ffd100",
+	FLAVOUR = "b9a6d9",
+	FEL = "9dff3a",
 	ELITE = ns.Rarity.ELITE,
 	RARE = ns.Rarity.RARE,
 	BOSS = ns.Rarity.BOSS,
@@ -33,7 +35,20 @@ local STAR = "|TInterface\\TargetingFrame\\UI-RaidTargetingIcon_1:0|t"
 local SKULL = "|TInterface\\TargetingFrame\\UI-RaidTargetingIcon_8:0|t"
 local SKULL_DIM = "|TInterface\\TargetingFrame\\UI-RaidTargetingIcon_8:0:0:0:0:64:64:0:64:0:64:120:85:65|t"
 local CHECK = "|TInterface\\RaidFrame\\ReadyCheck-Ready:0|t"
-F.MARKS = { STAR = STAR, SKULL = SKULL, SKULL_DIM = SKULL_DIM, CHECK = CHECK }
+-- A mastery star: the same star tinted fel green, so it isn't read as the elite mark.
+local FEL_STAR = "|TInterface\\TargetingFrame\\UI-RaidTargetingIcon_1:0:0:0:0:64:64:0:64:0:64:157:255:58|t"
+F.MARKS = { STAR = STAR, SKULL = SKULL, SKULL_DIM = SKULL_DIM, CHECK = CHECK, FEL_STAR = FEL_STAR }
+
+-- "3<star> ×212": a row's claim count with its mastery stars in front (none: just the count).
+function F.masteryCount(stars, count)
+	local text = F.countText(count)
+	if stars and stars > 0 then
+		return stars .. FEL_STAR .. " " .. (text or "")
+	end
+	return text
+end
+
+local STRIPE = "3d2d5c" -- the left stripe of an ordinary soul's row; rarer ones use their colour
 
 local R = ns.Rarity
 local STYLES = {
@@ -129,7 +144,7 @@ function F.keepScroll(action)
 end
 
 function F.note(text)
-	return { text = text, color = C.MUTED }
+	return { text = text, color = C.MUTED, wrap = true }
 end
 
 -- List rows ---------------------------------------------------------------------
@@ -166,7 +181,8 @@ function F.mobRows(rows)
 			out[#out + 1] = {
 				text = text,
 				color = row.highlight and C.GREEN or (style and style.color) or C.TEXT,
-				right = F.countText(row.count),
+				right = F.masteryCount(row.stars, row.count),
+				stripe = style and style.color or STRIPE,
 				value = row.name,
 			}
 		end
@@ -209,6 +225,7 @@ function F.raidRows(rows, selected)
 			text = row.name,
 			right = row.done and CHECK or (row.caught .. "/" .. row.total),
 			rightColor = row.done and C.GREEN or nil,
+			bar = (not row.done and row.total > 0) and (row.caught / row.total) or nil,
 			value = row.instanceID,
 			selected = row.instanceID == selected,
 		}
@@ -224,7 +241,8 @@ function F.raidMobRows(rows)
 			out[#out + 1] = {
 				text = row.boss and (row.name .. " " .. SKULL) or row.name,
 				color = row.highlight and C.GREEN or (row.boss and C.BOSS) or C.TEXT,
-				right = F.countText(row.count),
+				right = F.masteryCount(row.stars, row.count),
+				stripe = row.boss and C.BOSS or STRIPE,
 				value = row.npcID,
 			}
 		else
@@ -237,117 +255,228 @@ function F.raidMobRows(rows)
 	return out
 end
 
--- Earned: bright, with the date. Not yet: dimmed, with progress/goal.
+-- Earned: its name in fel green, the goal beside it, and the date. Not yet: dimmed, with
+-- progress/goal and a progress bar.
 function F.milestoneRows(items, fmt)
 	local out = {}
 	for _, item in ipairs(items) do
+		local goal = item.title and (DOT .. item.text) or item.text
 		if item.earned then
 			out[#out + 1] = {
-				text = item.text,
-				color = C.WHITE,
+				text = item.title and ("|cff" .. C.FEL .. item.title .. "|r" .. goal) or goal,
+				color = item.title and C.MUTED or C.WHITE,
 				right = F.dateText(item.earned, fmt) or "",
 			}
 		else
+			local progress = math.min(item.progress, item.goal)
 			out[#out + 1] = {
-				text = item.text,
+				text = (item.title or "") .. goal,
 				color = C.DIM,
-				right = math.min(item.progress, item.goal) .. "/" .. item.goal,
+				right = progress .. "/" .. item.goal,
 				rightColor = C.DIM,
+				bar = item.goal > 0 and (progress / item.goal) or nil,
 			}
 		end
 	end
 	return out
 end
 
--- The Me tab's key/value lines (View.me): the same look as the detail pane. A line's
--- color names a COLORS key for its value.
-function F.meLines(items)
-	local out = {}
-	for i, item in ipairs(items) do
-		out[i] = {
-			text = item.label,
-			color = C.MUTED,
-			right = item.value,
-			rightColor = item.color and C[item.color] or C.TEXT,
-		}
+-- The trophy card (spec 5.5) ----------------------------------------------------------------
+-- A card is what the detail pane draws:
+--   { title, color, sub, badge, quote, icon, stars = { lit, total, extra, text, bar },
+--     cells = { { label, value } x4 }, lines = { list line descriptors } }
+-- Any field of the detail may be nil (a friend's dex has no dates, coordinates or levels):
+-- a cell then shows a dash; sub, badge, quote and stars are left out.
+
+-- An icon for each creature type, from the game's own icons. Keyed by the English type
+-- name; other client languages and unknown types get the Soul Shard.
+local ICONS = "Interface\\Icons\\"
+local TYPE_ICONS = {
+	Beast = "Ability_Hunter_BeastTaming",
+	Humanoid = "Ability_Rogue_Disguise",
+	Undead = "Spell_Shadow_RaiseDead",
+	Demon = "Spell_Shadow_SummonImp",
+	Elemental = "Spell_Fire_Elemental_Totem",
+	Dragonkin = "INV_Misc_Head_Dragon_01",
+	Giant = "Spell_Nature_Earthquake",
+	Mechanical = "INV_Gizmo_01",
+	Critter = "Spell_Nature_Polymorph",
+}
+F.PLAYER_ICON = ICONS .. "Ability_DualWield"
+F.SHARD_ICON = ICONS .. "INV_Misc_Gem_Amethyst_02"
+F.CARD_STARS = 8
+
+function F.typeIcon(creatureType)
+	local icon = creatureType and TYPE_ICONS[creatureType]
+	return icon and (ICONS .. icon) or F.SHARD_ICON
+end
+
+local function cell(label, value)
+	return { label = label, value = value or F.DASH }
+end
+
+-- The row of stars: `lit` of `total` are lit; stars past the row show as "+N".
+local function starRow(m)
+	if not m then
+		return nil
 	end
-	return out
+	local total = F.CARD_STARS
+	return {
+		lit = math.min(m.stars, total),
+		total = total,
+		extra = m.stars > total and (m.stars - total) or nil,
+		text = m.count .. " / " .. m.to .. " to next star",
+		bar = (m.count - m.from) / (m.to - m.from),
+	}
 end
 
--- Detail pane lines (spec 5.5) -----------------------------------------------------
--- Any field may be nil (a friend's dex has no dates, coordinates or levels): a
--- labelled line then shows a dash, an unlabelled one is left out.
-
-local HR = { hr = true }
-
-local function kv(label, value)
-	return { text = label, color = C.MUTED, right = value or F.DASH, rightColor = C.TEXT }
-end
-
--- Mob and raid-mob detail (View.mobDetail / View.raidDetail).
-function F.mobDetailLines(d, fmt)
+-- Mob and raid-mob card (View.mobDetail / View.raidDetail).
+function F.mobCard(d, fmt)
 	local style = STYLES[d.classification]
-	local lines = {
-		{
-			text = d.name or F.DASH,
-			color = style and style.color or C.WHITE,
-			right = style and style.label or nil,
-			rightColor = style and style.color or nil,
-			big = true,
+	local sub = F.join({ style and style.label, F.join({ d.levelText, d.typeText }, " ", 2) }, DOT, 2)
+	local you = d.myLevel and ("Lv " .. d.myLevel) or nil
+	return {
+		title = d.name or F.DASH,
+		color = style and style.color or C.WHITE,
+		sub = sub,
+		badge = d.points and (d.points .. " pts") or nil,
+		quote = d.flavour ~= "" and d.flavour or nil,
+		icon = F.typeIcon(d.creatureType),
+		stars = starRow(d.mastery),
+		cells = {
+			cell("Claimed", F.countText(d.count)),
+			cell("First", F.join({ F.dateText(d.first, fmt), you }, DOT, 2)),
+			cell("Where", F.coordsText(d.x, d.y) or d.place),
+			cell("Last", F.dateText(d.last, fmt)),
 		},
+		lines = {},
 	}
-	local sub = F.join({ d.levelText, d.typeText }, " ", 2)
-	if sub then
-		lines[#lines + 1] = { text = sub, color = C.MUTED }
-	end
-	if d.flavour and d.flavour ~= "" then
-		lines[#lines + 1] = { text = "\"" .. d.flavour .. "\"", color = C.FLAVOUR, wrap = true }
-	end
-	lines[#lines + 1] = HR
-	lines[#lines + 1] = kv("Caught", F.countText(d.count))
-	local you = d.myLevel and ("you Lv " .. d.myLevel) or nil
-	lines[#lines + 1] = kv("First", F.join({ F.dateText(d.first, fmt), you }, DOT, 2))
-	lines[#lines + 1] = kv("Where", F.coordsText(d.x, d.y) or d.place)
-	lines[#lines + 1] = kv("Last", F.dateText(d.last, fmt))
-	if d.points then
-		lines[#lines + 1] = HR
-		lines[#lines + 1] = { text = d.points .. " pts", color = C.GREEN }
-	end
-	return lines
 end
 
--- Player detail (View.playerDetail). classNames: LOCALIZED_CLASS_NAMES_MALE (or nil).
-function F.playerDetailLines(d, fmt, classColors, classNames)
-	local lines = {
-		{ text = d.name or F.DASH, color = F.classHex(d.class, classColors) or C.WHITE, big = true },
-	}
+-- Player card (View.playerDetail). classNames: LOCALIZED_CLASS_NAMES_MALE (or nil).
+function F.playerCard(d, fmt, classColors, classNames)
 	local className = d.class and d.class ~= "" and F.className(d.class, classNames) or nil
-	local levelRaceClass = F.join({ d.levelRace, className }, " ", 2)
-	if levelRaceClass then
-		lines[#lines + 1] = { text = levelRaceClass, color = C.MUTED }
-	end
-	if d.guild and d.guild ~= "" then
-		lines[#lines + 1] = { text = "<" .. d.guild .. ">", color = C.GREEN }
-	end
-	lines[#lines + 1] = HR
-	lines[#lines + 1] = kv("Sharded", F.countText(d.count))
 	local firstLv = d.firstLevel and ("Lv " .. d.firstLevel) or nil
 	local lastLv = d.lastLevel and ("Lv " .. d.lastLevel) or nil
-	lines[#lines + 1] = kv("First", F.join({ F.dateText(d.first, fmt), firstLv }, DOT, 2))
-	lines[#lines + 1] = kv("Last", F.join({ F.dateText(d.last, fmt), lastLv }, DOT, 2))
-	if d.places and #d.places > 0 then
-		lines[#lines + 1] = HR
-		for _, p in ipairs(d.places) do
-			lines[#lines + 1] = {
-				text = p.zone,
-				color = C.TEXT,
-				right = F.join({ F.coordsText(p.x, p.y), F.countText(p.count) }, "  ", 2) or "",
+	local lines = {}
+	for _, p in ipairs(d.places or {}) do
+		lines[#lines + 1] = {
+			text = p.zone,
+			color = C.TEXT,
+			right = F.join({ F.coordsText(p.x, p.y), F.countText(p.count) }, "  ", 2) or "",
+		}
+	end
+	return {
+		title = d.name or F.DASH,
+		color = F.classHex(d.class, classColors) or C.WHITE,
+		sub = F.join({ d.levelRace, className }, " ", 2),
+		badge = d.points and (d.points .. " pts") or nil,
+		icon = F.PLAYER_ICON,
+		cells = {
+			cell("Sharded", F.countText(d.count)),
+			cell("Guild", d.guild and d.guild ~= "" and ("<" .. d.guild .. ">") or nil),
+			cell("First", F.join({ F.dateText(d.first, fmt), firstLv }, DOT, 2)),
+			cell("Last", F.join({ F.dateText(d.last, fmt), lastLv }, DOT, 2)),
+		},
+		lines = lines,
+	}
+end
+
+-- The stars of a card as text: lit ones fel green, the rest dark, then "+N" past the row.
+local DARK_STAR = "|TInterface\\TargetingFrame\\UI-RaidTargetingIcon_1:0:0:0:0:64:64:0:64:0:64:60:48:84|t"
+function F.starText(stars)
+	local text = string.rep(FEL_STAR, stars.lit) .. string.rep(DARK_STAR, stars.total - stars.lit)
+	if stars.extra then
+		text = text .. " +" .. stars.extra
+	end
+	return text
+end
+
+-- Milestones, grouped (spec 5.6) ---------------------------------------------------------
+-- Under each group's header ("MOBS", with "4 of 6"): the milestones still to earn, then
+-- one row that opens and closes the earned ones (value "group:<name>"), so the next
+-- goals sit on top. expanded: { [group] = true } for the groups whose earned rows show.
+function F.milestoneGroups(items, groups, expanded, fmt)
+	local out = {}
+	for _, group in ipairs(groups) do
+		local earned, open = {}, {}
+		for _, item in ipairs(items) do
+			if item.group == group then
+				local list = item.earned and earned or open
+				list[#list + 1] = item
+			end
+		end
+		if #earned + #open > 0 then
+			out[#out + 1] = {
+				text = group:upper(),
+				color = C.HEADER,
+				header = true,
+				right = #earned .. " of " .. (#earned + #open),
+				rightColor = C.HEADER,
 			}
+			for _, row in ipairs(F.milestoneRows(open, fmt)) do
+				row.text = "  " .. row.text
+				out[#out + 1] = row
+			end
+			if #earned > 0 then
+				local shown = expanded and expanded[group]
+				out[#out + 1] = {
+					text = CHECK .. " " .. #earned .. " earned",
+					color = C.FEL,
+					right = shown and "hide" or "show",
+					rightColor = C.MUTED,
+					value = "group:" .. group,
+				}
+				if shown then
+					table.sort(earned, function(a, b)
+						return a.earned > b.earned
+					end)
+					for _, row in ipairs(F.milestoneRows(earned, fmt)) do
+						row.text = "  " .. row.text
+						out[#out + 1] = row
+					end
+				end
+			end
 		end
 	end
-	if d.points then
-		lines[#lines + 1] = HR
-		lines[#lines + 1] = { text = d.points .. " pts", color = C.GREEN }
+	return out
+end
+
+-- The Me tab (spec 5.8) ------------------------------------------------------------------
+
+-- "today", "yesterday" or the date.
+function F.whenText(t, now, fmt)
+	if type(t) ~= "number" then
+		return nil
 	end
-	return lines
+	local days = type(now) == "number" and (math.floor(now / 86400) - math.floor(t / 86400)) or nil
+	if days == 0 then
+		return "today"
+	elseif days == 1 then
+		return "yesterday"
+	end
+	return F.dateText(t, fmt)
+end
+
+-- View.meCard's records as list lines. A record: { label, name, count, time, souls,
+-- class, classification, text }.
+function F.recordLines(records, now, fmt, classColors)
+	local out = {}
+	for i, r in ipairs(records) do
+		local value, color = r.text, C.TEXT
+		if r.souls then
+			value = F.join({ r.souls .. " souls", F.dateText(r.time, fmt) }, DOT, 2)
+		elseif r.name then
+			value = r.name
+			if r.count then
+				value = value .. " " .. F.countText(r.count)
+			end
+			if r.time then
+				value = F.join({ value, F.whenText(r.time, now, fmt) }, DOT, 2)
+			end
+			color = F.classHex(r.class, classColors) or (STYLES[r.classification] or {}).color or C.TEXT
+		end
+		out[i] = { text = r.label, color = C.MUTED, right = value or F.DASH, rightColor = color }
+	end
+	return out
 end

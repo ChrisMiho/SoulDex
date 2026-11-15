@@ -23,6 +23,26 @@ local function notePlace(db, ctx)
 	end
 end
 
+-- Souls claimed today and on the best day so far (the Me tab's "Best day"): db.today and
+-- db.best are { day, count }, a day being Points.day. Counted from the first claim after
+-- this was added; earlier days were never saved.
+local function noteDay(db, now)
+	if type(now) ~= "number" then
+		return
+	end
+	local day = ns.Points.day(now)
+	local today = db.today
+	if type(today) ~= "table" or today.day ~= day then
+		today = { day = day, count = 0, time = now }
+		db.today = today
+	end
+	today.count = today.count + 1
+	local best = db.best
+	if type(best) ~= "table" or today.count > (best.count or 0) then
+		db.best = { day = day, count = today.count, time = today.time }
+	end
+end
+
 local function noteLevel(entry, level)
 	if level then
 		if not entry.minLevel or level < entry.minLevel then
@@ -37,9 +57,12 @@ end
 function methods:recordMob(info, ctx)
 	local db = self.db
 	notePlace(db, ctx)
+	noteDay(db, ctx.time)
 	local entry = db.mobs[info.name]
 	local isNew = entry == nil
-	local points = 0
+	local points, stars = 0, nil
+	local before = entry and ns.Points.count(entry) or 0
+	local prevLast = entry and entry.last
 	if isNew then
 		points = ns.Points.forMob(info.classification)
 		entry = {
@@ -64,16 +87,24 @@ function methods:recordMob(info, ctx)
 	end
 	place.count = place.count + 1
 	place.last = ctx.time
-	return { isNew = isNew, points = points, total = self:uniqueSouls(), kind = "mob" }
+	if not isNew then
+		points, stars = ns.Points.again(entry, before, prevLast, ctx.time)
+	end
+	return {
+		isNew = isNew, points = points, total = self:uniqueSouls(), kind = "mob",
+		stars = stars, count = before + 1,
+	}
 end
 
 function methods:recordPlayer(info, ctx)
 	local db = self.db
 	notePlace(db, ctx)
+	noteDay(db, ctx.time)
 	local key = info.name .. "-" .. (info.realm or "")
 	local entry = db.players[key]
 	local isNew = entry == nil
 	local points = 0
+	local prevLast = entry and entry.last
 	if isNew then
 		points = ns.Points.PLAYER
 		entry = {
@@ -99,16 +130,21 @@ function methods:recordPlayer(info, ctx)
 		entry.places[ctx.zone] = place
 	end
 	place.count = place.count + 1
-	return { isNew = isNew, points = points, total = self:uniqueSouls(), kind = "player" }
+	if not isNew then
+		points = ns.Points.again(entry, entry.count - 1, prevLast, ctx.time, true)
+	end
+	return { isNew = isNew, points = points, total = self:uniqueSouls(), kind = "player", count = entry.count }
 end
 
 function methods:recordRaid(info, ctx, instanceID, npcID)
 	local db = self.db
+	noteDay(db, ctx.time)
 	local _, known = ns.Raids.find(instanceID, npcID)
 	local entry = db.raids[npcID]
 	local isNew = entry == nil
-	local points = 0
+	local points, stars = 0, nil
 	local before
+	local prevLast = entry and entry.last
 	if isNew then
 		before = self:uniqueSouls()
 		points = ns.Points.forMob(info.classification, known ~= nil and known.boss == true)
@@ -130,13 +166,16 @@ function methods:recordRaid(info, ctx, instanceID, npcID)
 	noteLevel(entry, info.level)
 	entry.count = entry.count + 1
 	entry.last = ctx.time
+	if not isNew then
+		points, stars = ns.Points.again(entry, entry.count - 1, prevLast, ctx.time)
+	end
 	-- A new raid slot whose name the dex already has (spec 4.5) adds no soul: no total, so
 	-- the popup shows no repeated "Soul #N".
 	local total = self:uniqueSouls()
 	if total == before then
 		total = nil
 	end
-	return { isNew = isNew, points = points, total = total, kind = "raid" }
+	return { isNew = isNew, points = points, total = total, kind = "raid", stars = stars, count = entry.count }
 end
 
 -- A soul whose name the game hid (spec 4.4): counted per zone only. No points, not a
@@ -144,6 +183,7 @@ end
 function methods:recordUnknown(ctx)
 	local db = self.db
 	notePlace(db, ctx)
+	noteDay(db, ctx.time)
 	local entry = db.unknown[ctx.zone]
 	if not entry then
 		entry = { count = 0, first = ctx.time, group = ctx.group }
@@ -184,14 +224,54 @@ function methods:uniqueSouls()
 	return self:uniqueMobs() + self:uniquePlayers()
 end
 
+-- What one saved entry has scored. A dex received from a friend (db.flat) already carries
+-- each entry's full worth in `points`.
+function methods:worth(entry, isPlayer)
+	if self.db.flat then
+		return entry.points or 0
+	elseif isPlayer then
+		return ns.Points.playerWorth(entry)
+	end
+	return ns.Points.mobWorth(entry)
+end
+
 function methods:score()
+	local db = self.db
 	local total = 0
-	for _, collection in ipairs({ self.db.mobs, self.db.players, self.db.raids }) do
-		for _, entry in pairs(collection) do
-			total = total + (entry.points or 0)
-		end
+	for _, entry in pairs(db.mobs) do
+		total = total + self:worth(entry)
+	end
+	for _, entry in pairs(db.raids) do
+		total = total + self:worth(entry)
+	end
+	for _, entry in pairs(db.players) do
+		total = total + self:worth(entry, true)
 	end
 	return total
+end
+
+-- A saved mob or raid entry's mastery: stars, claims, and the claim counts its current
+-- star began at and the next comes at. nil for souls that earn no stars (bosses, rares),
+-- and for a friend's raid creatures (their dex doesn't say which are bosses).
+function methods:stars(entry)
+	local flat = self.db.flat
+	if (flat and entry.instanceID) or ns.Points.rule(entry, flat) ~= "mastery" then
+		return nil
+	end
+	local count = ns.Points.count(entry)
+	local from, to = ns.Points.starSpan(count)
+	return ns.Points.stars(count), count, from, to
+end
+
+-- Mastery stars across the dex (mobs and raid creatures that earn them).
+function methods:masteryStars()
+	local n = 0
+	for _, collection in ipairs({ self.db.mobs, self.db.raids }) do
+		for _, entry in pairs(collection) do
+			n = n + (self:stars(entry) or 0)
+		end
+	end
+	return n
 end
 
 -- Known raid creatures caught, and how many the raid lists.

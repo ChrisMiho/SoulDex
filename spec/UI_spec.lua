@@ -74,7 +74,7 @@ describe("UI", function()
 			Print = function() end,
 		}
 		for _, file in ipairs({
-			"Settings", "Raids", "Points", "Rarity", "Flavour", "Dex", "Milestones", "View",
+			"Settings", "Raids", "Points", "Rarity", "Ranks", "Flavour", "Dex", "Milestones", "View",
 			"UIFormat", "UIList", "UI", "UIDetail", "Options",
 		}) do
 			LoadAddonFile("src/" .. file .. ".lua", ns)
@@ -107,6 +107,12 @@ describe("UI", function()
 		end
 		assert.equal("function", type(ns.Options.toggle))
 		assert.equal("function", type(ns.UIList.new))
+		-- progress bar fills: nothing for no or zero progress, never wider than the row
+		assert.is_nil(ns.UIList.barWidth(nil, 100))
+		assert.is_nil(ns.UIList.barWidth(0, 100))
+		assert.equal(1, ns.UIList.barWidth(0.001, 100))
+		assert.equal(50, ns.UIList.barWidth(0.5, 100))
+		assert.equal(100, ns.UIList.barWidth(3, 100))
 		assert.equal(1, #ns.onLoaded)
 		assert.equal(1, #ns.onCatch)
 	end)
@@ -153,17 +159,33 @@ describe("UI", function()
 				return left and left.text == text
 			end)
 		end
-		assert.is_truthy(rowWith("Souls taken"))
+		local function textShown(text)
+			return find("Frame", function(f)
+				for _, key in ipairs({ "rank", "place", "label", "value" }) do
+					local fs = rawget(f, key)
+					if fs and fs.text == text then
+						return true
+					end
+				end
+				return false
+			end)
+		end
+		assert.is_truthy(rowWith("RECORDS"))
+		assert.is_truthy(rowWith("Most claimed"))
+		assert.is_truthy(textShown("Initiate")) -- the crest and the chip
+		assert.is_truthy(textShown("RANK 1 OF 8"))
+		assert.is_truthy(textShown("SOULS TAKEN")) -- a tile
+		assert.is_truthy(textShown("AMONG FRIENDS"))
 		assert.is_nil(rowWith("Unknown souls"))
 		ns.dex = ns.Dex.new(db)
 		ns.dex:recordUnknown({ time = 5, zone = "Elwynn Forest", group = "Eastern Kingdoms" })
 		ns.onCatch[1]({}, {})
 		assert.is_truthy(rowWith("Unknown souls"))
-		assert.is_truthy(rowWith("Friends rank"))
+		assert.is_truthy(rowWith("Zones hunted"))
 		ns.UI.showDex(ns.Dex.new({}), "Ann") -- browsing: no error, still on Me
 		assert.equal("Me", ns.UI.currentTab())
-		local rank = rowWith("Friends rank") -- pooled rows linger, hidden
-		assert.is_true(rank == nil or rank.shown == false) -- Ann's dex has no rank line
+		assert.is_nil(textShown("AMONG FRIENDS")) -- Ann's dex has no place among your friends
+		assert.is_truthy(textShown("ZONES"))
 	end)
 
 	it("keeps the left list's scroll on selection and both on a catch; a tab switch resets", function()

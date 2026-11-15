@@ -176,7 +176,8 @@ describe("Capture glue", function()
 	local function load()
 		local ns = {}
 		local pure = {
-			"Settings", "RaidData", "Raids", "Points", "Rarity", "Flavour", "Dex", "Milestones", "Friends", "Catch", "Shards",
+			"Settings", "RaidData", "Raids", "Points", "Rarity", "Ranks", "Flavour", "Dex", "Milestones", "Friends", "Catch",
+			"Shards",
 		}
 		for _, f in ipairs(pure) do
 			LoadAddonFile("src/" .. f .. ".lua", ns)
@@ -670,6 +671,108 @@ describe("Capture glue", function()
 			assert.is_not_nil(db.shardSouls.B)
 		end)
 
+		it("shows the popup and a chat line when a repeat claim earns a mastery star", function()
+			world.target = HOGGER
+			local ns, db, printed = boot({ settings = { popup = true, sound = false, announce = false } })
+			local shown = {}
+			ns.Toast.show = function(result) shown[#shown + 1] = result end
+			for i = 1, 10 do
+				world.clock = world.clock + 10
+				drain("cast" .. i, "Hogger")
+				putShard(i, "G" .. i)
+				fire("BAG_UPDATE_DELAYED")
+				flush()
+			end
+			assert.equal(2, #shown) -- the first claim, then the 10th
+			assert.equal(1, shown[2].stars)
+			assert.is_false(shown[2].isNew)
+			assert.truthy(table.concat(printed, "\n"):find("Mastery: Hogger reached |cff9dff3a1 star|r (+2 pts).", 1, true))
+			assert.equal(7, ns.dex:score())
+			assert.is_not_nil(db.mobs.Hogger)
+		end)
+
+		it("picks a sound for the claim: a rank, a boss, or the usual", function()
+			local ns = boot()
+			_G.SOUNDKIT = { UI_EPICLOOT_TOAST = 1, UI_LEGENDARY_LOOT_TOAST = 2, LEVEL_UP = 3 }
+			local S = ns.Capture.soundFor
+			assert.equal(1, S({ kind = "mob", points = 5 }))
+			assert.equal(2, S({ kind = "raid", points = 25 }))
+			assert.equal(1, S({ kind = "player", points = 25 }))
+			assert.equal(3, S({ kind = "mob", points = 1 }, { name = "Reaper" }))
+			_G.SOUNDKIT = nil
+			assert.equal(888, S({ kind = "mob", points = 1 }, { name = "Reaper" }))
+			assert.equal(8959, S({ kind = "raid", points = 25 }))
+		end)
+
+		it("prints a line for every claim when chatter is on, and none when it is off", function()
+			world.target = HOGGER
+			local _, _, printed = boot({ settings = { popup = false, sound = false, announce = false, chatter = true } })
+			drain("cast1", "Hogger")
+			putShard(1, "A")
+			fire("BAG_UPDATE_DELAYED")
+			flush()
+			local text = table.concat(printed, "\n")
+			assert.truthy(text:find("Hogger", 1, true))
+			assert.truthy(text:find("(+5 pts)", 1, true))
+		end)
+
+		describe("ranking up", function()
+			-- Two ranks, the second at one elite's worth of points.
+			local function bootRanks(settings)
+				world.target = HOGGER
+				local ns, db, printed = boot({ settings = settings })
+				ns.Ranks.LIST = { { min = 0, name = "Initiate" }, { min = 5, name = "Reaper" }, { min = 500, name = "Top" } }
+				ns.Ranks.ANNOUNCE_FROM = 2
+				return ns, db, printed
+			end
+
+			local function catchHogger(cast, slot, guid)
+				world.clock = world.clock + 10
+				drain(cast, "Hogger")
+				putShard(slot, guid)
+				fire("BAG_UPDATE_DELAYED")
+				flush()
+			end
+
+			it("prints the new rank and hands it to the popup, once", function()
+				local ns, _, printed = bootRanks({ popup = true, sound = false, announce = false })
+				local shown, souls = {}, 0
+				ns.Toast.show = function() souls = souls + 1 end
+				ns.Toast.showRank = function(rank) shown[#shown + 1] = rank end
+				catchHogger("cast1", 1, "A")
+				assert.equal(1, souls) -- the soul's own popup still shows
+				assert.equal("Reaper", shown[1].name)
+				assert.equal(5, shown[1].score)
+				local line = table.concat(printed, "\n")
+				assert.truthy(line:find("Rank up: you are now |cff9dff3aReaper|r (rank 2 of 3).", 1, true))
+				-- the same mob again scores nothing: no second rank-up
+				local before = #printed
+				catchHogger("cast2", 2, "B")
+				assert.equal(1, #shown)
+				assert.equal(before, #printed)
+			end)
+
+			it("tells the guild from the announcing rank on, when announcements are on", function()
+				local sentChat = {}
+				_G.IsInGuild = function() return true end
+				_G.C_ChatInfo = {
+					SendChatMessage = function(text, channel) sentChat[#sentChat + 1] = channel .. ":" .. text end,
+				}
+				bootRanks({ popup = false, sound = false, announce = true })
+				catchHogger("cast1", 1, "A")
+				assert.same({ "GUILD:SoulDex: reached the rank of Reaper!" }, sentChat)
+			end)
+
+			it("stays out of guild chat when announcements are off", function()
+				local sentChat = {}
+				_G.IsInGuild = function() return true end
+				_G.C_ChatInfo = { SendChatMessage = function(text) sentChat[#sentChat + 1] = text end }
+				bootRanks({ popup = false, sound = false, announce = false })
+				catchHogger("cast1", 1, "A")
+				assert.same({}, sentChat)
+			end)
+		end)
+
 		describe("announcing during a chat lockdown", function()
 			local sentChat, locked
 
@@ -1104,11 +1207,12 @@ describe("Capture glue", function()
 			local mob = { kind = "mob", total = 3, points = 5 }
 			local player = { kind = "player", total = 42, points = 10 }
 			local raid = { kind = "raid", total = 7, points = 25 }
-			assert.equal("Elwynn Forest \194\183 Soul #3 \194\183 |cff7dff6a+5 pts|r", ns.Toast.subtitle(mob, "Elwynn Forest"))
-			assert.equal("Elwynn Forest \194\183 Soul #42 \194\183 |cff7dff6a+10 pts|r",
-				ns.Toast.subtitle(player, "Elwynn Forest"))
-			assert.equal("Molten Core \194\183 Soul #7 \194\183 |cff7dff6a+25 pts|r", ns.Toast.subtitle(raid, "Molten Core"))
-			assert.equal("Nowhere \194\183 |cff7dff6a+0 pts|r", ns.Toast.subtitle({ kind = "unknown", points = 0 }, "Nowhere"))
+			assert.equal("Elwynn Forest \194\183 Soul #3", ns.Toast.subtitle(mob, "Elwynn Forest"))
+			assert.equal("Elwynn Forest \194\183 Soul #42", ns.Toast.subtitle(player, "Elwynn Forest"))
+			assert.equal("Molten Core \194\183 Soul #7", ns.Toast.subtitle(raid, "Molten Core"))
+			assert.equal("Nowhere", ns.Toast.subtitle({ kind = "unknown", points = 0 }, "Nowhere"))
+			assert.equal("+25", ns.Toast.pointsText(raid))
+			assert.equal("+0", ns.Toast.pointsText({}))
 		end)
 		it("finds the shard icon without the removed GetItemIcon", function()
 			local ns = load()
@@ -1132,11 +1236,31 @@ describe("Capture glue", function()
 			assert.equal(1, #errors)
 			assert.is_truthy(errors[1]:find("boom"))
 		end)
-		it("marks rarity on mobs only", function()
+		it("names the soul plainly and puts its rarity in the title", function()
 			local ns = load()
-			assert.equal("Hogger  (Elite)", ns.Toast.nameLine({ name = "Hogger", classification = "elite" }))
-			assert.equal("Bob", ns.Toast.nameLine({ name = "Bob", classification = "elite", class = "ROGUE" }))
-			assert.equal("Wolf", ns.Toast.nameLine({ name = "Wolf", classification = "normal" }))
+			local T = ns.Toast
+			assert.equal("Hogger", T.nameLine({ name = "Hogger", classification = "elite" }))
+			assert.equal("SOUL CLAIMED", T.title({ name = "Wolf", classification = "normal" }))
+			assert.equal("ELITE SOUL CLAIMED", T.title({ name = "Hogger", classification = "elite" }))
+			assert.equal("RARE ELITE SOUL CLAIMED", T.title({ name = "X", classification = "rareelite" }))
+			assert.equal("BOSS SOUL CLAIMED", T.title({ name = "Ragnaros", classification = "worldboss" }))
+			assert.equal("PLAYER SOUL CLAIMED", T.title({ name = "Bob", classification = "elite", class = "ROGUE" }))
+			assert.equal("MASTERY: 1 STAR", T.title({ name = "Wolf" }, 1))
+			assert.equal("MASTERY: 4 STARS", T.title({ name = "Hogger", classification = "elite" }, 4))
+			assert.same({ "9dff3a", "9dff3a" }, { T.accent("ffd25a", 2) })
+			assert.equal("Durotar \194\183 \195\151100 claimed",
+				T.subtitle({ stars = 4, count = 100, points = 3, total = 9, isNew = false }, "Durotar"))
+			ns.View = { thousands = function(n) return "<" .. n .. ">" end }
+			assert.equal("Rank 4 of 8 \194\183 next: Reaper at <2500>",
+				T.rankSub({ index = 4, count = 8, nextName = "Reaper", nextMin = 2500 }))
+			assert.equal("Rank 8 of 8 \194\183 the highest rank", T.rankSub({ index = 8, count = 8 }))
+		end)
+		it("colours the popup by the soul, and fel green for a mastery star", function()
+			local T = load().Toast
+			assert.same({ "6b4fa0", "c9a8ff" }, { T.accent(nil) })
+			assert.same({ "6b4fa0", "c9a8ff" }, { T.accent("ffffff") })
+			assert.same({ "ffd25a", "ffd25a" }, { T.accent("ffd25a") })
+			assert.same({ "9dff3a", "9dff3a" }, { T.accent("ffd25a", 3) })
 		end)
 	end)
 

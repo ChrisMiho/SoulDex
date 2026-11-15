@@ -39,6 +39,7 @@ read_globals = {
 	"C_Map",
 	"C_Timer",
 	"ChatFrame_AddMessageEventFilter",
+	"CreateColor",
 	"CreateFrame",
 	"DEFAULT_CHAT_FRAME",
 	"Enum",

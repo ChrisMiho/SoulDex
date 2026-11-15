@@ -1,4 +1,4 @@
--- The options panel (/souldex options or the gear on the window): three switches
+-- The options panel (/souldex options or the gear on the window): four switches
 -- saved to db.settings the moment they are clicked. Game code.
 local _, ns = ...
 
@@ -6,12 +6,13 @@ local Options = {}
 ns.Options = Options
 
 Options.ITEMS = {
-	{ key = "popup", label = "New-catch popup" },
-	{ key = "sound", label = "New-catch sound" },
+	{ key = "popup", label = "New-soul popup" },
+	{ key = "sound", label = "New-soul sound" },
 	{ key = "announce", label = "Guild announcements" },
+	{ key = "chatter", label = "Claim chatter in chat" },
 }
 
-local WIDTH, HEIGHT = 200, 104
+local WIDTH, HEIGHT = 200, 128
 local panel
 local checks = {}
 

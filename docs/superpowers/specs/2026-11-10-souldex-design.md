@@ -14,6 +14,14 @@ Warlocks collect shards all the time anyway. SoulDex gives that chore a
 collector's goal, a record of where your souls came from, and something to
 compare with other warlocks.
 
+(changed after 1.2.4: rebrand.) The user found the first branding "too
+heartfelt about the journey of a soul" and asked for a game: "cool, polished,
+WoW, warlock, premium". **[user]** The voice is now a soul hunter's: souls are
+**claimed** (not "caught"), every claim is a trophy, the score earns a warlock
+**rank** (6.6), milestones have names, and lists show progress bars. The
+tagline is "Their souls. Your collection." **[user, from a list]** The code still says
+"catch" in its own names; only what players read changed.
+
 The user chose these things (marked **[user]**). Calls made while writing
 this document are marked **[call]**, and the user should check them.
 
@@ -209,7 +217,29 @@ The look was settled through mockups; the final versions are in
 - Tabs along the bottom: **Me · Mobs · Players · Raids · Milestones · Friends**.
   (changed during build: user asked for their own stats on a Me tab instead of a row in Friends) Mobs stays the default tab for a fresh character.
 - Each collection tab has the same two columns: a **compact list on the left**
-  (no bars) and a **list of names on the right**, each name with `×count`.
+  and a **list of names on the right**, each name with `×count`.
+- (changed after 1.2.4: rebrand.) A row can carry a **progress bar**: a 2 px
+  fel-green line along its bottom over a dark track. Used for an unfinished
+  raid in the Raids list, an unearned milestone, and the way to the next rank
+  on the Me tab. **[call]**
+- An empty Mobs tab reads "No souls claimed yet. Go drain something."
+- (changed after 1.2.4: UI rework.) The user approved a sheet of 18 numbered
+  changes ("I wanna do them all"). **[user]** For the whole window:
+  - It is **380 × 280** (was 360 × 232), shaded lighter purple at the top to
+    near-black at the bottom (flat fill on clients without texture gradients).
+  - The title bar starts with the Soul Shard's icon as an emblem. Right of
+    the title: the **rank chip** (the rank's name in fel green in a small dark
+    box), then the tab's total and the score.
+  - Under the title, in place of the rule, a 2 px **rank progress line**: a
+    dark track filled in fel green as far as the way to the next rank. The
+    chip and line follow the dex on screen (a friend's while browsing).
+  - The selected row on the left has a 2 px fel-green marker on its left
+    edge; the active tab has a fel-green underline.
+  - Rows of souls have a 2 px stripe on their left edge in the soul's rarity
+    colour (dull purple for ordinary mobs).
+  - A custom emblem texture is not shipped yet: a missing or unreadable
+    texture shows as a green square in game, so the game's own Soul Shard icon
+    is used until one is tested. **[call]**
 
 ### 5.2 Mobs tab
 
@@ -269,7 +299,7 @@ The look was settled through mockups; the final versions are in
   tick (raid done) markers are built-in texture icons. Intent kept: the
   markers are visible.) It must be easy to find without standing out. **[user]**
 - Mob pane: name, rarity, "Lv 11 Humanoid · Gnoll", the flavour line, then
-  caught ×N, first (date and your level), where (coordinates), last, and points.
+  Claimed ×N, first (date and your level), where (coordinates), last, and points.
   Raid creatures show the same rarity, level and type (older saved entries
   fill these in on their next catch); "where" is the raid's name.
 - Player pane: class-coloured name, "Lv 38 Orc Rogue" (the class in the
@@ -277,15 +307,55 @@ The look was settled through mockups; the final versions are in
   first and last (date and their level), then each place with coordinates
   and a count.
 
+(changed after 1.2.4: UI rework.) The pane is drawn as a **trophy card**
+(`UIFormat.mobCard` / `playerCard`, `UIDetail.lua`), top to bottom:
+
+- A header band tinted in the soul's colour (rarity or class), fading down.
+  In it: an icon with a border in that colour (one of the game's icons for
+  the creature type, by its English name; the Soul Shard for other languages
+  and unknown types; a crossed-swords icon for players), the name in that
+  colour, a line "Elite · Lv 11 Humanoid · Gnoll" (players: "Lv 38 Orc
+  Rogue"), and the points as a badge at the top right.
+- The flavour line, set off by a bar on its left, without quote marks.
+- Mastery (6.1), for souls that earn stars: a row of eight stars, lit ones
+  fel green and the rest dark, "+N" after it past eight; "12 / 25 to next
+  star" on the right; a 3 px bar under it.
+- Four cells in a 2 × 2 grid, each a small caps label over its value.
+  Mobs: Claimed, First, Where, Last. Players: Sharded, Guild, First, Last.
+  A missing value is a dash.
+- Players: their places listed below the cells (scrolls).
+- "« Back" at the bottom right closes it; the "×" is gone (the badge sits
+  there). **[call]**
+
 ### 5.6 Milestones tab
 
-Not mocked up. Same style: a compact list of milestones, earned ones bright
-with their date, the rest dimmed with how far along you are. Milestones:
+Not mocked up. Same style: a compact list of milestones. Each has a **name**
+and a plain goal beside it ("A Hundred Voices · 100 unique mobs"). Earned
+ones show the name in fel green and their date; the rest are dimmed with how far
+along you are and a progress bar. (changed after 1.2.4: rebrand; names are
+the builder's call.) Milestones:
 
-- Unique mobs: 10, 50, 100, 250, 500, 1000, named "N unique mobs" (they
-  count mobs only; the popup's "Soul #N" also counts players). **[user: "counts"]**
-- Unique players: 1, 10, 25, 50, 100. **[call]**
-- Each raid completed, and all raids completed. **[call, follows the raid dex]**
+- Unique mobs: 10 First Harvest, 50 Soul Collector, 100 A Hundred Voices,
+  250 Shard Hoarder, 500 Soul Baron, 1000 A Thousand Souls; goal "N unique
+  mobs" (they count mobs only; the popup's "Soul #N" also counts players).
+  **[user: "counts"]**
+- Unique players: 1 First Blood, 10 Headhunter, 25 Menace, 50 Dreaded,
+  100 Nemesis; goal "First player soul" / "N player souls". **[call]**
+- Each raid completed: "<Raid> Drained", goal "every soul". All raids
+  completed: "Raid Reaper", goal "every raid drained". **[call, follows the
+  raid dex]**
+
+In chat and guild messages a milestone reads "<name> (<goal>)".
+
+(changed after 1.2.4: UI rework.) The list is **grouped** under MOBS, PLAYERS
+and RAIDS, each header with "N of M" earned on the right
+(`UIFormat.milestoneGroups`). Under a header come the milestones still to
+earn, so the next goals are on top; then one fel-green row with a tick,
+"N earned", which opens and closes that group's earned milestones (newest
+first) when clicked. Groups start closed each session. **[user for grouping,
+the mark and collapsing; call on click-to-open]** The mockup's round
+medallion is the tick icon on the "N earned" row: the game has no ready-made
+lit/unlit medallion. **[call]**
 
 ### 5.7 Friends tab
 
@@ -344,27 +414,39 @@ Not mocked up. Same two columns. **[user for what; call for layout]**
 
 (changed during build: user asked for their own stats on a Me tab instead of a row in Friends)
 
-One full-width list of key/value lines, in this order: Score (green), Unique
-mobs, Players, Raids completed, Souls taken (every catch: mobs, players, raids
-and unknown souls), Zones visited (places with a mob, player or unknown catch),
-Most caught (open-world and dungeon mobs only, not raid creatures or players;
-mob name and `×count`, ties alphabetical, a dash when none), Top zone (most
-catches including unknown souls; raid catches have no zone, so they add to Souls
-taken but not to Zones visited), Unknown souls (only above 0) and Friends rank
-(`#R of N` among you and the friends we hold a summary for; added people not
-heard from yet are not ranked; a dash when you are alone). The header's right
-side is the score. While browsing a friend's dex the tab shows their numbers
-and no rank line. Redraws on a catch like the other tabs. Pure numbers:
-`View.me`.
+(changed after 1.2.4: UI rework; it replaced a plain list of key/value lines.)
+Three parts (`View.meCard`, numbers from `View.me`):
+
+- **Rank crest**, the left column: the Soul Shard icon, the rank's name in fel
+  green, "RANK N OF 8", the score, a 4 px bar to the next rank and
+  "<points> pts to <rank>" ("The highest rank" at the top).
+- **Six tiles**, two rows of three: Unique mobs, Players, Raids ("1 / 7"
+  completed), Mastery (stars, fel green, with a star), Souls taken (every
+  catch: mobs, players, raids and unknown souls), Among friends (`#R of N`
+  among you and the friends we hold a summary for; a dash when alone). While
+  browsing a friend the last tile is Zones instead.
+- **Records**, a list under the tiles: Most claimed (open-world and dungeon
+  mobs; name and `×count`, ties alphabetical), Nemesis (the player sharded
+  most, in class colour), Hunting ground (the zone with most catches),
+  Rarest trophy (a boss before a rare before an elite; the earliest of
+  equals), Latest (the last soul claimed, with "today", "yesterday" or the
+  date), Best day ("41 souls · 9 Nov 26"), Zones hunted (not while browsing)
+  and Unknown souls (only above 0). A record with nothing to show is a dash.
+  **[user: highlight the fun data; call on which records]**
+- Best day needs data the dex never kept: from this version every catch is
+  counted into `db.today` and the highest day kept in `db.best` (UTC days, as
+  in 6.1), so it starts from the update. **[call]**
+
+Redraws on a catch like the other tabs.
 
 ## 6. Game layer
 
 ### 6.1 Points
 
-Points only for a **first** catch. Repeats are counted, never scored. **[user]**
+A **first** claim scores the most; uniqueness stays the core. **[user]**
 
-| Catch | Points |
-|-------|--------|
+| Soul | First claim |
+|------|-------------|
 | Normal mob | 1 |
 | Elite | 5 |
 | Rare / rare elite | 10 |
@@ -374,7 +456,47 @@ Points only for a **first** catch. Repeats are counted, never scored. **[user]**
 Raid trash uses the same table by its classification. **[call on values;
 the user agreed to this table as an example]**
 
-### 6.2 New-catch popup and sound
+(changed after 1.2.4: until then repeats were counted and never scored.) The
+user wanted a way to keep earning points for warlocks who install late or
+farm one spot, "without the ability to it to be abused". **[user]** Claiming a
+soul **again** now scores by what it is:
+
+| Soul | Claiming it again |
+|------|-------------------|
+| Raid boss, world boss | The same 25 points, every claim: "a kill is a kill" and lockouts limit it. The user kept this after seeing it outpace PvP long term: you aren't always raiding with the same group. **[user]** |
+| Player | 3 points, at most once a day for each player. **[user: "a few points", so a PvP-only warlock keeps pace with a raider; 3 and "per player" are the builder's reading]** |
+| Rare / rare elite | 2 points, at most once a day for each rare. **[call]** |
+| Everything else (normal, elite, raid trash) | Mastery stars, below. **[user]** |
+
+**Mastery.** Claims of the same mob (all zones together) earn it stars at 10,
+25, 50, 100, 250, 500, 750 and 1,000 claims, then one more star every 500 claims,
+with no end. **[user: runway to 1,000, several milestones, one of them at
+750, a star every 500 after]** Each star pays points once: 1, 1, 2, 3, 5, 8, 8
+and 10 for the first eight (38 in all), then 5 for each later star; an elite
+earns double.
+**[call on thresholds below 1,000 and on values]**
+
+- "A day" is a UTC calendar day (`floor(time / 86400)`), compared with the
+  soul's previous claim: a second claim on the same day, or with a clock that
+  went backwards, pays nothing. **[call]**
+- Past claims are credited. Stars and boss repeats are worked out from the
+  saved claim counts (`Points.mobWorth`), so an existing dex gains them on
+  update with no migration. Daily points for players and rares are kept in
+  the entry's `bonus` and start from the update. **[call]**
+- Which rule applies: classification `worldboss` or 25 first-claim points is a
+  boss; `rare` / `rareelite` is daily; anything else is mastery (`Points.rule`).
+- A friend's dex arrives with each soul's full worth in its points (the wire
+  format is unchanged) and is scored at face value (`db.flat`). Their mobs
+  still show stars from their counts; their raid creatures show none.
+- Shown: rows put the stars before the count ("3★ ×212", a fel-green star so
+  it isn't read as the elite's yellow star); the detail pane has a "Mastery"
+  line, "3★ · 212/250" with a progress bar to the next star; the points line
+  is everything that soul has scored; the Me tab has "Mastery stars".
+- A claim that earns a star shows the popup even though the soul isn't new:
+  title "MASTERY: N STARS" in fel green, then "<zone> · ×N claimed" and the points,
+  with the sound, and a chat line "Mastery: <name> reached N stars (+N pts)."
+
+### 6.2 New-soul popup and sound
 
 - Catching a mob you already have, in a new place, adds it to that place's
   list quietly: no popup, no points. **[call]** "Soul #N" in the toast is
@@ -384,8 +506,17 @@ the user agreed to this table as an example]**
   already has adds no soul, so its toast leaves the number out rather than
   repeat it. **[call]**
 - On a **first** catch only (mob, player or raid entry), a small purple toast
-  slides in near the top of the screen (0.3 s slide, 4 s hold, 0.5 s fade): "NEW SOUL CAUGHT!",
-  the name, rarity, place, "Soul #N", and "+N pts". A short sound plays. **[user]**
+  slides in near the top of the screen (0.3 s slide, 4 s hold, 0.5 s fade): a title,
+  the name, place, "Soul #N", and "+N pts". A short sound plays. **[user]**
+- (changed after 1.2.4: rebrand.) The title names what was claimed: "SOUL
+  CLAIMED", "ELITE SOUL CLAIMED", "RARE SOUL CLAIMED", "RARE ELITE SOUL
+  CLAIMED", "BOSS SOUL CLAIMED" or "PLAYER SOUL CLAIMED"; the rarity is no
+  longer repeated after the name. The popup's border and title take the soul's
+  colour (rarity or class colour; purple for an ordinary mob). **[call]**
+- (changed after 1.2.4: the user found the first rebrand had "too much gold" and wanted it
+  "darker and demonesque".) Ranks, milestone names and rank-ups use fel green
+  (`9dff3a`), not gold; the flavour line in the detail pane is a soft violet
+  (`b9a6d9`), not yellow. Gold is left to elites, where the game itself uses it. **[user]**
 - The popup and the sound each have their own on/off setting. **[user]**
 - (changed during build: a hitch on the first popup.) The popup frame is built
   when the world first loads (only if the popup is on), not on the first catch,
@@ -398,6 +529,20 @@ the user agreed to this table as an example]**
   and the client has `StopSound` (otherwise it would be heard).
 - Ticking the popup or sound box in the options builds the popup / loads the
   sound right then, so the first catch after switching one on doesn't lag either.
+
+- (changed after 1.2.4: UI rework.) The popup is 330 px wide with a 3 px bar
+  on its left edge and a fade of the same colour behind the icon (the soul's
+  colour; fel green for a mastery star). The points are no longer in the
+  second line: they stand large on the right ("+25" over "PTS"). As it lands
+  a band of light crosses it once (0.45 s). **[user]**
+- A rank-up no longer borrows the soul's popup. A second popup appears under
+  it: "RANK UP", the rank in fel green, "Rank 4 of 8 · next: Reaper at 2,500"
+  ("the highest rank" at the top), and the score on the right. **[user]**
+- Sounds: the level-up fanfare for a rank-up, a heavier loot chime for a boss
+  (any creature claim worth 25 or more), the usual chime otherwise
+  (`Capture.soundFor`). Only the usual chime is loaded ahead at login, so the
+  other two may hitch the first time they play. **[user for different
+  sounds; call on which]**
 
 ### 6.3 Shard tooltip
 
@@ -439,6 +584,10 @@ the user agreed to this table as an example]**
   loading), expire after an hour, are capped at 10, and are dropped if
   announcements are turned off. **[call]**
 
+- (changed after 1.2.4: rebrand.) Reaching the rank of Reaper or higher
+  (rank 5 of 8, 2,500 points) is announced the same way: "SoulDex: reached the
+  rank of <rank>!". Lower ranks are not. **[call]**
+
 ### 6.5 Flavour text
 
 Each mob gets one silly line built from templates using its type, family,
@@ -452,17 +601,48 @@ languages, use the Beast lines. Raid creatures get flavour lines too. The
 wording is the builder's call. Players get no flavour
 text. **[call]**
 
+### 6.6 Ranks
+
+(added after 1.2.4: rebrand.) The score earns a warlock rank. **[call on
+names and thresholds]**
+
+| Rank | Name | From (points) |
+|------|------|---------------|
+| 1 | Initiate | 0 |
+| 2 | Acolyte | 50 |
+| 3 | Soul Thief | 250 |
+| 4 | Shardbinder | 1,000 |
+| 5 | Reaper | 2,500 |
+| 6 | Soul Harvester | 5,000 |
+| 7 | Soul Tyrant | 10,000 |
+| 8 | Lord of Souls | 25,000 |
+
+(Raised when repeat claims began to score, 6.1: a raider claiming every boss
+each week can earn over 1,000 points a week. **[call]**)
+
+- Nothing is saved: the rank is worked out from the score (`Ranks.lua`), so
+  existing characters get theirs at once and a friend's rank comes from the
+  score they already send.
+- Shown on the Me tab (5.8), on a friend's lines in the Friends tab ("Rank"),
+  and in the login line.
+- A claim that crosses a threshold prints "Rank up: you are now <rank> (rank
+  N of 8)." in your own chat, shows a second popup, "RANK UP" (6.2), and from Reaper on goes to guild chat (6.4).
+
 ## 7. Settings
 
 `/souldex` opens the window. `/souldex options` (and a small gear in the
 window) opens settings. `/souldex add <name>` and `/souldex remove <name>`
 manage the Friends list by name; any other word prints the command list.
 After each login or `/reload`, one chat line shows the addon is on:
-"SoulDex v<version> loaded. Type /souldex or /dex to open." **[user]**
-The settings:
+"SoulDex v<version> loaded. <Rank>, <score> pts. Type /souldex or /dex to
+open." **[user]** (the rank and score were added with the rebrand; they are
+left out if the dex isn't loaded yet). The settings:
 
-- New-catch popup on/off
-- New-catch sound on/off
+- New-soul popup on/off
+- New-soul sound on/off
+- Claim chatter in chat on/off, **off** by default: one line in your own chat
+  frame for every claim, in the warlock's voice ("Hogger's soul is yours.
+  That's 12.", with "(+N pts)" when it scored). `Flavour.chatter`. **[user]**
 - Guild announcements on/off
 
 All saved.
@@ -504,7 +684,7 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
   reload; if the dex is suddenly empty, relog before reporting a bug.
 
 **Catching**
-- Drain Soul a mob to death and get a shard: the popup "NEW SOUL CAUGHT!"
+- Drain Soul a mob to death and get a shard: the popup "SOUL CLAIMED"
   appears at top centre (name in rarity colour, zone, "Soul #N", "+N pts"),
   a sound plays, it holds 4 s, then fades (about 5 s in all); a second quick kill replaces it.
   The first catch after a `/reload` or a fresh login, with the sound on, shows
@@ -552,8 +732,8 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
   that exact shard.
 
 **Window**
-- Log in or `/reload`: one chat line "SoulDex v<version> loaded. Type
-  /souldex or /dex to open." (with a version number such as "v1.1.0", not
+- Log in or `/reload`: one chat line "SoulDex v<version> loaded. <Rank>,
+  <score> pts. Type /souldex or /dex to open.", the rank in fel green (with a version number such as "v1.1.0", not
   "dev", in a built copy; "dev" only in an unbuilt checkout).
 - `/souldex` opens a small dark-purple window with the score at the top right,
   a gear and a ×, and tabs Me · Mobs · Players · Raids · Milestones · Friends.
@@ -572,8 +752,9 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
   first and last with level, places with coordinates, points.
 - Raids: every raid with caught/total or a tick icon; uncaught mobs show as
   dim "? ? ?" (bosses with a dark skull) and do nothing on click.
-- Milestones: earned ones white with a date, the rest dimmed with progress.
-  Crossing one prints a chat line; a guild message goes out only for the
+- Milestones: each reads "<name> · <goal>"; earned ones have the name in fel green
+  and a date, the rest are dimmed with progress and a thin green bar under
+  the row. Crossing one prints "Milestone earned: <name> (<goal>)"; a guild message goes out only for the
   announce milestones (100 mobs, 25 players, raids), only in a guild with
   announcements on.
 - Announcement during a lockdown: `/console addonChatRestrictionsForced 1`,
@@ -597,17 +778,86 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
   `src/RaidData.lua`. Check at least one boss and one trash mob.
 
 **Me tab**
-- Me is the left-most of six tabs and all fit in the window. It lists Score,
-  Unique mobs, Players, Raids completed, Souls taken, Zones visited, Most caught,
+- Me is the left-most of six tabs and all fit in the window. On top is your
+  rank in fel green with the score in white, then "Rank N · next: <rank>" with
+  "<points> pts to go" and a thin green bar under it showing how far along you
+  are. Below, without needing to scroll: Unique mobs, Players, Raids
+  completed, Souls taken, Zones visited, Most claimed,
   Top zone, (Unknown souls only if you have any) and Friends rank ("#2 of 3", or
   a dash with no friends seen). A new catch updates it while open; browsing a
-  friend shows their numbers without a rank.
+  friend shows their rank and numbers without a Friends rank.
+
+**UI rework (after 1.2.4)** Everything here is drawn blind; report anything
+that overlaps, is cut off, or shows as a solid green square (a missing icon).
+- Window: larger than before, lighter purple at the top shading to near-black
+  at the bottom (a flat colour is acceptable; say which you see). The Soul
+  Shard icon sits at the left of the title. Right of the title: your rank in
+  green in a small box, then the total and score, the gear and ×. None of
+  these overlap, including on the Milestones tab and while browsing a friend
+  ("« My dex" button, "SoulDex · Viewing X").
+- Under the title a thin line is green from the left as far as your progress
+  to the next rank.
+- The active tab has a green underline; the selected zone, class or raid has
+  a green mark on its left edge; each soul's row has a thin stripe on its left
+  (gold for elites, silver rares, orange bosses).
+- Click a mob: the card slides in. Check the tinted header, the icon (right
+  for a beast, humanoid, undead, demon, elemental; a Soul Shard otherwise),
+  name, the line under it, the points badge at the top right, the flavour
+  line with a bar beside it, the row of eight stars with "N / M to next
+  star" and a bar, the four boxes (Claimed, First, Where, Last) with their
+  values readable, and "« Back" at the bottom right. A raid boss and a rare
+  have no star row. A player shows crossed swords, Sharded / Guild / First /
+  Last, and their places below.
+- Me: icon, rank, "RANK N OF 8", score, bar and "N pts to <rank>" on the
+  left; six boxes with a number over a small label; under them RECORDS with
+  Most claimed, Nemesis, Hunting ground, Rarest trophy, Latest ("today"),
+  Best day (a dash until your first claim after updating) and Zones hunted.
+- Milestones: MOBS / PLAYERS / RAIDS headers with "N of M"; unearned ones
+  first with bars; clicking "N earned" shows and hides the earned ones.
+- Popup: a coloured bar at its left edge, the points large on the right
+  ("+5" over "PTS"), and a band of light that crosses once. Ranking up shows
+  a second popup just under it with "RANK UP" and plays a different sound; a
+  boss plays a different sound too. Neither popup overlaps the other.
+- Options has four boxes; ticking "Claim chatter in chat" prints one line per
+  claim, and unticking stops it.
+
+**Rebrand (after 1.2.4)**
+- The popup's title and border follow the soul: purple "SOUL CLAIMED" for an
+  ordinary mob, gold "ELITE SOUL CLAIMED" for an elite, silver for a rare,
+  orange "BOSS SOUL CLAIMED" for a boss, the class colour and "PLAYER SOUL
+  CLAIMED" for a player. The name line no longer ends in "(Elite)".
+- Rank up: on a low character, claim souls until the score passes 50. That
+  claim shows a second popup, "RANK UP" and "Acolyte" in fel green, and chat
+  shows "Rank up: you are now Acolyte (rank 2 of 8)." No guild message below
+  Reaper (2,500 points).
+- Progress bars: an unfinished raid in the Raids list, each unearned
+  milestone and the Me tab's second line have a 2 px green bar along the
+  bottom of the row, as wide as the progress; no bar on a finished raid or an
+  earned milestone, and no stray bars on other rows after switching tabs or
+  scrolling. **Please check** the bars sit inside the row and don't overlap
+  the text.
+- Friends: clicking a person shows a fel-green "Rank" line above their score.
+- Mastery: claim the same ordinary mob 10 times. The 10th claim shows the
+  popup "MASTERY: 1 STAR" in fel green with "<zone> · ×10 claimed" and "+1"
+  (+2 for an elite) and chat says "Mastery: <name> reached 1 star (+1 pts).".
+  Its row then reads "1★ ×10" with a small **green** star (**please check**
+  the star is green, not yellow, and sits on the text line), and its details
+  have a "Mastery" line "1★ · 10/25" with a bar. The Me tab's "Mastery stars"
+  goes up by one. A mob you had already claimed 10 or more times before
+  updating shows its stars at once, and the score is higher than before.
+- Raid boss: claim a boss you already have. The score rises by 25 again; no
+  popup (it isn't new and bosses earn no stars).
+- Player: claim a player you already have on a later day: +3 points, once.
+  Claim them again the same day: nothing. A rare works the same with +2.
+- Options: the first two boxes read "New-soul popup" and "New-soul sound".
+- An empty Mobs tab reads "No souls claimed yet. Go drain something." on one
+  or two lines, not cut off.
 
 **Friends** (two players A and B on a packaged build, same realm)
 - Same guild: within about 5 s of login the Friends tab on both lists both
   names by score, you in your ranked place marked "(you)". Alone, your row is
   hidden, the left side shows the help text ("Guild and group members with SoulDex appear here." and "/souldex add <name>") and the right side is empty.
-- Click the other person: Score, Unique mobs, Players, Raids completed, online.
+- Click the other person: Rank, Score, Unique mobs, Players, Raids completed, online.
 - A clicks Browse dex: "Asking B..." then B's dex fills every tab, the title
   reads "SoulDex · Viewing B" with a "« My dex" button, and entries B has and
   A lacks are green. A catch made while browsing does not change the view;
