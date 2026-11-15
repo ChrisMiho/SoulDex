@@ -1,14 +1,13 @@
-## 💜 SoulDex 1.2.3: Out of the Shadows
+## 💜 SoulDex 1.2.4: A Name, Bound
 
-*Every pact has terms. Ours are now written plainly, for all to read.*
+*A true name holds power. This one now has no seams.*
 
 **What's new**
 
-- **Open source.** SoulDex's code is now public on GitHub. Read it, report bugs and suggest ideas in the issues.
-- **GPLv3 licence.** SoulDex is now licensed under the GNU GPL v3 (it was MIT), the same licence as the Questie raid data it ships.
-- **A new name in the addon list.** SoulDex now calls itself "A collection dex for your Soul Shards".
+- **One name everywhere.** The addon is now simply SoulDex: the window, options, chat lines, guild announcements and the addon list all agree.
+- **Coming to CurseForge.** This is the first version on CurseForge, alongside GitHub.
 - **No gameplay changes.** Your dex, points and settings are untouched.
 
-**Install:** download `SoulDex-v1.2.3-forever.zip` below and unzip it into `Interface\AddOns`, replacing your old `SoulDex` folder, then `/reload`. No new files this time, so no full restart needed.
+**Install:** download `SoulDex-v1.2.4-forever.zip` below and unzip it into `Interface\AddOns`, replacing your old `SoulDex` folder, then `/reload`. No new files this time, so no full restart needed.
 
-*The contract is signed. Now go fill some shards.*
+*Speak its name, warlock. Then go fill some shards.*
