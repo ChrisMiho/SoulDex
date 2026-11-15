@@ -25,9 +25,10 @@
 <script>
 "use strict";
 
-// The ring: the band and the shard sit inside a group scaled so that rank 8's crown and aura
-// stay at least 4 units inside the 200 x 200 box.
-var RING_SCALE = 0.74;
+// Each rank's drawing is scaled to fill the 200 x 200 box with at least 4 units to spare:
+// the bare shard (ranks 1-2) and the ring alone (3-4) are drawn larger than the spiked ring
+// (5-7), which leaves room for rank 8's crown.
+var SCALE = [1.15, 1.15, 1.0, 1.0, 0.775, 0.775, 0.775, 0.735];
 
 // Forked fel bolts and their glowing ends, from shard.svg.
 var BOLTS = "M77.6 57.7 L77.1 54.2 L75.8 49.2 L71.1 46.6 L71.0 41.1 L67.9 46.8 L59.4 45.7 M70.5 100.4 L61.0 101.7 L52.3 97.2 L45.0 94.5 L38.8 97.0 M87.4 137.1 L83.0 137.6 L77.0 135.6 L72.5 136.4 L67.9 141.0 M100.5 165.7 L97.6 166.7 L93.6 168.5 L88.2 165.8 L84.1 164.3 M101.7 45.7 L108.3 45.7 L114.8 48.6 L123.8 50.4 L132.2 48.1 L138.2 43.8 M128.1 87.3 L134.1 80.5 L143.2 78.2 L149.2 77.7 L158.2 78.6 L161.4 83.8 M124.8 127.6 L127.7 132.7 L133.5 134.5 L136.5 139.0 L140.9 144.1 M122.2 158.9 L124.3 153.6 L129.1 154.8 L131.5 157.8 L132.0 161.0 L131.1 165.5 L135.4 165.2";
@@ -109,7 +110,7 @@ var DEFS = '\
 	<filter id="@softer" x="-50%" y="-50%" width="200%" height="200%">\
 		<feGaussianBlur stdDeviation="7"/>\
 	</filter>\
-	<clipPath id="@inside"><circle cx="100" cy="100" r="80"/></clipPath>\
+	<clipPath id="@inside"><circle cx="100" cy="100" r="78"/></clipPath>\
 	<linearGradient id="@spikeLit" x1="0" y1="0" x2="0" y2="1">\
 		<stop offset="0%" stop-color="#5a5070"/>\
 		<stop offset="55%" stop-color="#8f84a6"/>\
@@ -119,9 +120,9 @@ var DEFS = '\
 		<stop offset="0%" stop-color="#0d0a13"/>\
 		<stop offset="100%" stop-color="#3a3149"/>\
 	</linearGradient>\
-	<g id="@spike"><path d="M83 180 L100 215.5 L100 180 Z" fill="url(#@spikeLit)"/><path d="M117 180 L100 215.5 L100 180 Z" fill="url(#@spikeDark)"/><path d="M83 180 L100 215.5 L117 180" fill="none"/></g>\
-	<g id="@crown"><path d="M81 180 L100 227 L100 180 Z" fill="url(#@spikeLit)"/><path d="M119 180 L100 227 L100 180 Z" fill="url(#@spikeDark)"/><path d="M81 180 L100 227 L119 180" fill="none"/></g>\
-	<g id="@rivet"><circle cx="100" cy="14" r="3.2" fill="#15111d" stroke="#000" stroke-width="0.8"/><circle cx="99.2" cy="13.2" r="1.4" fill="#c9bfdc"/></g>\
+	<g id="@spike"><path d="M80 180 L100 221 L100 180 Z" fill="url(#@spikeLit)"/><path d="M120 180 L100 221 L100 180 Z" fill="url(#@spikeDark)"/><path d="M80 180 L100 221 L120 180" fill="none"/></g>\
+	<g id="@crown"><path d="M78 180 L100 229 L100 180 Z" fill="url(#@spikeLit)"/><path d="M122 180 L100 229 L100 180 Z" fill="url(#@spikeDark)"/><path d="M78 180 L100 229 L122 180" fill="none"/></g>\
+	<g id="@rivet"><circle cx="100" cy="14" r="3.6" fill="#15111d" stroke="#000" stroke-width="0.8"/><circle cx="99.1" cy="13.1" r="1.6" fill="#e2dbef"/></g>\
 </defs>';
 
 function spikes(rank) {
@@ -145,8 +146,8 @@ function shard(rank) {
 	out += '<path d="M100 24 L131 88 L109 172 L100 178 L91 172 L69 88 Z" fill="none" stroke="#080112" stroke-width="' + (grey ? 3.4 : 2.6) + '" stroke-linejoin="round"/>';
 	out += '<path d="M100 24 L69 88" stroke="#ffffff" stroke-width="1.2" opacity="' + (grey ? 0.4 : 0.6) + '"/>';
 	if (rank >= 6) {
-		out += '<path d="M70.5 90 L91.6 171" stroke="url(#@felEdge)" stroke-width="1.5" stroke-linecap="round"/>';
-		out += '<path d="M129.5 90 L108.4 171" stroke="url(#@felEdge)" stroke-width="1.5" stroke-linecap="round" opacity="0.8"/>';
+		out += '<path d="M70.5 90 L91.6 171" stroke="url(#@felEdge)" stroke-width="3" stroke-linecap="round"/>';
+		out += '<path d="M129.5 90 L108.4 171" stroke="url(#@felEdge)" stroke-width="3" stroke-linecap="round" opacity="0.9"/>';
 	}
 	if (!grey) {
 		out += '<ellipse cx="88" cy="62" rx="5" ry="11" fill="#ffffff" opacity="0.4" filter="url(#@soft)" transform="rotate(26 88 62)"/>';
@@ -193,35 +194,37 @@ function emblem(rank, prefix, size) {
 	if (rank >= 2) {
 		body += '<g id="@layer-glow"><circle cx="100" cy="100" r="92" fill="url(#@violet)"/></g>';
 	}
-	body += '<g transform="translate(100 100) scale(' + RING_SCALE + ') translate(-100 -100)">';
+	body += '<g transform="translate(100 100) scale(' + SCALE[rank - 1] + ') translate(-100 -100)">';
 	if (rank >= 5) {
 		body += '<g id="@layer-spikes">' + spikes(rank) + "</g>";
 	}
 	if (rank >= 3) {
 		body += '<g id="@layer-ring"><circle cx="100" cy="100" r="86" fill="url(#@disc)"/>';
 		if (rank >= 4) {
-			// The full band: black keyline, bevelled metal, a lit upper-left rim and a shadowed lower-right.
-			body += '<circle cx="100" cy="100" r="86" fill="none" stroke="#000" stroke-width="13"/>';
-			body += '<circle cx="100" cy="100" r="86" fill="none" stroke="url(#@band)" stroke-width="9.5"/>';
-			body += '<circle cx="100" cy="100" r="89.4" fill="none" stroke="url(#@rimLight)" stroke-width="1.6"/>';
-			body += '<circle cx="100" cy="100" r="86" fill="none" stroke="#000" stroke-width="0.8" opacity="0.55"/>';
-			body += '<circle cx="100" cy="100" r="82.4" fill="none" stroke="url(#@rimDark)" stroke-width="1.8"/>';
+			// The full band, heavier and lighter than rank 3's: black keyline, bevelled metal,
+			// a lit upper-left rim and a shadowed lower-right.
+			body += '<circle cx="100" cy="100" r="86" fill="none" stroke="#000" stroke-width="18"/>';
+			body += '<circle cx="100" cy="100" r="86" fill="none" stroke="url(#@band)" stroke-width="14"/>';
+			body += '<circle cx="100" cy="100" r="91.6" fill="none" stroke="url(#@rimLight)" stroke-width="2"/>';
+			body += '<circle cx="100" cy="100" r="86" fill="none" stroke="#000" stroke-width="0.8" opacity="0.4"/>';
+			body += '<circle cx="100" cy="100" r="80.2" fill="none" stroke="url(#@rimDark)" stroke-width="2.2"/>';
 			var rivets = '<use href="#@rivet"/>';
 			for (var a = 45; a < 360; a += 45) {
 				rivets += '<use href="#@rivet" transform="rotate(' + a + ' 100 100)"/>';
 			}
 			body += "<g>" + rivets + "</g>";
 		} else {
-			// A thin plain iron band.
+			// A thin, dark, plain iron band.
 			body += '<circle cx="100" cy="100" r="86" fill="none" stroke="#000" stroke-width="7"/>';
-			body += '<circle cx="100" cy="100" r="86" fill="none" stroke="#5a5070" stroke-width="5"/>';
+			body += '<circle cx="100" cy="100" r="86" fill="none" stroke="#4a4060" stroke-width="5"/>';
 		}
 		if (rank >= 6) {
 			// The fel energy lights the inside edge of the band.
-			body += '<circle cx="100" cy="100" r="80.4" fill="none" stroke="#8dff3a" stroke-width="3.5" opacity="0.6" filter="url(#@soft)"/>';
-			body += '<circle cx="100" cy="100" r="80.6" fill="none" stroke="#b6ff7a" stroke-width="1" opacity="0.9"/>';
+			body += '<circle cx="100" cy="100" r="76" fill="none" stroke="#8dff3a" stroke-width="6" opacity="0.7" filter="url(#@soft)"/>';
+			body += '<circle cx="100" cy="100" r="77.6" fill="none" stroke="#9dff4a" stroke-width="2.4"/>';
+			body += '<circle cx="100" cy="100" r="77.6" fill="none" stroke="#e6ffd0" stroke-width="0.8"/>';
 		}
-		body += '<circle cx="100" cy="100" r="80" fill="url(#@well)"/></g>';
+		body += '<circle cx="100" cy="100" r="78" fill="url(#@well)"/></g>';
 	}
 	if (rank >= 7) {
 		body += '<g id="@layer-bolts">' + bolts() + "</g>";

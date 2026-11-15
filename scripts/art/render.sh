@@ -53,9 +53,14 @@ fi
 
 # shoot <query> <width> <height> <output file>
 shoot() {
+	rm -f "$4"
 	"$browser" --headless=new --disable-gpu --hide-scrollbars --force-device-scale-factor=1 \
 		--default-background-color=00000000 --allow-file-access-from-files \
-		--window-size="$2,$3" --screenshot="$(native "$4")" "file:///${page#/}$1" >/dev/null 2>&1
+		--window-size="$2,$3" --screenshot="$(native "$4")" "file:///${page#/}$1" >/dev/null 2>&1 || true
+	if [ ! -s "$4" ]; then
+		echo "screenshot failed: $(basename "$4")" >&2
+		exit 1
+	fi
 }
 
 tmp="$(mktemp -d)"
