@@ -1,0 +1,266 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>SoulDex rank emblems</title>
+<!--
+	The eight rank emblems, drawn from the shapes of docs/curseforge/source/shard.svg
+	(original art). ?rank=N (1..8, default 8) draws one emblem from the window's top-left
+	corner, ?s=<px> pixels square (default 256, the size render.sh shoots); ?sheet draws
+	the review sheet. scripts/art/render.sh turns these into art/rank<N>.tga.
+-->
+<style>
+	html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; }
+	.one { display: block; }
+	.sheet { width: 1200px; height: 420px; background: #14101c; display: flex; align-items: center; }
+	.col { width: 150px; display: flex; flex-direction: column; align-items: center; }
+	.name {
+		height: 44px; display: flex; align-items: center; justify-content: center; text-align: center;
+		color: #9dff3a; font: bold 15px Georgia, "Times New Roman", serif; letter-spacing: 0.5px;
+	}
+	.col svg { display: block; margin-bottom: 14px; }
+</style>
+</head>
+<body>
+<script>
+"use strict";
+
+// The ring: the band and the shard sit inside a group scaled so that rank 8's crown and aura
+// stay at least 4 units inside the 200 x 200 box.
+var RING_SCALE = 0.74;
+
+// Forked fel bolts and their glowing ends, from shard.svg.
+var BOLTS = "M77.6 57.7 L77.1 54.2 L75.8 49.2 L71.1 46.6 L71.0 41.1 L67.9 46.8 L59.4 45.7 M70.5 100.4 L61.0 101.7 L52.3 97.2 L45.0 94.5 L38.8 97.0 M87.4 137.1 L83.0 137.6 L77.0 135.6 L72.5 136.4 L67.9 141.0 M100.5 165.7 L97.6 166.7 L93.6 168.5 L88.2 165.8 L84.1 164.3 M101.7 45.7 L108.3 45.7 L114.8 48.6 L123.8 50.4 L132.2 48.1 L138.2 43.8 M128.1 87.3 L134.1 80.5 L143.2 78.2 L149.2 77.7 L158.2 78.6 L161.4 83.8 M124.8 127.6 L127.7 132.7 L133.5 134.5 L136.5 139.0 L140.9 144.1 M122.2 158.9 L124.3 153.6 L129.1 154.8 L131.5 157.8 L132.0 161.0 L131.1 165.5 L135.4 165.2";
+var FORKS = "M59.4 45.7 L54.1 41.8 L47.1 41.3 M67.9 46.8 L64.8 43.4 L64.7 37.4 L68.9 33.4 L70.8 28.2 M38.8 97.0 L32.0 95.3 L26.1 94.4 L24.4 89.4 L22.5 84.9 M52.3 97.2 L53.2 92.6 L49.9 89.5 L49.1 83.3 L44.4 78.9 M67.9 141.0 L62.7 147.4 L55.5 148.0 L49.8 150.7 L41.2 152.8 M72.5 136.4 L68.4 142.1 L69.1 150.0 L71.3 156.2 L70.5 166.2 M84.1 164.3 L82.3 168.2 L85.8 170.9 L84.1 175.0 L81.5 176.8 M138.2 43.8 L144.8 45.1 L148.8 42.3 L153.5 41.9 M114.8 48.6 L120.6 46.9 L126.8 45.4 L130.9 47.4 L138.4 47.5 M161.4 83.8 L166.7 86.6 L172.5 88.5 L178.3 89.4 M143.2 78.2 L148.1 71.2 L150.9 64.1 L152.5 58.7 L156.7 53.5 M140.9 144.1 L144.7 140.6 L151.0 140.4 L158.9 143.5 L167.1 141.7 M133.5 134.5 L131.1 138.8 L132.3 144.8 L133.3 152.2 L138.6 156.1 M135.4 165.2 L136.3 170.4 L132.6 171.9 M129.1 154.8 L132.4 158.4 L136.7 159.9 L142.0 161.9 L146.0 160.8";
+var ENDS = [[47.1, 41.3, 3.9], [70.8, 28.2, 3.6], [22.5, 84.9, 3.4], [44.4, 78.9, 3.5], [41.2, 152.8, 4.0], [70.5, 166.2, 3.7], [81.5, 176.8, 3.3], [153.5, 41.9, 4.2], [138.4, 47.5, 3.9], [178.3, 89.4, 4.5], [156.7, 53.5, 3.8], [167.1, 141.7, 3.9], [138.6, 156.1, 3.6], [132.6, 171.9, 3.9], [146.0, 160.8, 4.4]];
+var ARCS = "M72.9 74.0 L82.6 72.4 L96.4 76.8 L108.3 79.7 L124.5 77.3 M79.9 120.8 L94.2 113.9 L103.9 108.8 L114.5 105.3 L126.9 102.2 M91.1 145.3 L102.6 149.2 L109.3 154.1 L117.4 158.0 L122.6 154.4";
+
+// Spike angles round the ring (0 = bottom, as the spike is drawn).
+var SPIKES = {
+	5: [0, 90, -90],
+	6: [0, 48, -48, 90, -90],
+	7: [0, 45, -45, 90, -90, 135, -135, 180],
+};
+
+// Gradients, filters and shapes from shard.svg; the band, spikes and rivets are lightened
+// so the ring still reads at 14 px, and the grey, violet and aura ones are new. "@" stands for a
+// per-emblem id prefix so several emblems can share one page.
+var DEFS = '\
+<defs>\
+	<radialGradient id="@violet" cx="50%" cy="50%" r="50%">\
+		<stop offset="0%" stop-color="#4a1a8f" stop-opacity="0.75"/>\
+		<stop offset="55%" stop-color="#4a1a8f" stop-opacity="0.45"/>\
+		<stop offset="100%" stop-color="#4a1a8f" stop-opacity="0"/>\
+	</radialGradient>\
+	<radialGradient id="@aura" cx="50%" cy="50%" r="50%">\
+		<stop offset="70%" stop-color="#6fe02a" stop-opacity="0.75"/>\
+		<stop offset="84%" stop-color="#6fe02a" stop-opacity="0.32"/>\
+		<stop offset="100%" stop-color="#6fe02a" stop-opacity="0"/>\
+	</radialGradient>\
+	<linearGradient id="@band" x1="0" y1="0" x2="1" y2="1">\
+		<stop offset="0%" stop-color="#b3a8c8"/>\
+		<stop offset="30%" stop-color="#5a5070"/>\
+		<stop offset="65%" stop-color="#241e30"/>\
+		<stop offset="100%" stop-color="#6a6080"/>\
+	</linearGradient>\
+	<radialGradient id="@disc" cx="50%" cy="45%" r="60%">\
+		<stop offset="0%" stop-color="#241043"/>\
+		<stop offset="60%" stop-color="#0e0619"/>\
+		<stop offset="100%" stop-color="#040208"/>\
+	</radialGradient>\
+	<linearGradient id="@faceL" x1="0" y1="0" x2="1" y2="1">\
+		<stop offset="0%" stop-color="#eedcff"/>\
+		<stop offset="38%" stop-color="#a468f5"/>\
+		<stop offset="100%" stop-color="#3a1080"/>\
+	</linearGradient>\
+	<linearGradient id="@faceR" x1="1" y1="0" x2="0" y2="1">\
+		<stop offset="0%" stop-color="#7a3bd6"/>\
+		<stop offset="55%" stop-color="#3d1282"/>\
+		<stop offset="100%" stop-color="#12042a"/>\
+	</linearGradient>\
+	<linearGradient id="@greyL" x1="0" y1="0" x2="1" y2="1">\
+		<stop offset="0%" stop-color="#8f84a6"/>\
+		<stop offset="100%" stop-color="#332b42"/>\
+	</linearGradient>\
+	<linearGradient id="@greyR" x1="1" y1="0" x2="0" y2="1">\
+		<stop offset="0%" stop-color="#6a6080"/>\
+		<stop offset="100%" stop-color="#1e1928"/>\
+	</linearGradient>\
+	<linearGradient id="@rimLight" x1="0" y1="0" x2="1" y2="1">\
+		<stop offset="0%" stop-color="#d8cdea" stop-opacity="0.9"/>\
+		<stop offset="45%" stop-color="#d8cdea" stop-opacity="0"/>\
+	</linearGradient>\
+	<linearGradient id="@rimDark" x1="0" y1="0" x2="1" y2="1">\
+		<stop offset="55%" stop-color="#000" stop-opacity="0"/>\
+		<stop offset="100%" stop-color="#000" stop-opacity="0.9"/>\
+	</linearGradient>\
+	<radialGradient id="@well" cx="50%" cy="50%" r="50%">\
+		<stop offset="62%" stop-color="#000" stop-opacity="0"/>\
+		<stop offset="100%" stop-color="#000" stop-opacity="0.75"/>\
+	</radialGradient>\
+	<linearGradient id="@felEdge" x1="0" y1="0" x2="0" y2="1">\
+		<stop offset="0%" stop-color="#b6ff7a" stop-opacity="0"/>\
+		<stop offset="60%" stop-color="#b6ff7a" stop-opacity="0.9"/>\
+		<stop offset="100%" stop-color="#b6ff7a" stop-opacity="0.2"/>\
+	</linearGradient>\
+	<filter id="@soft" x="-50%" y="-50%" width="200%" height="200%">\
+		<feGaussianBlur stdDeviation="3.2"/>\
+	</filter>\
+	<filter id="@softer" x="-50%" y="-50%" width="200%" height="200%">\
+		<feGaussianBlur stdDeviation="7"/>\
+	</filter>\
+	<clipPath id="@inside"><circle cx="100" cy="100" r="80"/></clipPath>\
+	<linearGradient id="@spikeLit" x1="0" y1="0" x2="0" y2="1">\
+		<stop offset="0%" stop-color="#5a5070"/>\
+		<stop offset="55%" stop-color="#8f84a6"/>\
+		<stop offset="100%" stop-color="#c9bfdc"/>\
+	</linearGradient>\
+	<linearGradient id="@spikeDark" x1="0" y1="0" x2="0" y2="1">\
+		<stop offset="0%" stop-color="#0d0a13"/>\
+		<stop offset="100%" stop-color="#3a3149"/>\
+	</linearGradient>\
+	<g id="@spike"><path d="M83 180 L100 215.5 L100 180 Z" fill="url(#@spikeLit)"/><path d="M117 180 L100 215.5 L100 180 Z" fill="url(#@spikeDark)"/><path d="M83 180 L100 215.5 L117 180" fill="none"/></g>\
+	<g id="@crown"><path d="M81 180 L100 227 L100 180 Z" fill="url(#@spikeLit)"/><path d="M119 180 L100 227 L100 180 Z" fill="url(#@spikeDark)"/><path d="M81 180 L100 227 L119 180" fill="none"/></g>\
+	<g id="@rivet"><circle cx="100" cy="14" r="3.2" fill="#15111d" stroke="#000" stroke-width="0.8"/><circle cx="99.2" cy="13.2" r="1.4" fill="#c9bfdc"/></g>\
+</defs>';
+
+function spikes(rank) {
+	var angles = SPIKES[Math.min(rank, 7)] || [];
+	var out = "";
+	angles.forEach(function (angle) {
+		var crown = rank >= 8 && Math.abs(angle) >= 135;
+		out += '<use href="#@' + (crown ? "crown" : "spike") + '" transform="rotate(' + angle + ' 100 100)"/>';
+	});
+	return '<g stroke="#000" stroke-width="1.5" stroke-linejoin="round">' + out + "</g>";
+}
+
+function shard(rank) {
+	var grey = rank === 1;
+	var out = '<g transform="translate(100 100) rotate(-10) translate(-100 -100)">';
+	out += '<path d="M100 24 L131 88 L109 172 L100 178 Z" fill="url(#@' + (grey ? "greyR" : "faceR") + ')"/>';
+	out += '<path d="M100 24 L69 88 L91 172 L100 178 Z" fill="url(#@' + (grey ? "greyL" : "faceL") + ')"/>';
+	out += '<path d="M100 24 L69 88 L100 102 L131 88 Z" fill="' + (grey ? "#c9c0d8" : "#e3c8ff") + '" opacity="' + (grey ? 0.3 : 0.5) + '"/>';
+	out += '<path d="M69 88 L100 102 L131 88" fill="none" stroke="#fbf2ff" stroke-width="1.6" opacity="' + (grey ? 0.5 : 0.85) + '"/>';
+	out += '<path d="M100 102 L100 178" stroke="#fbf2ff" stroke-width="1.1" opacity="' + (grey ? 0.25 : 0.45) + '"/>';
+	out += '<path d="M100 24 L131 88 L109 172 L100 178 L91 172 L69 88 Z" fill="none" stroke="#080112" stroke-width="' + (grey ? 3.4 : 2.6) + '" stroke-linejoin="round"/>';
+	out += '<path d="M100 24 L69 88" stroke="#ffffff" stroke-width="1.2" opacity="' + (grey ? 0.4 : 0.6) + '"/>';
+	if (rank >= 6) {
+		out += '<path d="M70.5 90 L91.6 171" stroke="url(#@felEdge)" stroke-width="1.5" stroke-linecap="round"/>';
+		out += '<path d="M129.5 90 L108.4 171" stroke="url(#@felEdge)" stroke-width="1.5" stroke-linecap="round" opacity="0.8"/>';
+	}
+	if (!grey) {
+		out += '<ellipse cx="88" cy="62" rx="5" ry="11" fill="#ffffff" opacity="0.4" filter="url(#@soft)" transform="rotate(26 88 62)"/>';
+	}
+	return out + "</g>";
+}
+
+function bolts() {
+	var out = '<ellipse cx="100" cy="100" rx="42" ry="64" fill="#8dff3a" opacity="0.18" filter="url(#@softer)"/>';
+	out += '<g clip-path="url(#@inside)" fill="none" stroke-linecap="round" stroke-linejoin="miter">';
+	out += '<path d="' + BOLTS + '" stroke="#8dff3a" stroke-width="7.8" opacity="0.5" filter="url(#@soft)"/>';
+	out += '<path d="' + BOLTS + '" stroke="#9dff4a" stroke-width="2.3"/>';
+	out += '<path d="' + BOLTS + '" stroke="#f6ffe8" stroke-width="1.0"/>';
+	out += '<path d="' + FORKS + '" stroke="#8dff3a" stroke-width="3.7" opacity="0.5" filter="url(#@soft)"/>';
+	out += '<path d="' + FORKS + '" stroke="#9dff4a" stroke-width="1.1"/>';
+	out += '<path d="' + FORKS + '" stroke="#f6ffe8" stroke-width="0.5"/>';
+	out += "</g>";
+	var glow = "", core = "";
+	ENDS.forEach(function (end) {
+		glow += '<circle cx="' + end[0] + '" cy="' + end[1] + '" r="' + end[2] + '"/>';
+		core += '<circle cx="' + end[0] + '" cy="' + end[1] + '" r="0.9"/>';
+	});
+	out += '<g fill="#8dff3a" opacity="0.7" filter="url(#@soft)">' + glow + "</g>";
+	out += '<g fill="#f6ffe8">' + core + "</g>";
+	return out;
+}
+
+function arcs() {
+	var out = '<g fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.9">';
+	out += '<path d="' + ARCS + '" stroke="#8dff3a" stroke-width="3.1" opacity="0.5" filter="url(#@soft)"/>';
+	out += '<path d="' + ARCS + '" stroke="#9dff4a" stroke-width="0.9"/>';
+	out += '<path d="' + ARCS + '" stroke="#f6ffe8" stroke-width="0.4"/>';
+	return out + "</g>";
+}
+
+// The emblem for a rank (1..8), as SVG markup. Each rank keeps every layer of the rank below.
+function emblem(rank, prefix, size) {
+	var body = "";
+	// Rank 8: the outer fel aura round the whole ring.
+	if (rank >= 8) {
+		body += '<g id="@layer-aura"><circle cx="100" cy="100" r="94" fill="url(#@aura)"/></g>';
+	}
+	// Rank 2+: a soft violet glow behind the shard.
+	if (rank >= 2) {
+		body += '<g id="@layer-glow"><circle cx="100" cy="100" r="92" fill="url(#@violet)"/></g>';
+	}
+	body += '<g transform="translate(100 100) scale(' + RING_SCALE + ') translate(-100 -100)">';
+	if (rank >= 5) {
+		body += '<g id="@layer-spikes">' + spikes(rank) + "</g>";
+	}
+	if (rank >= 3) {
+		body += '<g id="@layer-ring"><circle cx="100" cy="100" r="86" fill="url(#@disc)"/>';
+		if (rank >= 4) {
+			// The full band: black keyline, bevelled metal, a lit upper-left rim and a shadowed lower-right.
+			body += '<circle cx="100" cy="100" r="86" fill="none" stroke="#000" stroke-width="13"/>';
+			body += '<circle cx="100" cy="100" r="86" fill="none" stroke="url(#@band)" stroke-width="9.5"/>';
+			body += '<circle cx="100" cy="100" r="89.4" fill="none" stroke="url(#@rimLight)" stroke-width="1.6"/>';
+			body += '<circle cx="100" cy="100" r="86" fill="none" stroke="#000" stroke-width="0.8" opacity="0.55"/>';
+			body += '<circle cx="100" cy="100" r="82.4" fill="none" stroke="url(#@rimDark)" stroke-width="1.8"/>';
+			var rivets = '<use href="#@rivet"/>';
+			for (var a = 45; a < 360; a += 45) {
+				rivets += '<use href="#@rivet" transform="rotate(' + a + ' 100 100)"/>';
+			}
+			body += "<g>" + rivets + "</g>";
+		} else {
+			// A thin plain iron band.
+			body += '<circle cx="100" cy="100" r="86" fill="none" stroke="#000" stroke-width="7"/>';
+			body += '<circle cx="100" cy="100" r="86" fill="none" stroke="#5a5070" stroke-width="5"/>';
+		}
+		if (rank >= 6) {
+			// The fel energy lights the inside edge of the band.
+			body += '<circle cx="100" cy="100" r="80.4" fill="none" stroke="#8dff3a" stroke-width="3.5" opacity="0.6" filter="url(#@soft)"/>';
+			body += '<circle cx="100" cy="100" r="80.6" fill="none" stroke="#b6ff7a" stroke-width="1" opacity="0.9"/>';
+		}
+		body += '<circle cx="100" cy="100" r="80" fill="url(#@well)"/></g>';
+	}
+	if (rank >= 7) {
+		body += '<g id="@layer-bolts">' + bolts() + "</g>";
+	}
+	if (rank === 1) {
+		body += '<g id="@layer-shard" transform="translate(100 100) scale(0.6) translate(-100 -100)">' + shard(rank) + "</g>";
+	} else {
+		body += '<g id="@layer-shard">' + shard(rank) + "</g>";
+	}
+	if (rank >= 8) {
+		body += '<g id="@layer-arcs">' + arcs() + "</g>";
+	}
+	body += "</g>";
+	var dims = ' width="' + size + '" height="' + size + '"';
+	var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"' + dims + ">" + DEFS + body + "</svg>";
+	return svg.replace(/@/g, prefix);
+}
+
+var NAMES = ["Initiate", "Acolyte", "Soul Thief", "Shardbinder", "Reaper", "Soul Harvester", "Soul Tyrant", "Lord of Souls"];
+var params = new URLSearchParams(location.search);
+
+if (params.has("sheet")) {
+	var html = '<div class="sheet">';
+	for (var rank = 1; rank <= 8; rank++) {
+		html += '<div class="col"><div class="name">' + NAMES[rank - 1] + "</div>";
+		[128, 52, 38, 14].forEach(function (size) {
+			html += emblem(rank, "r" + rank + "s" + size + "-", size);
+		});
+		html += "</div>";
+	}
+	document.body.innerHTML = html + "</div>";
+} else {
+	var n = parseInt(params.get("rank"), 10);
+	if (!(n >= 1 && n <= 8)) {
+		n = 8;
+	}
+	var px = parseInt(params.get("s"), 10) || 256;
+	document.body.innerHTML = emblem(n, "e-", px).replace("<svg ", '<svg class="one" ');
+}
+</script>
+</body>
+</html>
