@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Build the addon exactly as a release would, then:
-#   1. zip it as .release/SoulDex-<version>.zip (one SoulDex/
+#   1. zip it as .release/SoulDex-<version>-forever.zip (one SoulDex/
 #      folder inside, ready to unzip into Interface\AddOns), and
 #   2. install it into your game's AddOns folder.
 #
@@ -85,7 +85,8 @@ version="$(sed -n 's/^## Version: *//p' "$pkg/$ADDON.toc" | tr -d '\r')"
 [ -n "$version" ] || { echo "Could not read version from $pkg/$ADDON.toc" >&2; exit 1; }
 
 # --- Zip ---------------------------------------------------------------------
-zipfile=".release/$ADDON-$version.zip"
+# Same name as the release zip (-n in .github/workflows/release.yml).
+zipfile=".release/$ADDON-$version-forever.zip"
 rm -f "$zipfile"
 if command -v zip > /dev/null 2>&1; then
 	(cd .release && zip -qr "$(basename "$zipfile")" "$ADDON")
