@@ -218,6 +218,23 @@ existing options list.)
   → Unknown once, two captures with two tokens.
 - `luacheck .` clean.
 
+## 7a. Probe results (2026-11-15, Scarlet Monastery, `/sdprobe`)
+
+| Read | Out of combat | Mid-pull |
+|---|---|---|
+| `UnitIsUnit("mouseover"/"focus","target")`, `UnitExists` | readable | readable |
+| `UnitClassification("target")` | readable (`elite`) | readable |
+| `UnitCreatureType` / `UnitCreatureFamily` | secret | secret |
+| `UnitIsAFK`/`UnitIsDND`, `InChatMessagingLockdown`, `InCombatLockdown`, `IsEncounterInProgress` | readable | readable |
+| `GetUnitName("player", true)` | `"Forgot Shards"` (two-part name, space) | same |
+| `SendChatMessage("SDXP:%t","WHISPER",nil,me)` | sent | sent |
+| `CHAT_MSG_WHISPER` text / line id (arg 11) / sender GUID (arg 12) | all readable, `%t` expanded | all readable |
+| `ChatFrameUtil.AddMessageEventFilter`, `ChatFrame_AddMessageEventFilter`, `ChatEdit_Get/SetLastTellTarget`, `C_ChatInfo.GetChatLineText` | present | — |
+
+So: the 5.2 guard works; the whisper recipient is `GetUnitName("player", true)`;
+creature type and family are recorded missing in dungeons and filled later
+(5.4). Boss encounters not probed yet; chat lockdown there leaves Unknown.
+
 ## 8. In game (adds to spec section 9)
 
 1. In a dungeon, Drain Soul a mob out of combat → popup with its real name;
