@@ -100,3 +100,57 @@ describe("Raids boss roster", function()
 		end
 	end)
 end)
+
+describe("Raids with TBD raids", function()
+	local Raids
+
+	before_each(function()
+		local ns = {
+			RaidData = {
+				{ key = "BD", name = "The Barrow Deeps", tbd = true, mobs = {} },
+				{ key = "MC", name = "Molten Core", instanceID = 409, mobs = { { id = 1, name = "A" } } },
+			},
+		}
+		LoadAddonFile("src/Raids.lua", ns)
+		Raids = ns.Raids
+	end)
+
+	it("never matches a raid without an id by a nil id", function()
+		assert.is_nil(Raids.byInstance(nil))
+		assert.is_nil(Raids.find(nil, 1))
+	end)
+	it("finds a raid by key", function()
+		assert.equal("Molten Core", Raids.byKey("MC").name)
+		assert.is_nil(Raids.byKey("nope"))
+	end)
+	it("finds an id-less raid by name, loosely", function()
+		assert.equal("BD", Raids.byName("The Barrow Deeps").key)
+		assert.equal("BD", Raids.byName("  barrow deeps ").key)
+		assert.is_nil(Raids.byName("Molten Core")) -- has an id already
+		assert.is_nil(Raids.byName("Barrow"))
+		assert.is_nil(Raids.byName(""))
+		assert.is_nil(Raids.byName(nil))
+		assert.is_nil(Raids.byName(42))
+	end)
+	it("learns an instance id once", function()
+		assert.is_true(Raids.learn("BD", 3001))
+		assert.equal("BD", Raids.byInstance(3001).key)
+		assert.is_nil(Raids.byName("The Barrow Deeps"))
+		assert.is_true(Raids.learn("BD", 3001))
+		assert.is_false(Raids.learn("BD", 3002))
+		assert.equal(3001, Raids.byKey("BD").instanceID)
+	end)
+	it("refuses a bad or colliding id", function()
+		assert.is_false(Raids.learn("BD", 409))
+		assert.is_false(Raids.learn("BD", "3001"))
+		assert.is_false(Raids.learn("BD", nil))
+		assert.is_false(Raids.learn("nope", 3001))
+		assert.is_nil(Raids.byKey("BD").instanceID)
+		assert.equal("MC", Raids.byInstance(409).key)
+	end)
+	it("lists only completable raids", function()
+		local list = Raids.completable()
+		assert.equal(1, #list)
+		assert.equal("MC", list[1].key)
+	end)
+end)
