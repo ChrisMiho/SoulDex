@@ -606,13 +606,18 @@ function Capture.prepareFor(db, key)
 	end
 end
 
--- The rank this catch earned (ns.Ranks.gained), or nil: only a catch that scored can.
+-- The rank this catch earned (ns.Ranks.gained), or nil: only a catch that scored can. The
+-- score change (result.gained) counts a points top-up that result.points leaves out.
 local function rankGained(dex, result)
-	if not ns.Ranks or type(result.points) ~= "number" or result.points <= 0 then
+	local change = result.gained
+	if type(change) ~= "number" then
+		change = result.points
+	end
+	if not ns.Ranks or type(change) ~= "number" or change <= 0 then
 		return nil
 	end
 	local score = dex:score()
-	return ns.Ranks.gained(score - result.points, score)
+	return ns.Ranks.gained(score - change, score)
 end
 
 -- A chat line for every rank-up; guild chat from Ranks.ANNOUNCE_FROM on (when switched on).

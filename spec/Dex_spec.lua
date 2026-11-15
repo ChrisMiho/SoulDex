@@ -118,6 +118,17 @@ describe("Dex", function()
 		assert.equal(5, db.mobs.Ogre.points)
 	end)
 
+	it("gives the score change of a catch, a points top-up included", function()
+		local r = dex:recordMob({ name = "Scarlet Chaplain", level = 10 }, ctx())
+		assert.equal(dex:score(), r.gained)
+		local before = dex:score()
+		local elite = mob("Scarlet Chaplain", { classification = "elite" })
+		r = dex:recordMob(elite, ctx(nil, { time = 2000 }))
+		assert.equal(0, r.points) -- the claim itself scores nothing
+		assert.equal(dex:score() - before, r.gained)
+		assert.equal(ns.Points.forMob("elite") - ns.Points.forMob(nil), r.gained)
+	end)
+
 	it("fills a soul's missing details on a later catch and never overwrites them", function()
 		dex:recordMob({ name = "Scarlet Chaplain", level = 10 }, ctx())
 		local entry = db.mobs["Scarlet Chaplain"]

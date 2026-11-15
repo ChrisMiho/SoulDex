@@ -67,6 +67,7 @@ function methods:recordMob(info, ctx)
 	local isNew = entry == nil
 	local points, stars = 0, nil
 	local before = entry and ns.Points.count(entry) or 0
+	local worthBefore = entry and self:worth(entry) or 0
 	local prevLast = entry and entry.last
 	if isNew then
 		points = ns.Points.forMob(info.classification)
@@ -107,9 +108,10 @@ function methods:recordMob(info, ctx)
 	if not isNew then
 		points, stars = ns.Points.again(entry, before, prevLast, ctx.time)
 	end
+	-- gained: the whole score change, a points top-up included (points is the claim's own).
 	return {
 		isNew = isNew, points = points, total = self:uniqueSouls(), kind = "mob",
-		stars = stars, count = before + 1,
+		stars = stars, count = before + 1, gained = self:worth(entry) - worthBefore,
 	}
 end
 

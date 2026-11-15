@@ -1498,6 +1498,25 @@ describe("Capture glue", function()
 				assert.same({ "Friend", "WHISPER" }, world.lastTell)
 			end)
 
+			it("a later catch that tops up a whisper-named soul's points can rank you up", function()
+				world.target = { name = SECRET, guid = SECRET, level = SECRET, classification = SECRET }
+				local ns, db, printed = boot()
+				ns.Ranks.LIST = { { min = 0, name = "Initiate" }, { min = 5, name = "Reaper" }, { min = 500, name = "Top" } }
+				drain("cast1", SECRET)
+				newShard(1, "A")
+				whisper("SDX1:" .. tokenOf(sends[1]) .. ":Hogger", ME_GUID)
+				assert.equal(ns.Points.forMob(nil), ns.dex:score())
+				fire("UNIT_SPELLCAST_CHANNEL_STOP", "player", "cast1", 1120)
+				world.clock = world.clock + 30
+				world.target = HOGGER
+				drain("cast2", "Hogger")
+				newShard(2, "B")
+				assert.equal(2, ns.Points.count(db.mobs.Hogger))
+				assert.equal(5, ns.dex:score())
+				local line = table.concat(printed, "\n")
+				assert.truthy(line:find("Rank up: you are now |cff9dff3aReaper|r", 1, true))
+			end)
+
 			it("a reply with no usable name after the shard is held gives one Unknown soul", function()
 				world.target = MONK
 				local _, db = boot()
