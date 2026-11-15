@@ -1,45 +1,127 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
-	<!-- SoulDex shard mark: a faceted soul shard inside an arcane ring. Original art. -->
+	<!-- SoulDex emblem: a soul shard crackling with fel energy, held in a spiked ring of
+	     black iron. Original art. -->
 	<defs>
-		<radialGradient id="glow" cx="50%" cy="50%" r="50%">
-			<stop offset="0%" stop-color="#b56cff" stop-opacity="0.75"/>
-			<stop offset="55%" stop-color="#6d2bbf" stop-opacity="0.25"/>
-			<stop offset="100%" stop-color="#2a0c4a" stop-opacity="0"/>
+		<radialGradient id="glow" cx="50%" cy="55%" r="50%">
+			<stop offset="0%" stop-color="#6fe02a" stop-opacity="0.30"/>
+			<stop offset="55%" stop-color="#4a1a8f" stop-opacity="0.22"/>
+			<stop offset="100%" stop-color="#12061f" stop-opacity="0"/>
 		</radialGradient>
+		<radialGradient id="disc" cx="50%" cy="45%" r="60%">
+			<stop offset="0%" stop-color="#241043"/>
+			<stop offset="60%" stop-color="#0e0619"/>
+			<stop offset="100%" stop-color="#040208"/>
+		</radialGradient>
+		<linearGradient id="iron" x1="0" y1="0" x2="1" y2="1">
+			<stop offset="0%" stop-color="#8f84a6"/>
+			<stop offset="28%" stop-color="#332b42"/>
+			<stop offset="65%" stop-color="#0d0a13"/>
+			<stop offset="100%" stop-color="#3a3149"/>
+		</linearGradient>
 		<linearGradient id="faceL" x1="0" y1="0" x2="1" y2="1">
-			<stop offset="0%" stop-color="#f1dcff"/>
-			<stop offset="45%" stop-color="#b072f0"/>
-			<stop offset="100%" stop-color="#4a1585"/>
+			<stop offset="0%" stop-color="#eedcff"/>
+			<stop offset="38%" stop-color="#a468f5"/>
+			<stop offset="100%" stop-color="#3a1080"/>
 		</linearGradient>
 		<linearGradient id="faceR" x1="1" y1="0" x2="0" y2="1">
-			<stop offset="0%" stop-color="#9d55e6"/>
-			<stop offset="60%" stop-color="#5a1ea3"/>
-			<stop offset="100%" stop-color="#22083f"/>
+			<stop offset="0%" stop-color="#7a3bd6"/>
+			<stop offset="55%" stop-color="#3d1282"/>
+			<stop offset="100%" stop-color="#12042a"/>
 		</linearGradient>
-		<linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
-			<stop offset="0%" stop-color="#d9bcff"/>
-			<stop offset="50%" stop-color="#8a5cd0"/>
-			<stop offset="100%" stop-color="#4b2f80"/>
+		<linearGradient id="rimLight" x1="0" y1="0" x2="1" y2="1">
+			<stop offset="0%" stop-color="#d8cdea" stop-opacity="0.9"/>
+			<stop offset="45%" stop-color="#d8cdea" stop-opacity="0"/>
 		</linearGradient>
+		<linearGradient id="rimDark" x1="0" y1="0" x2="1" y2="1">
+			<stop offset="55%" stop-color="#000" stop-opacity="0"/>
+			<stop offset="100%" stop-color="#000" stop-opacity="0.9"/>
+		</linearGradient>
+		<radialGradient id="well" cx="50%" cy="50%" r="50%">
+			<stop offset="62%" stop-color="#000" stop-opacity="0"/>
+			<stop offset="100%" stop-color="#000" stop-opacity="0.75"/>
+		</radialGradient>
+		<linearGradient id="felEdge" x1="0" y1="0" x2="0" y2="1">
+			<stop offset="0%" stop-color="#b6ff7a" stop-opacity="0"/>
+			<stop offset="60%" stop-color="#b6ff7a" stop-opacity="0.9"/>
+			<stop offset="100%" stop-color="#b6ff7a" stop-opacity="0.2"/>
+		</linearGradient>
+		<filter id="soft" x="-50%" y="-50%" width="200%" height="200%">
+			<feGaussianBlur stdDeviation="3.2"/>
+		</filter>
+		<clipPath id="inside"><circle cx="100" cy="100" r="80"/></clipPath>
+		<filter id="softer" x="-50%" y="-50%" width="200%" height="200%">
+			<feGaussianBlur stdDeviation="7"/>
+		</filter>
+		<!-- one spike on the ring, pointing out (drawn at the bottom) -->
+		<path id="spike" d="M90 181 L100 201 L110 181 Z"/>
 	</defs>
-	<circle cx="100" cy="100" r="96" fill="url(#glow)"/>
-	<circle cx="100" cy="100" r="82" fill="none" stroke="url(#ring)" stroke-width="5"/>
-	<circle cx="100" cy="100" r="72" fill="none" stroke="#6b4fa0" stroke-width="1.5" stroke-dasharray="3 6"/>
-	<!-- four rune notches on the ring -->
-	<g fill="#c9a8ff">
-		<path d="M100 12 l5 8 h-10z"/>
-		<path d="M100 188 l5 -8 h-10z"/>
-		<path d="M12 100 l8 5 v-10z"/>
-		<path d="M188 100 l-8 5 v-10z"/>
-	</g>
-	<!-- the shard -->
-	<g transform="translate(100 100) rotate(-12) translate(-100 -100)">
-		<path d="M100 34 L128 92 L108 166 L100 170 Z" fill="url(#faceR)"/>
-		<path d="M100 34 L72 92 L92 166 L100 170 Z" fill="url(#faceL)"/>
-		<path d="M100 34 L72 92 L100 104 L128 92 Z" fill="#e7cbff" opacity="0.55"/>
-		<path d="M72 92 L100 104 L128 92" fill="none" stroke="#f6eaff" stroke-width="1.5" opacity="0.8"/>
-		<path d="M100 104 L100 170" stroke="#f6eaff" stroke-width="1" opacity="0.45"/>
-		<path d="M100 34 L128 92 L108 166 L100 170 L92 166 L72 92 Z" fill="none" stroke="#2a0c4a" stroke-width="2"/>
-		<circle cx="90" cy="70" r="4" fill="#ffffff" opacity="0.9"/>
+
+	<circle cx="100" cy="100" r="99" fill="url(#glow)"/>
+
+	<!-- the ring -->
+	<g transform="translate(100 100) scale(0.93) translate(-100 -100)">
+		<g fill="url(#iron)" stroke="#000" stroke-width="1.5" stroke-linejoin="round">
+			<use href="#spike"/>
+			<use href="#spike" transform="rotate(48 100 100)"/>
+			<use href="#spike" transform="rotate(-48 100 100)"/>
+			<use href="#spike" transform="rotate(90 100 100)"/>
+			<use href="#spike" transform="rotate(-90 100 100)"/>
+		</g>
+		<circle cx="100" cy="100" r="86" fill="url(#disc)"/>
+		<!-- iron band: black keyline, bevelled metal, a lit upper-left edge and a shadowed lower-right -->
+		<circle cx="100" cy="100" r="86" fill="none" stroke="#000" stroke-width="13"/>
+		<circle cx="100" cy="100" r="86" fill="none" stroke="url(#iron)" stroke-width="9.5"/>
+		<circle cx="100" cy="100" r="89.4" fill="none" stroke="url(#rimLight)" stroke-width="1.6"/>
+		<circle cx="100" cy="100" r="86" fill="none" stroke="#000" stroke-width="0.8" opacity="0.55"/>
+		<circle cx="100" cy="100" r="82.4" fill="none" stroke="url(#rimDark)" stroke-width="1.8"/>
+		<!-- rivets -->
+		<g id="rivets">
+			<g id="rivet"><circle cx="100" cy="14" r="2.3" fill="#15111d" stroke="#000" stroke-width="0.6"/><circle cx="99.4" cy="13.4" r="0.9" fill="#a79bc0"/></g>
+			<use href="#rivet" transform="rotate(45 100 100)"/><use href="#rivet" transform="rotate(90 100 100)"/>
+			<use href="#rivet" transform="rotate(135 100 100)"/><use href="#rivet" transform="rotate(180 100 100)"/>
+			<use href="#rivet" transform="rotate(225 100 100)"/><use href="#rivet" transform="rotate(270 100 100)"/>
+			<use href="#rivet" transform="rotate(315 100 100)"/>
+		</g>
+		<!-- the energy lights the inside edge of the band -->
+		<circle cx="100" cy="100" r="80.4" fill="none" stroke="#8dff3a" stroke-width="3" opacity="0.35" filter="url(#soft)"/>
+		<circle cx="100" cy="100" r="80.6" fill="none" stroke="#b6ff7a" stroke-width="0.7" opacity="0.7"/>
+		<!-- depth: the disc darkens towards the band -->
+		<circle cx="100" cy="100" r="80" fill="url(#well)"/>
+
+		<!-- fel energy crackling off the shard: forked bolts (generated, then fixed here) with a
+		     glow and a white core, thinner towards their ends -->
+		<ellipse cx="100" cy="100" rx="42" ry="64" fill="#8dff3a" opacity="0.18" filter="url(#softer)"/>
+		<g clip-path="url(#inside)" fill="none" stroke-linecap="round" stroke-linejoin="miter">
+			<path d="M77.6 57.7 L77.1 54.2 L75.8 49.2 L71.1 46.6 L71.0 41.1 L67.9 46.8 L59.4 45.7 M70.5 100.4 L61.0 101.7 L52.3 97.2 L45.0 94.5 L38.8 97.0 M87.4 137.1 L83.0 137.6 L77.0 135.6 L72.5 136.4 L67.9 141.0 M100.5 165.7 L97.6 166.7 L93.6 168.5 L88.2 165.8 L84.1 164.3 M101.7 45.7 L108.3 45.7 L114.8 48.6 L123.8 50.4 L132.2 48.1 L138.2 43.8 M128.1 87.3 L134.1 80.5 L143.2 78.2 L149.2 77.7 L158.2 78.6 L161.4 83.8 M124.8 127.6 L127.7 132.7 L133.5 134.5 L136.5 139.0 L140.9 144.1 M122.2 158.9 L124.3 153.6 L129.1 154.8 L131.5 157.8 L132.0 161.0 L131.1 165.5 L135.4 165.2" stroke="#8dff3a" stroke-width="7.8" opacity="0.5" filter="url(#soft)"/>
+			<path d="M77.6 57.7 L77.1 54.2 L75.8 49.2 L71.1 46.6 L71.0 41.1 L67.9 46.8 L59.4 45.7 M70.5 100.4 L61.0 101.7 L52.3 97.2 L45.0 94.5 L38.8 97.0 M87.4 137.1 L83.0 137.6 L77.0 135.6 L72.5 136.4 L67.9 141.0 M100.5 165.7 L97.6 166.7 L93.6 168.5 L88.2 165.8 L84.1 164.3 M101.7 45.7 L108.3 45.7 L114.8 48.6 L123.8 50.4 L132.2 48.1 L138.2 43.8 M128.1 87.3 L134.1 80.5 L143.2 78.2 L149.2 77.7 L158.2 78.6 L161.4 83.8 M124.8 127.6 L127.7 132.7 L133.5 134.5 L136.5 139.0 L140.9 144.1 M122.2 158.9 L124.3 153.6 L129.1 154.8 L131.5 157.8 L132.0 161.0 L131.1 165.5 L135.4 165.2" stroke="#9dff4a" stroke-width="2.3"/>
+			<path d="M77.6 57.7 L77.1 54.2 L75.8 49.2 L71.1 46.6 L71.0 41.1 L67.9 46.8 L59.4 45.7 M70.5 100.4 L61.0 101.7 L52.3 97.2 L45.0 94.5 L38.8 97.0 M87.4 137.1 L83.0 137.6 L77.0 135.6 L72.5 136.4 L67.9 141.0 M100.5 165.7 L97.6 166.7 L93.6 168.5 L88.2 165.8 L84.1 164.3 M101.7 45.7 L108.3 45.7 L114.8 48.6 L123.8 50.4 L132.2 48.1 L138.2 43.8 M128.1 87.3 L134.1 80.5 L143.2 78.2 L149.2 77.7 L158.2 78.6 L161.4 83.8 M124.8 127.6 L127.7 132.7 L133.5 134.5 L136.5 139.0 L140.9 144.1 M122.2 158.9 L124.3 153.6 L129.1 154.8 L131.5 157.8 L132.0 161.0 L131.1 165.5 L135.4 165.2" stroke="#f6ffe8" stroke-width="1.0"/>
+			<path d="M59.4 45.7 L54.1 41.8 L47.1 41.3 M67.9 46.8 L64.8 43.4 L64.7 37.4 L68.9 33.4 L70.8 28.2 M38.8 97.0 L32.0 95.3 L26.1 94.4 L24.4 89.4 L22.5 84.9 M52.3 97.2 L53.2 92.6 L49.9 89.5 L49.1 83.3 L44.4 78.9 M67.9 141.0 L62.7 147.4 L55.5 148.0 L49.8 150.7 L41.2 152.8 M72.5 136.4 L68.4 142.1 L69.1 150.0 L71.3 156.2 L70.5 166.2 M84.1 164.3 L82.3 168.2 L85.8 170.9 L84.1 175.0 L81.5 176.8 M138.2 43.8 L144.8 45.1 L148.8 42.3 L153.5 41.9 M114.8 48.6 L120.6 46.9 L126.8 45.4 L130.9 47.4 L138.4 47.5 M161.4 83.8 L166.7 86.6 L172.5 88.5 L178.3 89.4 M143.2 78.2 L148.1 71.2 L150.9 64.1 L152.5 58.7 L156.7 53.5 M140.9 144.1 L144.7 140.6 L151.0 140.4 L158.9 143.5 L167.1 141.7 M133.5 134.5 L131.1 138.8 L132.3 144.8 L133.3 152.2 L138.6 156.1 M135.4 165.2 L136.3 170.4 L132.6 171.9 M129.1 154.8 L132.4 158.4 L136.7 159.9 L142.0 161.9 L146.0 160.8" stroke="#8dff3a" stroke-width="3.7" opacity="0.5" filter="url(#soft)"/>
+			<path d="M59.4 45.7 L54.1 41.8 L47.1 41.3 M67.9 46.8 L64.8 43.4 L64.7 37.4 L68.9 33.4 L70.8 28.2 M38.8 97.0 L32.0 95.3 L26.1 94.4 L24.4 89.4 L22.5 84.9 M52.3 97.2 L53.2 92.6 L49.9 89.5 L49.1 83.3 L44.4 78.9 M67.9 141.0 L62.7 147.4 L55.5 148.0 L49.8 150.7 L41.2 152.8 M72.5 136.4 L68.4 142.1 L69.1 150.0 L71.3 156.2 L70.5 166.2 M84.1 164.3 L82.3 168.2 L85.8 170.9 L84.1 175.0 L81.5 176.8 M138.2 43.8 L144.8 45.1 L148.8 42.3 L153.5 41.9 M114.8 48.6 L120.6 46.9 L126.8 45.4 L130.9 47.4 L138.4 47.5 M161.4 83.8 L166.7 86.6 L172.5 88.5 L178.3 89.4 M143.2 78.2 L148.1 71.2 L150.9 64.1 L152.5 58.7 L156.7 53.5 M140.9 144.1 L144.7 140.6 L151.0 140.4 L158.9 143.5 L167.1 141.7 M133.5 134.5 L131.1 138.8 L132.3 144.8 L133.3 152.2 L138.6 156.1 M135.4 165.2 L136.3 170.4 L132.6 171.9 M129.1 154.8 L132.4 158.4 L136.7 159.9 L142.0 161.9 L146.0 160.8" stroke="#9dff4a" stroke-width="1.1"/>
+			<path d="M59.4 45.7 L54.1 41.8 L47.1 41.3 M67.9 46.8 L64.8 43.4 L64.7 37.4 L68.9 33.4 L70.8 28.2 M38.8 97.0 L32.0 95.3 L26.1 94.4 L24.4 89.4 L22.5 84.9 M52.3 97.2 L53.2 92.6 L49.9 89.5 L49.1 83.3 L44.4 78.9 M67.9 141.0 L62.7 147.4 L55.5 148.0 L49.8 150.7 L41.2 152.8 M72.5 136.4 L68.4 142.1 L69.1 150.0 L71.3 156.2 L70.5 166.2 M84.1 164.3 L82.3 168.2 L85.8 170.9 L84.1 175.0 L81.5 176.8 M138.2 43.8 L144.8 45.1 L148.8 42.3 L153.5 41.9 M114.8 48.6 L120.6 46.9 L126.8 45.4 L130.9 47.4 L138.4 47.5 M161.4 83.8 L166.7 86.6 L172.5 88.5 L178.3 89.4 M143.2 78.2 L148.1 71.2 L150.9 64.1 L152.5 58.7 L156.7 53.5 M140.9 144.1 L144.7 140.6 L151.0 140.4 L158.9 143.5 L167.1 141.7 M133.5 134.5 L131.1 138.8 L132.3 144.8 L133.3 152.2 L138.6 156.1 M135.4 165.2 L136.3 170.4 L132.6 171.9 M129.1 154.8 L132.4 158.4 L136.7 159.9 L142.0 161.9 L146.0 160.8" stroke="#f6ffe8" stroke-width="0.5"/>
+		</g>
+		<g fill="#8dff3a" opacity="0.7" filter="url(#soft)"><circle cx="47.1" cy="41.3" r="3.9"/><circle cx="70.8" cy="28.2" r="3.6"/><circle cx="22.5" cy="84.9" r="3.4"/><circle cx="44.4" cy="78.9" r="3.5"/><circle cx="41.2" cy="152.8" r="4.0"/><circle cx="70.5" cy="166.2" r="3.7"/><circle cx="81.5" cy="176.8" r="3.3"/><circle cx="153.5" cy="41.9" r="4.2"/><circle cx="138.4" cy="47.5" r="3.9"/><circle cx="178.3" cy="89.4" r="4.5"/><circle cx="156.7" cy="53.5" r="3.8"/><circle cx="167.1" cy="141.7" r="3.9"/><circle cx="138.6" cy="156.1" r="3.6"/><circle cx="132.6" cy="171.9" r="3.9"/><circle cx="146.0" cy="160.8" r="4.4"/></g>
+		<g fill="#f6ffe8"><circle cx="47.1" cy="41.3" r="0.7"/><circle cx="70.8" cy="28.2" r="0.8"/><circle cx="22.5" cy="84.9" r="1.0"/><circle cx="44.4" cy="78.9" r="1.0"/><circle cx="41.2" cy="152.8" r="0.6"/><circle cx="70.5" cy="166.2" r="0.8"/><circle cx="81.5" cy="176.8" r="1.0"/><circle cx="153.5" cy="41.9" r="1.0"/><circle cx="138.4" cy="47.5" r="0.9"/><circle cx="178.3" cy="89.4" r="0.7"/><circle cx="156.7" cy="53.5" r="0.8"/><circle cx="167.1" cy="141.7" r="0.6"/><circle cx="138.6" cy="156.1" r="0.8"/><circle cx="132.6" cy="171.9" r="0.8"/><circle cx="146.0" cy="160.8" r="1.0"/></g>
+
+		<!-- the shard -->
+		<g transform="translate(100 100) rotate(-10) translate(-100 -100)">
+			<path d="M100 24 L131 88 L109 172 L100 178 Z" fill="url(#faceR)"/>
+			<path d="M100 24 L69 88 L91 172 L100 178 Z" fill="url(#faceL)"/>
+			<path d="M100 24 L69 88 L100 102 L131 88 Z" fill="#e3c8ff" opacity="0.5"/>
+			<path d="M69 88 L100 102 L131 88" fill="none" stroke="#fbf2ff" stroke-width="1.6" opacity="0.85"/>
+			<path d="M100 102 L100 178" stroke="#fbf2ff" stroke-width="1.1" opacity="0.45"/>
+			<path d="M100 24 L131 88 L109 172 L100 178 L91 172 L69 88 Z" fill="none" stroke="#080112" stroke-width="2.6" stroke-linejoin="round"/>
+			<path d="M100 24 L69 88" stroke="#ffffff" stroke-width="1.2" opacity="0.6"/>
+			<!-- the energy catches the lower edges -->
+			<path d="M70.5 90 L91.6 171" stroke="url(#felEdge)" stroke-width="1.5" stroke-linecap="round"/>
+			<path d="M129.5 90 L108.4 171" stroke="url(#felEdge)" stroke-width="1.5" stroke-linecap="round" opacity="0.8"/>
+			<!-- a soft sheen on the upper facet -->
+			<ellipse cx="88" cy="62" rx="5" ry="11" fill="#ffffff" opacity="0.4" filter="url(#soft)" transform="rotate(26 88 62)"/>
+		</g>
+		<!-- thin arcs jumping across the face of the shard -->
+		<g fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.9">
+			<path d="M72.9 74.0 L82.6 72.4 L96.4 76.8 L108.3 79.7 L124.5 77.3 M79.9 120.8 L94.2 113.9 L103.9 108.8 L114.5 105.3 L126.9 102.2 M91.1 145.3 L102.6 149.2 L109.3 154.1 L117.4 158.0 L122.6 154.4" stroke="#8dff3a" stroke-width="3.1" opacity="0.5" filter="url(#soft)"/>
+			<path d="M72.9 74.0 L82.6 72.4 L96.4 76.8 L108.3 79.7 L124.5 77.3 M79.9 120.8 L94.2 113.9 L103.9 108.8 L114.5 105.3 L126.9 102.2 M91.1 145.3 L102.6 149.2 L109.3 154.1 L117.4 158.0 L122.6 154.4" stroke="#9dff4a" stroke-width="0.9"/>
+			<path d="M72.9 74.0 L82.6 72.4 L96.4 76.8 L108.3 79.7 L124.5 77.3 M79.9 120.8 L94.2 113.9 L103.9 108.8 L114.5 105.3 L126.9 102.2 M91.1 145.3 L102.6 149.2 L109.3 154.1 L117.4 158.0 L122.6 154.4" stroke="#f6ffe8" stroke-width="0.4"/>
+		</g>
 	</g>
 </svg>

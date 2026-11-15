@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" fill="none">
+	<!-- Summoning circle drawn faintly behind the artwork. Original art. -->
+	<g stroke="#8a5cd0">
+		<circle cx="500" cy="500" r="488" stroke-width="1.5" opacity=".55"/>
+		<circle cx="500" cy="500" r="470" stroke-width="1" stroke-dasharray="3 13" opacity=".8"/>
+		<circle cx="500" cy="500" r="430" stroke-width="2.5" opacity=".5"/>
+		<circle cx="500" cy="500" r="330" stroke-width="1" opacity=".45"/>
+		<circle cx="500" cy="500" r="312" stroke-width="1" stroke-dasharray="22 8 2 8" opacity=".6"/>
+		<circle cx="500" cy="500" r="190" stroke-width="1" opacity=".35"/>
+		<!-- two triangles inscribed in the 430 ring -->
+		<path d="M500 70 L872.4 715 L127.6 715 Z" stroke-width="1.5" opacity=".42"/>
+		<path d="M500 930 L127.6 285 L872.4 285 Z" stroke-width="1.5" opacity=".42"/>
+	</g>
+	<!-- nodes on the triangle points -->
+	<g fill="#0b0712" stroke="#b98cff" stroke-width="1.5" opacity=".75">
+		<circle cx="500" cy="70" r="13"/>
+		<circle cx="872.4" cy="715" r="13"/>
+		<circle cx="127.6" cy="715" r="13"/>
+		<circle cx="500" cy="930" r="13"/>
+		<circle cx="127.6" cy="285" r="13"/>
+		<circle cx="872.4" cy="285" r="13"/>
+	</g>
+	<g fill="#8dff3a" opacity=".7">
+		<circle cx="500" cy="70" r="4"/>
+		<circle cx="872.4" cy="715" r="4"/>
+		<circle cx="127.6" cy="715" r="4"/>
+		<circle cx="500" cy="930" r="4"/>
+		<circle cx="127.6" cy="285" r="4"/>
+		<circle cx="872.4" cy="285" r="4"/>
+	</g>
+	<!-- rune ticks between the two outer rings -->
+	<g stroke="#b98cff" stroke-width="2" opacity=".55">
+		<path d="M500 18v22M500 960v22M18 500h22M960 500h22"/>
+		<path d="M159 159l16 16M825 825l16 16M159 841l16 -16M825 175l16 -16"/>
+	</g>
+</svg>

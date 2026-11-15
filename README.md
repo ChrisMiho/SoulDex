@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/curseforge/images/banner-1200x400.png" alt="SoulDex: every Soul Shard remembers whose soul it holds" width="100%">
+  <img src="docs/curseforge/images/banner-1200x400.png" alt="SoulDex: their souls, your collection" width="100%">
 </p>
 
 <p align="center">
@@ -11,51 +11,55 @@
 
 # SoulDex
 
-**A collection dex for your Soul Shards.** A World of Warcraft: Forever addon for
-warlocks: every time a Soul Shard lands in your bags, the mob or player it came
-from is *caught* and recorded in your dex. Collect them, earn points and
-milestones, and compare with other SoulDex users.
+**Their souls. Your collection.** A World of Warcraft: Forever addon for warlocks that turns
+Soul Shard farming into a hunt: every shard that lands in your bags claims the mob
+or player it came from for your dex. Score points, climb the warlock ranks from
+Initiate to Lord of Souls, and outrank the other warlocks in your guild.
 
 Type `/souldex` or `/dex` in game to open it.
 
 ## Features
 
-### ◆ Mobs: every shard is a soul caught
+### ◆ The hunt: every kill a trophy
 
-Every creature you've drained, grouped by zone and dungeon, in its rarity colour.
-Click any soul for its level and type, a flavour line, how many times you caught
-it, and when and where you caught it first.
+Every creature you've drained, filed by zone and dungeon, in its rarity colour.
+Click any soul for its trophy card: level and type, a one-line epitaph, its mastery
+stars, how many times you claimed it, and when and where you took it first.
 
 ![Mobs tab](docs/curseforge/images/feature-1-mobs.png)
 
-### ◆ Raids: the one collection you can finish
+### ◆ The raids: drain every one
 
-A fixed list of every creature in every vanilla raid, from Zul'Gurub to
-Naxxramas. Uncaught souls show as `? ? ?`, and bosses are marked before you
-catch them.
+Every creature in every vanilla raid, from Zul'Gurub to Naxxramas. Unclaimed souls
+stay `? ? ?`, bosses are marked before you claim them, and every raid has a
+progress bar. The one hunt you can finish.
 
 ![Raids tab](docs/curseforge/images/feature-2-raids.png)
 
-### ◆ Your shards remember
+### ◆ The trophies: every shard has a name
 
-Hover a Soul Shard in your bags and its tooltip names the soul inside, with where
-and when you took it. The soul follows its shard through bags, the bank and relogs.
+A popup and a sound for every new soul, coloured by what you claimed. Hover a Soul
+Shard in your bags and its tooltip names the soul inside, with where and when you
+took it. The name follows its shard through bags, the bank and relogs.
 
-![Shard tooltips](docs/curseforge/images/feature-3-catch.png)
+![Popup and shard tooltips](docs/curseforge/images/feature-3-catch.png)
 
-### ◆ Players, and rivals
+### ◆ The rivals: hunt players, outrank friends
 
-Every player you've sharded, grouped by class. **Friends** is a leaderboard of
+Every player you've sharded, sorted by class. **Friends** is a leaderboard of
 SoulDex users in your party, raid and guild, plus anyone you add by name. Browse
 their dex read-only; what you lack is highlighted.
 
 ![Players and Friends tabs](docs/curseforge/images/feature-4-players-friends.png)
 
-### ◆ Score, stats and milestones
+### ◆ The climb: rise through the ranks
 
-A popup and sound for each new catch, points for first catches (1 normal, 5 elite,
-10 rare or player, 25 boss), milestones, and a **Me** tab with your stats. Guild
-announcements are optional and for big moments only.
+First claims score most (1 normal, 5 elite, 10 rare or player, 25 boss). The mobs
+you farm earn **mastery stars** at 10 to 1,000 claims and beyond, bosses score on
+every claim, and players and rares pay a little again once a day. Your score earns
+one of 8 warlock ranks, 19 named milestones track the rest, and a **Me** tab shows
+your rank, your progress to the next one and your stats. Guild announcements are
+optional and for big moments only.
 
 ![Me and Milestones tabs](docs/curseforge/images/feature-5-me-milestones.png)
 
@@ -72,7 +76,7 @@ announcements are optional and for big moments only.
 | `/souldex add <name>` or `/dex add <name>` | Add a friend by name |
 | `/souldex remove <name>` or `/dex remove <name>` | Remove a friend |
 
-The new-catch popup, the sound and guild announcements each have their own
+The new-soul popup, the sound and guild announcements each have their own
 on/off switch in the settings.
 
 ## Install
@@ -86,7 +90,7 @@ the game the first time; after that, `/reload` picks up updates.
 
 WoW: Forever hides the combat log from addons, so SoulDex reads your target
 when you start Drain Soul (or cast Shadowburn) and names the next new shard
-after it. When the game hides the target's name, the catch is counted as an
+after it. When the game hides the target's name, the soul is counted as an
 **Unknown soul** in that zone (no points, no popup). A shard SoulDex can't
 match to a capture records nothing, so the dex never holds a wrong name.
 
@@ -104,7 +108,7 @@ error text.
 
 You need Lua 5.1 tooling: `luarocks --lua-version 5.1 install luacheck` and
 `luarocks --lua-version 5.1 install busted`. On Windows, run the `.sh` scripts
-in Git Bash.
+in Git Bash. On macOS, the build also needs `brew install bash`.
 
 | Task | Command |
 |------|---------|
@@ -113,8 +117,9 @@ in Git Bash.
 | Build, zip and install into the game | `scripts/build.sh` |
 | Build and zip only | `scripts/build.sh --no-install` |
 
-`scripts/build.sh` installs into the standard Windows game folder; set
-`WOW_ADDONS_DIR` to install somewhere else. The zip lands in `.release/`.
+`scripts/build.sh` installs into the standard game folder on Windows or macOS;
+set `WOW_ADDONS_DIR` to install somewhere else. When no game folder is found it
+makes the zip and skips the install. The zip lands in `.release/`.
 
 Behaviour is described in
 [the design spec](docs/superpowers/specs/2026-11-10-souldex-design.md); code

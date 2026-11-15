@@ -1,60 +1,71 @@
 <!doctype html>
-<html><head><meta charset="utf-8"><title>SoulDex: Me and Milestones</title>
+<html><head><meta charset="utf-8"><title>SoulDex: Ranks and milestones</title>
 <link rel="stylesheet" href="shared.css">
 <style>
-	.shot { flex-direction: column; gap: 18px; }
-	.shot .wow { zoom: 1.4; }
-	.wow .body { height: 155px; }
-	.ms { display: flex; justify-content: space-between; line-height: 17px; border-bottom: 1px solid #1d1629; padding: 0 3px; font-size: 10.5px; }
-	.ms.off span:first-child { color: #6e6385; }
+	.shot { flex-direction: column; gap: 14px; }
+	.w { --z: 1.12; }
+	.w .me { height: 214px; }
+	.w .bd.mil { display: block; height: 214px; overflow: hidden; }
 </style></head>
 <body>
 <div class="stage">
+	<div class="frame"></div><div class="embers"></div>
 	<div class="copy">
-		<div class="kicker"><img src="shard.svg" alt="">SoulDex</div>
-		<h1>Score, stats and <em>milestones</em></h1>
-		<p>Points for each first catch: elites, rares, bosses and players score more. Milestones mark the big moments.</p>
+		<div class="kicker"><img src="shard.svg" alt=""><b>05</b><i></i>The climb</div>
+		<h1>Rise through <em>the ranks</em></h1>
+		<p>First claims score most; farming and raiding keep it climbing. Your score earns a warlock rank, from Initiate all the way to Lord of Souls.</p>
 		<ul>
-			<li>Your stats and friends rank on the Me tab</li>
-			<li>Optional guild announcement for big milestones</li>
-			<li>No chat spam: never for every catch</li>
+			<li><b>8 ranks</b> and <b>19 named milestones</b></li>
+			<li>Your <b>records</b>: nemesis, rarest trophy, best day</li>
+			<li>Bosses score on every claim</li>
 		</ul>
 	</div>
 	<div class="shot">
-		<div class="wow">
-			<div class="title"><span>SoulDex · Me</span><span class="r">1,264 pts <span class="gear">⚙</span><span class="x">×</span></span></div>
-			<div class="body">
-				<div class="full">
-					<div class="kvrow"><span class="k">Score</span><span class="green">1,264</span></div>
-					<div class="kvrow"><span class="k">Unique mobs</span><span>412</span></div>
-					<div class="kvrow"><span class="k">Players</span><span>23</span></div>
-					<div class="kvrow"><span class="k">Raids completed</span><span>1</span></div>
-					<div class="kvrow"><span class="k">Souls taken</span><span>1,038</span></div>
-					<div class="kvrow"><span class="k">Zones visited</span><span>29</span></div>
-					<div class="kvrow"><span class="k">Most caught</span><span>Young Wolf ×14</span></div>
-					<div class="kvrow"><span class="k">Top zone</span><span>The Barrens ×96</span></div>
-					<div class="kvrow"><span class="k">Friends rank</span><span>#2 of 4</span></div>
+		<div class="w">
+			<div class="tb"><div class="gem"></div><span class="nm">SoulDex</span><span class="tab">· Me</span><span class="sp"></span><span class="chip">Shardbinder</span><span class="pts">1,264 pts</span><span class="ic">⚙</span><span class="ic" style="color:#c9a8ff">×</span></div>
+			<div class="rankbar"></div>
+			<div class="me">
+				<div class="crest"><div class="gem"></div><div class="rk">Shardbinder</div><div class="of">Rank 4 of 8</div><div class="sc">1,264 <small>pts</small></div><div class="bar"></div><div class="nx">1,236 pts to <span class="fel">Reaper</span></div></div>
+				<div style="flex:1">
+					<div class="tiles">
+						<div><b>412</b><small>Unique mobs</small></div><div><b>23</b><small>Players</small></div><div><b>1 / 7</b><small>Raids</small></div>
+						<div><b class="fel">37 ★</b><small>Mastery</small></div><div><b>1,038</b><small>Souls taken</small></div><div><b>#2 of 4</b><small>Among friends</small></div>
+					</div>
+					<div class="rec">
+						<div class="hd">Records</div>
+						<div class="kv"><span class="mut">Most claimed</span><span>Young Wolf ×214</span></div>
+						<div class="kv"><span class="mut">Nemesis</span><span style="color:#fff569">Stabbyface ×5</span></div>
+						<div class="kv"><span class="mut">Hunting ground</span><span>The Barrens ×96</span></div>
+						<div class="kv"><span class="mut">Rarest trophy</span><span style="color:#ff9a5a">Ragnaros</span></div>
+						<div class="kv"><span class="mut">Latest</span><span>Felguard Sentry · today</span></div>
+						<div class="kv"><span class="mut">Best day</span><span>41 souls · 9 Nov 26</span></div>
+						<div class="kv"><span class="mut">Zones hunted</span><span>29</span></div>
+					</div>
 				</div>
 			</div>
-			<div class="tabs"><span class="tab on">Me</span><span class="tab">Mobs</span><span class="tab">Players</span><span class="tab">Raids</span><span class="tab">Milestones</span><span class="tab">Friends</span></div>
+			<div class="tabs"><span class="on">Me</span><span>Mobs</span><span>Players</span><span>Raids</span><span>Milestones</span><span>Friends</span></div>
 		</div>
-		<div class="wow">
-			<div class="title"><span>SoulDex · Milestones</span><span class="r">7/19 · 1,264 pts <span class="gear">⚙</span><span class="x">×</span></span></div>
-			<div class="body">
-				<div class="full">
-					<div class="ms"><span>10 unique mobs</span><span class="n">2 Nov 26</span></div>
-										<div class="ms"><span>100 unique mobs</span><span class="n">6 Nov 26</span></div>
-					<div class="ms"><span>250 unique mobs</span><span class="n">9 Nov 26</span></div>
-					<div class="ms off"><span>500 unique mobs</span><span class="n">412/500</span></div>
-					<div class="ms"><span>First player soul</span><span class="n">2 Nov 26</span></div>
-					<div class="ms"><span>10 player souls</span><span class="n">7 Nov 26</span></div>
-					<div class="ms off"><span>25 player souls</span><span class="n">23/25</span></div>
-					<div class="ms"><span>Completed Zul'Gurub</span><span class="n">12 Nov 26</span></div>
-									</div>
+		<div class="w">
+			<div class="tb"><div class="gem"></div><span class="nm">SoulDex</span><span class="tab">· Milestones</span><span class="sp"></span><span class="chip">Shardbinder</span><span class="pts">7/19 · 1,264 pts</span><span class="ic">⚙</span><span class="ic" style="color:#c9a8ff">×</span></div>
+			<div class="rankbar"></div>
+			<div class="bd mil">
+				<div class="grp"><span>Mobs</span><span>4 of 6</span></div>
+				<div class="ms in"><span class="dim">Soul Baron</span><span class="dim">· 500 unique mobs</span><span class="r dim">412/500</span><i style="--p:82%;left:9px"></i></div>
+				<div class="ms in"><span class="dim">A Thousand Souls</span><span class="dim">· 1000 unique mobs</span><span class="r dim">412/1000</span><i style="--p:41%;left:9px"></i></div>
+				<div class="earned"><span>✓ 4 earned</span><span>hide</span></div>
+				<div class="ms in"><span class="fel">Shard Hoarder</span><span class="g">· 250 unique mobs</span><span class="r">9 Nov 26</span></div>
+				<div class="ms in"><span class="fel">A Hundred Voices</span><span class="g">· 100 unique mobs</span><span class="r">6 Nov 26</span></div>
+				<div class="grp"><span>Players</span><span>2 of 5</span></div>
+				<div class="ms in"><span class="dim">Menace</span><span class="dim">· 25 player souls</span><span class="r dim">23/25</span><i style="--p:92%;left:9px"></i></div>
+				<div class="ms in"><span class="dim">Dreaded</span><span class="dim">· 50 player souls</span><span class="r dim">23/50</span><i style="--p:46%;left:9px"></i></div>
+				<div class="earned"><span>✓ 2 earned</span><span>show</span></div>
+				<div class="grp"><span>Raids</span><span>1 of 8</span></div>
+				<div class="ms in"><span class="dim">Molten Core Drained</span><span class="dim">· every soul</span><span class="r dim">19/27</span><i style="--p:70%;left:9px"></i></div>
 			</div>
-			<div class="tabs"><span class="tab">Me</span><span class="tab">Mobs</span><span class="tab">Players</span><span class="tab">Raids</span><span class="tab on">Milestones</span><span class="tab">Friends</span></div>
+			<div class="tabs"><span>Me</span><span>Mobs</span><span>Players</span><span>Raids</span><span class="on">Milestones</span><span>Friends</span></div>
 		</div>
 	</div>
+	<div class="foot">SoulDex <b>&#9670;</b> Their souls. Your collection.</div>
 	<div class="note">Illustration of the in-game window</div>
 </div>
 </body></html>

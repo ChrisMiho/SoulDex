@@ -2,31 +2,34 @@
 <html><head><meta charset="utf-8"><title>SoulDex: Players and Friends</title>
 <link rel="stylesheet" href="shared.css">
 <style>
-	.shot { flex-direction: column; gap: 22px; }
-	.shot .wow { zoom: 1.6; }
-	.you { background: #2a2040; }
-	.add { display: flex; gap: 3px; margin-top: 3px; }
+	.copy h1 { font-size: 44px; }
+	.shot { flex-direction: column; gap: 16px; }
+	.w { --z: 1.5; }
+	.w .bd { height: 118px; }
+	.add { display: flex; gap: 3px; margin-top: 4px; }
 	.add .box { flex: 1; background: #0d0a14; border: 1px solid #3d2d5c; color: #6e6385; font-size: 9.5px; line-height: 13px; padding: 0 4px; }
-	.add .btn { background: #251b36; border: 1px solid #5a4486; color: #c9a8ff; font-size: 9px; line-height: 13px; padding: 0 5px; border-radius: 2px; }
-	.wow .body.short { height: 120px; }
+	.add .btn, .browse { background: #251b36; border: 1px solid #5a4486; color: #c9a8ff; font-size: 9px; line-height: 13px; padding: 0 5px; border-radius: 2px; }
+	.kv2 { display: flex; justify-content: space-between; line-height: 15.5px; border-bottom: 1px solid #1d1629; padding: 0 3px; }
 </style></head>
 <body>
 <div class="stage">
+	<div class="frame"></div><div class="embers"></div>
 	<div class="copy">
-		<div class="kicker"><img src="shard.svg" alt="">SoulDex</div>
-		<h1>Players, <em>and rivals</em></h1>
-		<p>Players you shard are sorted by class. SoulDex users in your party, raid and guild show up on a leaderboard.</p>
+		<div class="kicker"><img src="shard.svg" alt=""><b>04</b><i></i>The rivals</div>
+		<h1>Hunt players. <em>Outrank friends.</em></h1>
+		<p>Every player you shard is a trophy, sorted by class. Warlocks in your party, raid and guild join your leaderboard on their own.</p>
 		<ul>
-			<li>Add friends by name: /souldex add</li>
-			<li>Browse a friend's dex, read-only</li>
+			<li>Add anyone by name: <b>/dex add</b></li>
+			<li>Browse a rival's collection</li>
 			<li>What they have and you don't is highlighted</li>
 		</ul>
 	</div>
 	<div class="shot">
-		<div class="wow">
-			<div class="title"><span>SoulDex · Players</span><span class="r">23 · 1,264 pts <span class="gear">⚙</span><span class="x">×</span></span></div>
-			<div class="body short">
-				<div class="left">
+		<div class="w">
+			<div class="tb"><div class="gem"></div><span class="nm">SoulDex</span><span class="tab">· Players</span><span class="sp"></span><span class="chip">Shardbinder</span><span class="pts">23 · 1,264 pts</span><span class="ic">⚙</span><span class="ic" style="color:#c9a8ff">×</span></div>
+			<div class="rankbar"></div>
+			<div class="bd">
+				<div class="lf">
 					<div class="zr"><span style="color:#c79c6e">Warrior</span><span class="n">7</span></div>
 					<div class="zr sel"><span style="color:#fff569">Rogue</span><span class="n">6</span></div>
 					<div class="zr"><span style="color:#69ccf0">Mage</span><span class="n">4</span></div>
@@ -34,36 +37,40 @@
 					<div class="zr"><span style="color:#ffffff">Priest</span><span class="n">2</span></div>
 					<div class="zr"><span style="color:#f58cba">Paladin</span><span class="n">1</span></div>
 				</div>
-				<div class="right">
+				<div class="rt">
 					<div class="mr"><span>Stabbyface</span><span class="n">×5</span></div>
 					<div class="mr"><span>Shadowtoe</span><span class="n">×2</span></div>
 					<div class="mr"><span>Zuljinxx</span><span class="n">×1</span></div>
 					<div class="mr"><span>Kneecapper</span><span class="n">×1</span></div>
 				</div>
 			</div>
-			<div class="tabs"><span class="tab">Me</span><span class="tab">Mobs</span><span class="tab on">Players</span><span class="tab">Raids</span><span class="tab">Milestones</span><span class="tab">Friends</span></div>
+			<div class="tabs"><span>Me</span><span>Mobs</span><span class="on">Players</span><span>Raids</span><span>Milestones</span><span>Friends</span></div>
 		</div>
-		<div class="wow">
-			<div class="title"><span>SoulDex · Friends</span><span class="r">1,264 pts <span class="gear">⚙</span><span class="x">×</span></span></div>
-			<div class="body short">
-				<div class="left">
-					<div class="zr sel"><span>Morgrath</span><span class="n">1,902</span></div>
-					<div class="zr you"><span class="muted">Velisande (you)</span><span class="n">1,264</span></div>
-					<div class="zr"><span>Ashwhisper</span><span class="n">877</span></div>
-					<div class="zr"><span class="dim">Grimtooth</span><span class="n">412</span></div>
+		<div class="w">
+			<div class="tb"><div class="gem"></div><span class="nm">SoulDex</span><span class="tab">· Friends</span><span class="sp"></span><span class="chip">Shardbinder</span><span class="pts">1,264 pts</span><span class="ic">⚙</span><span class="ic" style="color:#c9a8ff">×</span></div>
+			<div class="rankbar"></div>
+			<div class="bd">
+				<div class="lf">
+					<div class="zr sel"><span>1. Morgrath</span><span class="n">1,902</span></div>
+					<div class="zr"><span style="color:#c9a8ff">2. Velisande (you)</span><span class="n">1,264</span></div>
+					<div class="zr"><span>3. Ashwhisper</span><span class="n">877</span></div>
+					<div class="zr"><span class="dim">4. Grimtooth</span><span class="n dim">412</span></div>
 					<div class="add"><span class="box">Add by name…</span><span class="btn">Add</span></div>
 				</div>
-				<div class="right">
-					<div class="kvrow"><span class="k">Score</span><span class="green">1,902</span></div>
-					<div class="kvrow"><span class="k">Unique mobs</span><span>588</span></div>
-					<div class="kvrow"><span class="k">Players</span><span>41</span></div>
-					<div class="kvrow"><span class="k">Raids completed</span><span>3</span></div>
-					<div style="margin-top:6px; text-align:right"><span class="me-btn" style="margin:0">Browse dex</span></div>
+				<div class="rt">
+					<div class="kv2" style="font-size:12px;font-weight:bold;border:0"><span>Morgrath</span><span class="grn" style="font-weight:normal;font-size:10.5px">online</span></div>
+					<div class="kv2"><span class="mut">Rank</span><span class="fel">Shardbinder</span></div>
+					<div class="kv2"><span class="mut">Score</span><span class="grn">1,902 pts</span></div>
+					<div class="kv2"><span class="mut">Unique mobs</span><span>588</span></div>
+					<div class="kv2"><span class="mut">Players</span><span>41</span></div>
+					<div class="kv2"><span class="mut">Raids completed</span><span>3</span></div>
+					<div style="margin-top:4px;text-align:right"><span class="browse">Browse dex</span></div>
 				</div>
 			</div>
-			<div class="tabs"><span class="tab">Me</span><span class="tab">Mobs</span><span class="tab">Players</span><span class="tab">Raids</span><span class="tab">Milestones</span><span class="tab on">Friends</span></div>
+			<div class="tabs"><span>Me</span><span>Mobs</span><span>Players</span><span>Raids</span><span>Milestones</span><span class="on">Friends</span></div>
 		</div>
 	</div>
+	<div class="foot">SoulDex <b>&#9670;</b> Their souls. Your collection.</div>
 	<div class="note">Illustration of the in-game window</div>
 </div>
 </body></html>

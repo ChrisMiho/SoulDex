@@ -1,48 +1,56 @@
 <!doctype html>
 <html><head><meta charset="utf-8"><title>SoulDex: Raids</title>
 <link rel="stylesheet" href="shared.css">
-<style>.wow .left .zr span:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 82px; }</style></head>
+<style>
+	.zr > span:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; padding-right: 4px; }
+	.zr .pb { position: absolute; left: 4px; right: 4px; bottom: 0; height: 1.5px; background: #2d2240; }
+	.zr .pb::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: var(--p, 0%); background: #7dff6a; }
+</style></head>
 <body>
 <div class="stage">
+	<div class="frame"></div><div class="embers"></div>
 	<div class="copy">
-		<div class="kicker"><img src="shard.svg" alt="">SoulDex</div>
-		<h1>Catch <em>every raid soul</em></h1>
-		<p>A fixed list of every creature in every vanilla raid, from Zul'Gurub to Naxxramas. The one collection you can finish.</p>
+		<div class="kicker"><img src="shard.svg" alt=""><b>02</b><i></i>The raids</div>
+		<h1>Drain <em>every raid</em></h1>
+		<p>Every creature in every vanilla raid, from Zul'Gurub to Naxxramas. The one hunt you can finish.</p>
 		<ul>
-			<li>Uncaught souls show as ? ? ?</li>
-			<li>Bosses marked ☠ before you catch them</li>
-			<li>A ✓ for each raid you complete</li>
+			<li>Unclaimed souls stay <b>? ? ?</b></li>
+			<li>Bosses are marked before you claim them</li>
+			<li>Bosses score <b>every time</b> you claim them</li>
 		</ul>
 	</div>
 	<div class="shot">
-		<div class="wow">
-			<div class="title"><span>SoulDex · Raids</span><span class="r">79/243 · 1,264 pts <span class="gear">⚙</span><span class="x">×</span></span></div>
-			<div class="body">
-				<div class="left">
-					<div class="zr"><span>Zul'Gurub</span><span class="done">✓</span></div>
-					<div class="zr sel"><span>Molten Core</span><span class="n">19/27</span></div>
-					<div class="zr"><span>Onyxia's Lair</span><span class="n">1/2</span></div>
-					<div class="zr"><span>Blackwing Lair</span><span class="n">8/26</span></div>
-					<div class="zr"><span>Ruins of Ahn'Qiraj</span><span class="n">0/30</span></div>
-					<div class="zr"><span>Temple of Ahn'Qiraj</span><span class="n">0/34</span></div>
-					<div class="zr"><span>Naxxramas</span><span class="n">0/73</span></div>
+		<div class="w">
+			<div class="tb"><div class="gem"></div><span class="nm">SoulDex</span><span class="tab">· Raids</span><span class="sp"></span><span class="chip">Shardbinder</span><span class="pts">79/243 · 1,264 pts</span><span class="ic">⚙</span><span class="ic" style="color:#c9a8ff">×</span></div>
+			<div class="rankbar"></div>
+			<div class="bd">
+				<div class="lf">
+					<div class="zr"><span>Zul'Gurub</span><span class="grn">✓</span></div>
+					<div class="zr sel"><span>Molten Core</span><span class="n">19/27</span><i class="pb" style="--p:70%"></i></div>
+					<div class="zr"><span>Onyxia's Lair</span><span class="n">1/2</span><i class="pb" style="--p:50%"></i></div>
+					<div class="zr"><span>Blackwing Lair</span><span class="n">8/26</span><i class="pb" style="--p:31%"></i></div>
+					<div class="zr"><span>Ruins of Ahn'Qiraj</span><span class="n">0/30</span><i class="pb" style="--p:0%"></i></div>
+					<div class="zr"><span>Temple of Ahn'Qiraj</span><span class="n">0/34</span><i class="pb" style="--p:0%"></i></div>
+					<div class="zr"><span>Naxxramas</span><span class="n">0/73</span><i class="pb" style="--p:0%"></i></div>
 				</div>
-				<div class="right">
-					<div class="mr"><span class="boss">Lucifron ☠</span><span class="n">×3</span></div>
-					<div class="mr"><span>Flamewaker Protector</span><span class="n">×5</span></div>
-					<div class="mr"><span class="boss">Magmadar ☠</span><span class="n">×2</span></div>
-					<div class="mr"><span>Core Hound</span><span class="n">×9</span></div>
-					<div class="mr"><span class="boss">Gehennas ☠</span><span class="n">×1</span></div>
-					<div class="mr unk"><span>? ? ?</span><span></span></div>
-					<div class="mr"><span>Ancient Core Hound</span><span class="n">×1</span></div>
-					<div class="mr"><span>Lava Annihilator</span><span class="n">×2</span></div>
-					<div class="mr unk"><span class="bossdim">? ? ? ☠</span><span></span></div>
-					<div class="mr unk"><span class="bossdim">? ? ? ☠</span><span></span></div>
+				<div class="rt">
+					<div class="mr bo"><span style="color:#ff9a5a">Lucifron ☠</span><span class="n">×3</span></div>
+					<div class="mr "><span>Flamewaker Protector</span><span class="n">1<span class="fel">★</span> ×12</span></div>
+					<div class="mr bo"><span style="color:#ff9a5a">Magmadar ☠</span><span class="n">×2</span></div>
+					<div class="mr "><span>Core Hound</span><span class="n">2<span class="fel">★</span> ×31</span></div>
+					<div class="mr bo"><span style="color:#ff9a5a">Gehennas ☠</span><span class="n">×1</span></div>
+					<div class="mr "><span style="color:#4d4360">? ? ?</span><span class="n"></span></div>
+					<div class="mr "><span>Ancient Core Hound</span><span class="n">×1</span></div>
+					<div class="mr "><span>Lava Annihilator</span><span class="n">×2</span></div>
+					<div class="mr "><span style="color:#5a3d2e">? ? ? ☠</span><span class="n"></span></div>
+					<div class="mr "><span style="color:#5a3d2e">? ? ? ☠</span><span class="n"></span></div>
+					<div class="mr "><span>Firelord</span><span class="n">×4</span></div>
 				</div>
 			</div>
-			<div class="tabs"><span class="tab">Me</span><span class="tab">Mobs</span><span class="tab">Players</span><span class="tab on">Raids</span><span class="tab">Milestones</span><span class="tab">Friends</span></div>
+			<div class="tabs"><span>Me</span><span>Mobs</span><span>Players</span><span class="on">Raids</span><span>Milestones</span><span>Friends</span></div>
 		</div>
 	</div>
+	<div class="foot">SoulDex <b>&#9670;</b> Their souls. Your collection.</div>
 	<div class="note">Illustration of the in-game window</div>
 </div>
 </body></html>

@@ -1,60 +1,69 @@
 ![SoulDex](https://media.forgecdn.net/attachments/2207/172/banner-1200x400-png.png)
 
-## Every Soul Shard remembers whose soul it holds
+## Their souls. Your collection.
 
-Warlocks collect Soul Shards all day. **SoulDex** turns that chore into a collection:
-each time a shard lands in your bags, the mob or player it came from is *caught* and
-recorded in your dex. Fill it, earn points and milestones, and compare with other
-SoulDex users in your guild.
+**Hunt. Drain. Claim.** You were going to farm Soul Shards anyway. **SoulDex** makes
+every one a trophy: each shard that lands in your bags claims the mob or player it came
+from for your dex. Score points, climb the warlock ranks from Initiate to Lord of Souls,
+and outrank the other warlocks in your guild.
 
 Made for **World of Warcraft: Forever**. Type `/souldex` or `/dex` to open it.
 
 ---
 
-### ◆ Mobs: every shard is a soul caught
+### ◆ The hunt: every kill a trophy
 
-Every creature you've drained, grouped by zone and dungeon. Elites, rares and bosses
-show in their usual colours. Click any soul for its details: level and type, a short
-flavour line, how many times you caught it, and when and where you caught it first.
+Drain Soul or Shadowburn anything that moves and its soul is yours for good, filed by
+zone and dungeon. Elites, rares and bosses show in their colours. Click any soul for its
+trophy card: level and type, a one-line epitaph, its mastery stars, how many times you
+claimed it, and when and where you took it first.
 
 ![Mobs tab](https://media.forgecdn.net/attachments/2207/171/feature-1-mobs-png.png)
 
-### ◆ Raids: the one collection you can finish
+### ◆ The raids: drain every one
 
-A fixed list of every creature in every vanilla raid: Zul'Gurub, Molten Core, Onyxia's
-Lair, Blackwing Lair, Ruins and Temple of Ahn'Qiraj, and Naxxramas. Uncaught souls show
-as `? ? ?`, and bosses are marked before you catch them.
+Every creature in every vanilla raid: Zul'Gurub, Molten Core, Onyxia's Lair, Blackwing
+Lair, Ruins and Temple of Ahn'Qiraj, and Naxxramas. Unclaimed souls stay `? ? ?`, bosses
+are marked before you claim them, and every raid has a progress bar. It is the one hunt
+you can finish.
 
 ![Raids tab](https://media.forgecdn.net/attachments/2207/170/feature-2-raids-png.png)
 
-### ◆ Your shards remember
+### ◆ The trophies: every shard has a name
 
-Hover a Soul Shard in your bags and its tooltip names the soul inside, in its rarity
-colour, with where and when you took it. The soul follows its shard through your bags,
-the bank and relogs.
+A popup and a sound for every new soul, coloured by what you claimed: elite, rare,
+boss or player. Then hover a Soul Shard in your bags and its tooltip names the soul
+inside, with where and when you took it, so you know exactly whose soul you're about to
+spend. The name follows its shard through your bags, the bank and relogs.
 
-![Shard tooltips](https://media.forgecdn.net/attachments/2207/197/feature-3-catch-png.png)
+![Popup and shard tooltips](https://media.forgecdn.net/attachments/2207/197/feature-3-catch-png.png)
 
-### ◆ Players, and rivals
+### ◆ The rivals: hunt players, outrank friends
 
-Every player you've sharded, grouped by class. SoulDex users in your party, raid and
-guild appear on a friends leaderboard on their own; add anyone else with
-`/souldex add <name>`. Browse a friend's dex, read-only: what they have and you don't
-is highlighted.
+Every player you shard is a trophy, sorted by class. SoulDex users in your party, raid
+and guild join your leaderboard on their own; add anyone else with `/dex add <name>`.
+Browse a rival's dex, read-only: what they have and you don't is highlighted.
 
 ![Players and Friends tabs](https://media.forgecdn.net/attachments/2207/168/feature-4-players-friends-png.png)
 
-### ◆ Score, stats and milestones
+### ◆ The climb: rise through the ranks
 
-- A **popup and a sound** when you catch a soul for the first time. Repeat catches stay quiet.
-- **Points** for each first catch: 1 for a normal mob, 5 for an elite, 10 for a rare
-  or a player, 25 for a boss.
-- **Milestones** for unique mobs, player souls and each raid completed.
-- A **Me** tab with your score, souls taken, most-caught mob, top zone and your rank
-  among friends.
+- **Points** for each first claim: 1 for a normal mob, 5 for an elite, 10 for a rare
+  or a player, 25 for a boss. A first claim is always worth the most.
+- **Mastery stars** for the mobs you farm: claim the same mob 10, 25, 50, 100, 250, 500,
+  750 and 1,000 times for stars and points, then another star every 500.
+- **Bosses score every time** you claim them. Players and rares pay a little again, at
+  most once a day each, so nobody farms a friend for points.
+- **8 warlock ranks** earned from your score: Initiate, Acolyte, Soul Thief,
+  Shardbinder, Reaper, Soul Harvester, Soul Tyrant and Lord of Souls. Ranking up turns
+  the popup fel green.
+- **19 named milestones**, from First Harvest and First Blood to Molten Core Drained,
+  each with a progress bar until you earn it.
+- A **Me** tab with your rank crest and your records: most-claimed mob, nemesis (the
+  player you've sharded most), hunting ground, rarest trophy, latest claim and best day.
 
-Guild announcements are **for big moments only** (from 100 unique mobs, 25 player
-souls, and raid completions), never for every catch. They switch off with one tick.
+Guild announcements are **for big moments only** (the higher ranks, the bigger
+milestones and raid completions), never for every soul. They switch off with one tick.
 
 ![Me and Milestones tabs](https://media.forgecdn.net/attachments/2207/167/feature-5-me-milestones-png.png)
 
@@ -73,13 +82,13 @@ souls, and raid completions), never for every catch. They switch off with one ti
 
 ### Settings
 
-The new-catch popup, the sound and guild announcements each have their own on/off switch.
+The new-soul popup, the sound and guild announcements each have their own on/off switch.
 
-### How catching works on WoW: Forever
+### How claiming works on WoW: Forever
 
 Forever hides the combat log from addons, so SoulDex reads your target when you start
 **Drain Soul** (or cast **Shadowburn**) and names the next new shard after it. When the
-game hides the target's name, the catch counts as an **Unknown soul** in that zone (no
+game hides the target's name, the soul counts as an **Unknown soul** in that zone (no
 points, no popup). SoulDex never guesses: a shard it can't match to a cast is left
 unnamed rather than recorded under the wrong name. Shards from before you installed the
 addon have no soul to show.

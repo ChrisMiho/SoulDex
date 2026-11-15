@@ -7,56 +7,51 @@
 	.banner {
 		position: relative; width: 1200px; height: 400px; overflow: hidden;
 		background:
-			radial-gradient(ellipse 38% 75% at 50% 46%, #4a2384 0%, #241238 45%, transparent 80%),
-			linear-gradient(180deg, #0d0915 0%, #0b0811 100%);
+			radial-gradient(ellipse 34% 74% at 50% 44%, #2c1058 0%, #120824 46%, transparent 80%),
+			radial-gradient(ellipse 75% 34% at 50% 116%, #46b016aa 0%, #1c4a0a55 45%, transparent 75%),
+			linear-gradient(180deg, #09060f 0%, #030205 100%);
 		display: flex; flex-direction: column; align-items: center; justify-content: center;
 	}
-	/* faint star dust, fading out towards the edges */
+	/* the summoning circle, far bigger than the banner */
 	.banner::before {
-		content: ""; position: absolute; inset: 0;
-		background-image: radial-gradient(#ffffff26 1px, transparent 1.4px); background-size: 36px 36px; opacity: .4;
-		mask-image: radial-gradient(ellipse 50% 70% at 50% 50%, #000 0%, transparent 75%);
+		content: ""; position: absolute; left: 50%; top: 50%; width: 1060px; height: 1060px;
+		transform: translate(-50%, -50%);
+		background: url("sigil.svg") center / contain no-repeat; opacity: .36;
 	}
-	/* edge vignette */
 	.banner::after {
 		content: ""; position: absolute; inset: 0; pointer-events: none;
-		background: radial-gradient(ellipse 75% 120% at 50% 50%, transparent 55%, #05030a 100%);
+		background: radial-gradient(ellipse 70% 120% at 50% 50%, transparent 42%, #000000ee 100%);
 	}
-	/* large arcane rings behind the lockup, echoing the mark */
-	.rings { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 1100px; height: 1100px; opacity: .55; }
-	.rings circle { fill: none; }
+	.frame { inset: 14px; }
+	.embers { transform: translate(-40px, -330px); }
 
-	.lockup { position: relative; z-index: 1; display: flex; align-items: center; gap: 22px; margin-top: -6px; }
-	.lockup .mark { width: 150px; height: 150px; filter: drop-shadow(0 0 22px #9a4ae6aa); }
+	.kick { position: relative; z-index: 2; font-family: "Cinzel", serif; font-weight: 700; font-size: 15px; letter-spacing: 9px; color: var(--purple-hi); text-transform: uppercase; margin-bottom: 10px; padding-left: 9px; }
+	.kick b { color: var(--fel); font-weight: 700; padding: 0 6px; text-shadow: 0 0 10px #8dff3a; }
+	.lockup { position: relative; z-index: 2; display: flex; align-items: center; gap: 26px; }
+	.lockup .mark { width: 190px; height: 190px; margin: -14px 0 -8px; filter: drop-shadow(0 0 24px #5a22b0aa); }
 	.lockup h1 {
-		font-size: 112px; line-height: 1; letter-spacing: -1px; color: #f4ebff;
-		text-shadow: 0 0 30px #8a3cd6aa, 0 4px 0 #22093f;
+		font-family: "Cinzel", serif; font-weight: 900; font-size: 118px; line-height: 1; letter-spacing: 2px; text-transform: uppercase;
+		filter: drop-shadow(0 4px 0 #000) drop-shadow(0 0 30px #7b3fe480);
 	}
-	.lockup h1 span { color: #c9a8ff; }
-
-	.rule { position: relative; z-index: 1; display: flex; align-items: center; gap: 14px; margin: 18px 0 16px; }
-	.rule i { display: block; width: 150px; height: 1px; }
-	.rule i:first-child { background: linear-gradient(90deg, transparent, #8a5cd0); }
-	.rule i:last-child { background: linear-gradient(90deg, #8a5cd0, transparent); }
-	.rule b { color: #c9a8ff; font-size: 11px; line-height: 1; }
-
-	.tag { position: relative; z-index: 1; color: #d9cdee; font-size: 30px; font-style: italic; letter-spacing: .3px; }
-	.meta { position: relative; z-index: 1; color: #8a72b8; font-size: 15px; letter-spacing: 5px; text-transform: uppercase; margin-top: 14px; }
+	.lockup h1 span { font-size: .78em; }
+	.rule { position: relative; z-index: 2; display: flex; align-items: center; gap: 14px; margin: 12px 0 12px; }
+	.rule i { display: block; width: 190px; height: 1px; }
+	.rule i:first-child { background: linear-gradient(90deg, transparent, #6fd62c); }
+	.rule i:last-child { background: linear-gradient(90deg, #6fd62c, transparent); }
+	.rule b { width: 9px; height: 9px; transform: rotate(45deg); background: var(--fel); box-shadow: 0 0 12px #8dff3a; }
+	.tag { position: relative; z-index: 2; font-family: "Cinzel", serif; font-weight: 700; font-size: 27px; letter-spacing: 6px; text-transform: uppercase; padding-left: 8px; filter: drop-shadow(0 2px 0 #000) drop-shadow(0 0 16px #6fd62c88); }
+	.meta { position: relative; z-index: 2; color: var(--muted); font-size: 17px; letter-spacing: 1px; margin-top: 12px; }
 </style></head>
 <body>
 	<div class="banner">
-		<svg class="rings" viewBox="0 0 1100 1100" aria-hidden="true">
-			<circle cx="550" cy="550" r="250" stroke="#6b4fa0" stroke-width="1" opacity=".55"/>
-			<circle cx="550" cy="550" r="268" stroke="#6b4fa0" stroke-width="1" stroke-dasharray="2 9" opacity=".7"/>
-			<circle cx="550" cy="550" r="380" stroke="#4b2f80" stroke-width="1" opacity=".5"/>
-			<circle cx="550" cy="550" r="520" stroke="#3d2668" stroke-width="1" stroke-dasharray="3 12" opacity=".5"/>
-		</svg>
+		<div class="frame"></div><div class="embers"></div>
+		<div class="kick">Hunt<b>&#9670;</b>Drain<b>&#9670;</b>Claim</div>
 		<div class="lockup">
 			<img class="mark" src="shard.svg" alt="">
-			<h1>Soul<span>Dex</span></h1>
+			<h1 class="steel">S<span>oul</span>D<span>ex</span></h1>
 		</div>
-		<div class="rule"><i></i><b>◆</b><i></i></div>
-		<div class="tag">Every Soul Shard remembers whose soul it holds.</div>
+		<div class="rule"><i></i><b></b><i></i></div>
+		<div class="tag felfire">Their souls. Your collection.</div>
 		<div class="meta">A warlock addon for WoW: Forever</div>
 	</div>
 </body></html>

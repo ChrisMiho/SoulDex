@@ -4,21 +4,31 @@
 <style>
 	/* Square project avatar. ?s=<px> sets the size, ?mark hides the word (small icons). */
 	:root { --s: 400px; }
-	body { background: #0b0811; }
 	.logo {
 		position: fixed; left: 0; top: 0; width: var(--s); height: var(--s); overflow: hidden;
 		display: flex; flex-direction: column; align-items: center; justify-content: center;
-		background: radial-gradient(circle at 50% 42%, #3d1c6e 0%, #1b0f2e 55%, #0b0811 100%);
+		background:
+			radial-gradient(ellipse 80% 40% at 50% 112%, #46b01699 0%, transparent 75%),
+			radial-gradient(circle at 50% 42%, #2c1058 0%, #100720 50%, #030205 100%);
 	}
-	.logo img { width: calc(var(--s) * .72); height: calc(var(--s) * .72); margin-top: calc(var(--s) * -.03); filter: drop-shadow(0 0 calc(var(--s) * .04) #9a4ae688); }
-	.logo .word { font-family: "Palatino Linotype", Palatino, Georgia, serif; font-weight: bold; color: #f1e6ff; font-size: calc(var(--s) * .14); line-height: 1; margin-top: calc(var(--s) * -.02); text-shadow: 0 0 calc(var(--s) * .03) #8a3cd6, 0 calc(var(--s) * .006) 0 #2a0c4a; }
-	.logo .word span { color: #c9a8ff; }
-	.logo.mark img { width: calc(var(--s) * .92); height: calc(var(--s) * .92); margin: 0; }
+	.logo::before {
+		content: ""; position: absolute; left: 50%; top: 42%; width: calc(var(--s) * 1.5); height: calc(var(--s) * 1.5);
+		transform: translate(-50%, -50%); background: url("sigil.svg") center / contain no-repeat; opacity: .3;
+	}
+	.logo img { position: relative; width: calc(var(--s) * .7); height: calc(var(--s) * .7); margin-top: calc(var(--s) * -.02); filter: drop-shadow(0 0 calc(var(--s) * .05) #5a22b0aa); }
+	.logo .word {
+		position: relative; font-family: "Cinzel", serif; font-weight: 900; text-transform: uppercase; letter-spacing: calc(var(--s) * .004);
+		font-size: calc(var(--s) * .15); line-height: 1; margin-top: calc(var(--s) * -.005);
+		filter: drop-shadow(0 calc(var(--s) * .008) 0 #000) drop-shadow(0 0 calc(var(--s) * .035) #7b3fe499);
+	}
+	.logo .word span { font-size: .78em; }
+	.logo.mark::before { top: 50%; }
+	.logo.mark img { width: calc(var(--s) * .94); height: calc(var(--s) * .94); margin: 0; }
 </style></head>
 <body>
 	<div class="logo" id="logo">
 		<img src="shard.svg" alt="">
-		<div class="word">Soul<span>Dex</span></div>
+		<div class="word steel">S<span>oul</span>D<span>ex</span></div>
 	</div>
 	<script>
 		var q = location.search;

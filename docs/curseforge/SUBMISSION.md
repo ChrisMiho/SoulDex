@@ -10,7 +10,7 @@ Everything for the CurseForge project page is in this folder. `docs/` is already
 | `images/banner-1200x400.png` | Header image at the top of the description |
 | `images/feature-1-mobs.png` … `feature-5-me-milestones.png` | **Images** tab (gallery), 1280×720 |
 | `description.md` | Project **description** |
-| `source/` | HTML the images are made from. Edit, then run `docs/curseforge/source/render.sh` in Git Bash |
+| `source/` | HTML the images are made from. Edit, then run `docs/curseforge/source/render.sh` (Git Bash on Windows) |
 
 ## 1. Before you start
 
@@ -27,8 +27,8 @@ Author console → **Create Project** → game **World of Warcraft** → class *
 | Field | Fill in |
 |-------|---------|
 | Project name | `SoulDex` |
-| Summary | `A collector's dex for warlocks: every Soul Shard records whose soul it holds. Catch mobs, players and raid souls.` (113 characters) |
-| Short alternative | `Every Soul Shard remembers whose soul it holds. A collection game for warlocks.` |
+| Summary | `Their souls. Your collection. Every Soul Shard becomes a trophy: claim mobs, players and raid bosses, and earn ranks.` (117 characters) |
+| Short alternative | `Their souls. Your collection. Turns every Soul Shard into a trophy.` |
 | Main category | **Class** (subcategory **Warlock** if offered) |
 | Extra categories | **Achievements** (collection/points), **Minigames** |
 | Logo / avatar | `images/logo-400.png` |
@@ -54,21 +54,22 @@ CurseForge reviews every new project by hand; that can take a few days.
 
 Upload the five `feature-*.png` files, in order, with these titles:
 
-1. **Mobs** — Every shard is a soul caught
-2. **Raids** — Catch every raid soul
-3. **Shard tooltip** — Your shards remember
-4. **Players and Friends** — Players, and rivals
-5. **Me and Milestones** — Score, stats and milestones
+1. **The hunt** — Every kill a trophy
+2. **The raids** — Drain every raid
+3. **The trophies** — Every shard has a name
+4. **The rivals** — Hunt players. Outrank friends.
+5. **The climb** — Rise through the ranks
 
 These are drawn illustrations of the window, built from the addon's own colours and
 labels (each one says "Illustration" in the corner). **Add real in-game screenshots as
 soon as you can**; players trust them more. Good ones to take:
 
 - [ ] The window on the Mobs tab with a detail pane open (an elite or rare).
-- [ ] The Raids tab with a partly caught raid, showing `? ? ?` and boss skulls.
-- [ ] The NEW SOUL CAUGHT! popup right after a catch.
+- [ ] The Raids tab with a partly claimed raid, showing `? ? ?` and boss skulls.
+- [ ] The SOUL CLAIMED popup right after a claim (an elite or a boss shows its colour).
 - [ ] A named Soul Shard's tooltip in your bags (title "Soul of …").
 - [ ] The Friends tab with at least one guildie listed.
+- [ ] The Me tab, showing your rank and its progress bar.
 
 Hide other UI clutter (Alt+Z hides the whole UI, so open the window first and crop).
 
@@ -86,6 +87,33 @@ Files tab → **Upload File**:
 | Related projects | **Ace3**: *Embedded library* (LibStub, CallbackHandler and AceComm are bundled) |
 
 The zip must contain one top-level `SoulDex/` folder; the packager already does this.
+
+## Updating the page after the rebrand
+
+The images and `description.md` were redone for the "Their souls. Your collection." branding, and they
+show things that arrive with the release after 1.2.4 (ranks, named milestones, progress
+bars, the coloured popup). Release that version first, then:
+
+1. Project settings: replace the **logo** with `images/logo-400.png` and the **summary**
+   with the one in step 2.
+2. Media tab: upload the new banner and the five `feature-*.png` files. Delete the old ones.
+3. `description.md` still points at the first uploads' URLs: replace each
+   `https://media.forgecdn.net/...` link with the new upload's URL, then paste the file
+   into the description.
+4. Images tab: replace the five gallery images and their titles (step 4 above).
+
+## Brand
+
+- **Voice:** a soul hunter's. Souls are *claimed*, a claim is a *trophy*, the player
+  *hunts*, *drains* and *outranks*. Dry and confident, never sentimental.
+- **Lines:** "Their souls. Your collection." (the user picked it) and "Hunt. Drain. Claim."
+- **Colours:** near-black `#030205`, shadow purple `#8a5cd0`, black iron `#2b2437` and fel
+  green `#8dff3a`. No gold: the user asked for it darker and more demonic.
+- **Type:** Cinzel capitals for headlines (`source/fonts/`, SIL Open Font License); the
+  wordmark is cold iron-violet, accents burn fel green.
+- **Emblem:** a soul shard crackling with fel-green energy (jagged bolts and sparks), held in a
+  spiked ring of black iron (`source/shard.svg`). No horns and no fire. The
+  summoning circle behind the artwork is `source/sigil.svg`.
 
 ## Licence
 
