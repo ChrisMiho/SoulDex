@@ -68,10 +68,12 @@ function Whisper.newQueue()
 	return setmetatable({ entries = {}, n = 0 }, Queue)
 end
 
--- Stores pend (the caller's capture state) and gives it pend.token.
+-- Stores pend (the caller's capture state) and gives it pend.token: hex of the send time
+-- (ms, low 20 bits, fixed width) then the counter, so a reply to a whisper from before a
+-- /reload (the counter restarts, the clock doesn't) can't match. Never contains ":".
 function Queue:add(pend, now)
 	self.n = self.n + 1
-	local token = string.format("%x", self.n)
+	local token = string.format("%05x%x", math.floor((now or 0) * 1000) % 0x100000, self.n)
 	pend.token = token
 	self.entries[token] = { pend = pend, sentAt = now, waited = 0, last = now, seq = self.n }
 	return token

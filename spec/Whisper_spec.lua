@@ -154,6 +154,22 @@ describe("Whisper", function()
 			assert.equal(1, q:count())
 		end)
 
+		it("gives short hex tokens that parse back", function()
+			for _, now in ipairs({ 0, 12.345, 98765.4321, 4000000.5 }) do
+				local token = q:add({}, now)
+				assert.truthy(token:match("^%x+$"), token)
+				assert.truthy(#token <= 8, token)
+				local reply = W.message(token):gsub("%%t", "Scarlet Monk")
+				assert.equal(token, (W.parse(reply)))
+			end
+		end)
+
+		it("a new session's tokens don't repeat the last session's (time is in them)", function()
+			local old = q:add({}, 100.25)
+			local fresh = W.newQueue() -- after a /reload the counter starts again
+			assert.are_not.equal(old, fresh:add({}, 112.5))
+		end)
+
 		it("returns expired entries in send order", function()
 			local a, b = {}, {}
 			q:add(a, 0)
