@@ -15,12 +15,13 @@ local STUBBED = {
 	"UNKNOWN", "UNKNOWNOBJECT", "NUM_BAG_SLOTS", "NUM_TOTAL_EQUIPPED_BAG_SLOTS", "RAID_CLASS_COLORS",
 	"UnitExists", "UnitIsUnit", "UnitIsAFK", "UnitIsDND", "GetUnitName", "ChatFrameUtil",
 	"ChatFrame_AddMessageEventFilter", "ChatEdit_GetLastTellTarget", "ChatEdit_SetLastTellTarget",
+	"InCombatLockdown",
 }
 
 describe("Capture glue", function()
 	local saved
 	local world -- the fake game state the stubs read
-	local frames, timers, postCalls
+	local frames, timers, tickers, postCalls
 
 	local function frameStub()
 		local f = { events = {}, unitEvents = {} }
@@ -52,7 +53,7 @@ describe("Capture glue", function()
 		for _, k in ipairs(STUBBED) do
 			saved[k] = _G[k]
 		end
-		frames, timers, postCalls = {}, {}, {}
+		frames, timers, tickers, postCalls = {}, {}, {}, {}
 		world = {
 			clock = 100,
 			epoch = 1000000,
@@ -71,7 +72,15 @@ describe("Capture glue", function()
 		_G.date = function() return "10 Nov 2026" end
 		_G.time = function() return world.epoch end
 		_G.GetTime = function() return world.clock end
-		_G.C_Timer = { After = function(_, fn) timers[#timers + 1] = fn end }
+		_G.C_Timer = {
+			After = function(_, fn) timers[#timers + 1] = fn end,
+			NewTicker = function(_, fn)
+				local ticker = { fn = fn }
+				function ticker:Cancel() self.cancelled = true end
+				tickers[#tickers + 1] = ticker
+				return ticker
+			end,
+		}
 		_G.issecretvalue = function(v) return rawequal(v, SECRET) or v == STR_SECRET end
 		_G.canaccesstable = function() return true end
 		_G.C_Spell = {
@@ -177,6 +186,7 @@ describe("Capture glue", function()
 		_G.ChatFrame_AddMessageEventFilter = nil
 		_G.ChatEdit_GetLastTellTarget = nil
 		_G.ChatEdit_SetLastTellTarget = nil
+		_G.InCombatLockdown = nil
 	end)
 
 	after_each(function()
@@ -1223,17 +1233,6 @@ describe("Capture glue", function()
 			assert.same({ { target = "Friend", chatType = "WHISPER" } }, tellsSet)
 		end)
 
-		it("a shard under a pending whisper still records an Unknown soul (for now)", function()
-			world.target = MONK
-			local _, db = boot()
-			drain("cast1", SECRET)
-			putShard(1, "NEW")
-			fire("BAG_UPDATE_DELAYED")
-			flush()
-			assert.equal(1, db.unknown["Elwynn Forest"].count)
-			assert.is_true(db.shardSouls.NEW.soul.unknown)
-		end)
-
 		it("the player's own reply names the soul; another sender's changes nothing", function()
 			world.target = MONK
 			local ns = boot()
@@ -1326,6 +1325,206 @@ describe("Capture glue", function()
 			end
 			assert.equal(32, #ns.Capture.whispers.lines)
 			assert.equal(9, ns.Capture.whispers.lines[1].id) -- the oldest went first
+		end)
+
+		describe("holding the shard", function()
+			-- Runs the live tickers once a second for the given seconds.
+			local function wait(seconds)
+				for _ = 1, seconds do
+					world.clock = world.clock + 1
+					for _, ticker in ipairs(tickers) do
+						if not ticker.cancelled then
+							ticker.fn()
+						end
+					end
+				end
+			end
+
+			local function liveTickers()
+				local n = 0
+				for _, ticker in ipairs(tickers) do
+					if not ticker.cancelled then
+						n = n + 1
+					end
+				end
+				return n
+			end
+
+			local function newShard(slot, guid)
+				putShard(slot, guid)
+				fire("BAG_UPDATE_DELAYED")
+				flush()
+			end
+
+			local function bootCaught()
+				local ns, db = boot()
+				local caught = {}
+				table.insert(ns.onCatch, function(result, entry) caught[#caught + 1] = { result, entry } end)
+				return ns, db, caught
+			end
+
+			it("holds the shard until the reply, then records the named mob in the saved zone", function()
+				world.target = MONK
+				local ns, db, caught = bootCaught()
+				drain("cast1", SECRET)
+				local token = tokenOf(sends[1])
+				newShard(1, "NEW")
+				assert.same({}, db.mobs)
+				assert.is_nil(db.unknown["Elwynn Forest"])
+				assert.equal(0, #caught)
+				assert.equal(0, #timers)
+				assert.is_false(db.shardSouls.NEW.soul)
+				assert.equal(token, ns.Shards.pendingOf(db.shardSouls, "NEW").token)
+				assert.equal("Elwynn Forest", ns.Shards.pendingOf(db.shardSouls, "NEW").ctx.zone)
+
+				world.zone = "Somewhere Else"
+				whisper("SDX1:" .. token .. ":Scarlet Monk", ME_GUID)
+				local mob = db.mobs["Scarlet Monk"]
+				assert.is_not_nil(mob)
+				assert.equal("elite", mob.classification)
+				assert.equal(1, mob.places["Elwynn Forest"].count)
+				assert.is_nil(db.places["Somewhere Else"])
+				local soul = db.shardSouls.NEW.soul
+				assert.equal("Scarlet Monk", soul.name)
+				assert.equal("Elwynn Forest", soul.zone)
+				assert.is_nil(ns.Shards.pendingOf(db.shardSouls, "NEW"))
+				assert.equal(1, #caught)
+				assert.equal("mob", caught[1][2].kind)
+				assert.is_true(caught[1][1].isNew)
+				assert.equal(1, #timers) -- the popup, a frame later
+			end)
+
+			it("a reply before the shard records the named soul when the shard arrives", function()
+				world.target = MONK
+				local ns, db, caught = bootCaught()
+				drain("cast1", SECRET)
+				whisper("SDX1:" .. tokenOf(sends[1]) .. ":Scarlet Monk", ME_GUID)
+				assert.equal(0, ns.Capture.whispers.queue:count()) -- named: out of the queue
+				assert.same({}, db.mobs)
+				newShard(1, "NEW")
+				assert.equal(1, db.mobs["Scarlet Monk"].places["Elwynn Forest"].count)
+				assert.equal("Scarlet Monk", db.shardSouls.NEW.soul.name)
+				assert.is_nil(ns.Shards.pendingOf(db.shardSouls, "NEW"))
+				assert.equal(1, #caught)
+			end)
+
+			it("a named whisper can't time out later", function()
+				world.target = MONK
+				local ns = boot()
+				drain("cast1", SECRET)
+				local pend = pendOf(ns, sends[1])
+				whisper("SDX1:" .. tokenOf(sends[1]) .. ":Scarlet Monk", ME_GUID)
+				wait(ns.Whisper.CEILING + 1)
+				assert.equal("named", pend.state)
+				assert.equal("Scarlet Monk", pend.name)
+			end)
+
+			it("no reply in 60 s out of combat: one Unknown soul in the shard's zone", function()
+				world.target = MONK
+				local ns, db, caught = bootCaught()
+				drain("cast1", SECRET)
+				newShard(1, "NEW")
+				assert.equal(1, liveTickers())
+				wait(59)
+				assert.is_nil(db.unknown["Elwynn Forest"])
+				wait(2)
+				assert.equal(1, db.unknown["Elwynn Forest"].count)
+				local soul = db.shardSouls.NEW.soul
+				assert.is_true(soul.unknown)
+				assert.equal(ns.Capture.UNKNOWN_SOUL, soul.name)
+				assert.equal("Elwynn Forest", soul.zone)
+				assert.is_nil(ns.Shards.pendingOf(db.shardSouls, "NEW"))
+				assert.equal(1, #caught)
+				assert.equal("unknown", caught[1][2].kind)
+				wait(120)
+				assert.equal(1, db.unknown["Elwynn Forest"].count)
+				assert.equal(0, liveTickers()) -- nothing left to wait for
+			end)
+
+			it("a reply with no usable name after the shard is held gives one Unknown soul", function()
+				world.target = MONK
+				local _, db = boot()
+				drain("cast1", SECRET)
+				newShard(1, "NEW")
+				whisper("SDX1:" .. tokenOf(sends[1]) .. ":%t", ME_GUID)
+				assert.equal(1, db.unknown["Elwynn Forest"].count)
+				assert.is_true(db.shardSouls.NEW.soul.unknown)
+				wait(120)
+				assert.equal(1, db.unknown["Elwynn Forest"].count)
+			end)
+
+			it("the clock stops in combat; a reply re-read when combat ends still names the soul", function()
+				world.target = MONK
+				local inCombat = true
+				_G.InCombatLockdown = function() return inCombat end
+				local _, db = boot()
+				drain("cast1", SECRET)
+				newShard(1, "NEW")
+				whisper(SECRET, SECRET, 7)
+				wait(90)
+				assert.is_nil(db.unknown["Elwynn Forest"])
+				assert.is_false(db.shardSouls.NEW.soul)
+				world.lines[7] = { text = "SDX1:" .. tokenOf(sends[1]) .. ":Scarlet Monk", guid = ME_GUID }
+				inCombat = false
+				fire("PLAYER_REGEN_ENABLED")
+				flush()
+				assert.equal("Scarlet Monk", db.shardSouls.NEW.soul.name)
+				assert.is_not_nil(db.mobs["Scarlet Monk"])
+				assert.is_nil(db.unknown["Elwynn Forest"])
+			end)
+
+			it("a secret combat answer and a chat lockdown stop the clock too", function()
+				local setups = {
+					function() _G.InCombatLockdown = function() return SECRET end end,
+					function() world.locked = true end,
+				}
+				for i, setup in ipairs(setups) do
+					world.target = MONK
+					_G.InCombatLockdown = nil
+					world.locked = false
+					world.bags[0] = {}
+					local _, db = boot()
+					drain("cast1", SECRET)
+					newShard(1, "NEW")
+					setup()
+					wait(90)
+					assert.is_nil(db.unknown["Elwynn Forest"], "case " .. i)
+				end
+			end)
+
+			it("two held shards each get their own name", function()
+				world.target = MONK
+				local _, db = boot()
+				drain("cast1", SECRET)
+				local tokenA = tokenOf(sends[1])
+				fire("UNIT_SPELLCAST_CHANNEL_STOP", "player", "cast1", 1120)
+				newShard(1, "gA")
+				world.clock = world.clock + 5
+				drain("cast2", SECRET)
+				local tokenB = tokenOf(sends[2])
+				fire("UNIT_SPELLCAST_CHANNEL_STOP", "player", "cast2", 1120)
+				newShard(2, "gB")
+				assert.are_not.equal(tokenA, tokenB)
+				whisper("SDX1:" .. tokenB .. ":Scarlet Abbot", ME_GUID)
+				whisper("SDX1:" .. tokenA .. ":Scarlet Monk", ME_GUID)
+				assert.equal("Scarlet Monk", db.shardSouls.gA.soul.name)
+				assert.equal("Scarlet Abbot", db.shardSouls.gB.soul.name)
+			end)
+
+			it("a shard still held at login becomes one Unknown soul, once", function()
+				local ctx = { time = 5000, zone = "Scarlet Monastery", group = "Dungeons" }
+				local ns, db = boot({
+					shardSouls = { HELD = { soul = false, pending = { token = "1", ctx = ctx }, seen = 5000 } },
+				})
+				assert.equal(1, db.unknown["Scarlet Monastery"].count)
+				local soul = db.shardSouls.HELD.soul
+				assert.is_true(soul.unknown)
+				assert.equal("Scarlet Monastery", soul.zone)
+				assert.equal(5000, soul.time)
+				assert.is_nil(ns.Shards.pendingOf(db.shardSouls, "HELD"))
+				ns.OnLoaded(db)
+				assert.equal(1, db.unknown["Scarlet Monastery"].count)
+			end)
 		end)
 
 		describe("chat filter", function()

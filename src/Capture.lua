@@ -654,16 +654,33 @@ local function afterCatch(db, dex, result, entry)
 	Capture.runHooks(ns.onCatch, errorHandler(), result, entry)
 end
 
--- Records the capture and returns the soul to remember for its shard (or nil), plus the
--- work for afterCatch (run by the caller once the map is saved).
-function Capture.record(dex, capture)
-	local info = capture.info
-	local ctx, instanceType, instanceID = Capture.buildContext()
-	if info.unknown then
-		local result = dex:recordUnknown(ctx)
-		local soul = { name = UNKNOWN_SOUL, unknown = true, zone = ctx.zone, time = ctx.time }
-		return soul, { result = result, entry = { info = info, ctx = ctx, kind = "unknown" } }
+-- The info to record for a soul named by whisper: the details read at the cast, plus the
+-- name. No GUID, so a raid catch falls through to a plain mob.
+function Capture.namedInfo(pend)
+	local d = type(pend.details) == "table" and pend.details or {}
+	local info = {
+		name = pend.name,
+		isPlayer = d.isPlayer,
+		level = d.level,
+		classification = d.classification,
+		creatureType = d.creatureType,
+		family = d.family,
+	}
+	if info.isPlayer then
+		info.realm = str(call(GetRealmName)) -- the same player key as a readable catch
 	end
+	return info
+end
+
+-- Records an Unknown soul; returns its soul table and the afterCatch work.
+local function recordUnknown(dex, info, ctx)
+	local result = dex:recordUnknown(ctx)
+	local soul = { name = UNKNOWN_SOUL, unknown = true, zone = ctx.zone, time = ctx.time }
+	return soul, { result = result, entry = { info = info, ctx = ctx, kind = "unknown" } }
+end
+
+-- Records a named catch; returns its soul table and the afterCatch work, or nil.
+local function recordNamed(dex, info, ctx, instanceType, instanceID)
 	local result, kind = Capture.recordCatch(dex, { guid = info.guid, info = info }, ctx, instanceType, instanceID)
 	if not result then
 		return nil
@@ -675,6 +692,53 @@ function Capture.record(dex, capture)
 		time = ctx.time,
 	}
 	return soul, { result = result, entry = { info = info, ctx = ctx, kind = kind, color = soul.color } }
+end
+
+-- Records the capture and returns the soul to remember for its shard (or nil), plus the
+-- work for afterCatch (run by the caller once the map is saved). A capture whose whisper
+-- is still waiting records nothing: the third value { park = true, token, ctx } tells the
+-- caller to hold the shard (Shards.assignPending) until the name comes or never will.
+function Capture.record(dex, capture)
+	local info = capture.info
+	local pend = info.unknown and info.pend or nil
+	if pend and pend.state == "named" then
+		info = Capture.namedInfo(pend)
+	end
+	local ctx, instanceType, instanceID = Capture.buildContext()
+	if pend and pend.state == "waiting" then
+		return nil, nil, { park = true, token = pend.token, ctx = ctx }
+	end
+	if info.unknown then
+		return recordUnknown(dex, info, ctx)
+	end
+	return recordNamed(dex, info, ctx, instanceType, instanceID)
+end
+
+-- Records a held shard's catch with the ctx saved when it was held: the named catch, or
+-- an Unknown soul for a whisper that failed or ran out. Returns soul, afterCatch work.
+function Capture.recordHeld(dex, pend, ctx)
+	if pend.state == "named" then
+		return recordNamed(dex, Capture.namedInfo(pend), ctx)
+	end
+	return recordUnknown(dex, { unknown = true }, ctx)
+end
+
+-- Whisper tokens restart every session, so a shard still held from the last one can never
+-- be named: each becomes one Unknown soul (the entry is then no longer held). Runs before
+-- Capture.start, so before any whisper of this session can be sent.
+function Capture.settleLeftovers(db, dex)
+	for _, held in ipairs(ns.Shards.allPending(db.shardSouls)) do
+		local ctx, soul = held.pending.ctx, false
+		if type(ctx) == "table" and type(ctx.zone) == "string" and type(ctx.time) == "number" then
+			local ok, s = pcall(recordUnknown, dex, { unknown = true }, ctx)
+			if ok then
+				soul = s
+			else
+				pcall(errorHandler(), s)
+			end
+		end
+		db.shardSouls = ns.Shards.assign(db.shardSouls, held.guid, soul, time())
+	end
 end
 
 -- Event wiring ------------------------------------------------------------------------------
@@ -780,18 +844,24 @@ function Capture.start(db, dex)
 		end
 		local done = {}
 		for _, guid in ipairs(gained) do
-			local soul, after
+			local soul, after, park
 			local capture = #gained == 1 and window:take(GetTime())
 			if capture then
-				local ok, s, a = pcall(Capture.record, dex, capture)
+				local ok, s, a, p = pcall(Capture.record, dex, capture)
 				if ok then
-					soul, after = s, a
+					soul, after, park = s, a, p
 				else
 					pcall(errorHandler(), s)
 				end
 			end
 			-- Saved shard by shard, so an error later can't lose this one.
-			map = ns.Shards.assign(map, guid, soul or false, now)
+			if park then
+				-- Held until its soul's name comes (or never will): see settle.
+				map = ns.Shards.assignPending(map, guid, park.token, park.ctx, now)
+				capture.info.pend.shard = guid
+			else
+				map = ns.Shards.assign(map, guid, soul or false, now)
+			end
 			db.shardSouls = map
 			if after then
 				done[#done + 1] = after
@@ -853,14 +923,64 @@ function Capture.start(db, dex)
 	local queue = Whisper.newQueue()
 	local whispers = { queue = queue, lines = {} } -- lines: { id, at }, oldest first
 
-	local function onName(token, name)
-		local pend = queue:get(token)
-		if pend then
-			pend.name = name
-			pend.state = "named"
+	-- A pend that is named or failed: if its shard is already held, the catch is recorded
+	-- now (with the ctx saved when the shard was held), saved, then afterCatch runs. A shard
+	-- that hasn't arrived yet records at its scan instead (Capture.record).
+	local function settle(pend)
+		local guid = pend.shard
+		local held = ns.Shards.pendingOf(db.shardSouls, guid)
+		if not held or held.token ~= pend.token then
+			return
+		end
+		local soul, after
+		local ok, s, a = pcall(Capture.recordHeld, dex, pend, held.ctx)
+		if ok then
+			soul, after = s, a
+		else
+			pcall(errorHandler(), s)
+		end
+		db.shardSouls = ns.Shards.assign(db.shardSouls, guid, soul or false, time())
+		if after then
+			Capture.protect(errorHandler(), afterCatch, db, dex, after.result, after.entry)
 		end
 	end
-	whispers.onName = onName
+
+	-- Named or failed: out of the queue, so it can't also time out.
+	local function finish(token, name)
+		local pend = queue:remove(token)
+		if not pend then
+			return
+		end
+		pend.name = name
+		pend.state = name and "named" or "failed"
+		settle(pend)
+	end
+
+	whispers.onName = finish
+
+	-- Once a second while anything is pending: expired asks fail. The clock stops while the
+	-- reply couldn't be read (in combat, chat locked; an unreadable answer counts as both).
+	local ticker
+	local function expire()
+		local restricted = whisperLocked() or yes(InCombatLockdown, true)
+		for _, pend in ipairs(queue:tick(GetTime(), restricted)) do
+			pend.state = "failed"
+			settle(pend)
+		end
+		if queue:count() == 0 and ticker then
+			call(ticker.Cancel, ticker)
+			ticker = nil
+		end
+	end
+
+	local function startTicker()
+		if ticker or not C_Timer or type(C_Timer.NewTicker) ~= "function" then
+			return
+		end
+		ticker = call(C_Timer.NewTicker, 1, function()
+			Capture.protect(errorHandler(), expire)
+		end)
+	end
 
 	-- A reply whose text and sender GUID are readable.
 	local function accept(text, guid)
@@ -875,11 +995,7 @@ function Capture.start(db, dex)
 		if not me or guid ~= me then
 			return
 		end
-		if name then
-			onName(token, name)
-		else
-			queue:remove(token).state = "failed"
-		end
+		finish(token, name)
 	end
 
 	local function keepLine(id)
@@ -921,6 +1037,7 @@ function Capture.start(db, dex)
 			queue:remove(token)
 			return info
 		end
+		startTicker()
 		return { unknown = true, pend = pend, isPlayer = details.isPlayer }
 	end
 
@@ -1071,6 +1188,8 @@ function ns.OnLoaded(db)
 	end
 	ns.db = db
 	ns.dex = ns.Dex.new(db)
+	-- Before Capture.start: no whisper of this session (tokens restart) can be sent yet.
+	Capture.protect(errorHandler(), Capture.settleLeftovers, db, ns.dex)
 	Capture.protect(function(err)
 		if ns.Print then
 			ns.Print("Catching could not start: " .. tostring(err))

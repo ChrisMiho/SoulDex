@@ -65,6 +65,7 @@ read_globals = {
 	"hooksecurefunc",
 	"issecretvalue",
 	"ItemLocation",
+	"InCombatLockdown",
 	"IsInGroup",
 	"IsEncounterInProgress",
 	"IsInGuild",
