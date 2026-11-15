@@ -23,6 +23,7 @@ src\View.lua
 src\Comm.lua
 src\Friends.lua
 src\Catch.lua
+src\Whisper.lua
 src\Shards.lua
 src\Toast.lua
 src\Capture.lua
