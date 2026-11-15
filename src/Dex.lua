@@ -83,6 +83,18 @@ function methods:recordMob(info, ctx)
 		}
 		db.mobs[info.name] = entry
 	end
+	if not isNew then
+		-- A soul named by whisper may have been recorded before its details were readable:
+		-- fill the gaps, never overwrite, never lower points.
+		for _, field in ipairs({ "classification", "creatureType", "family" }) do
+			if entry[field] == nil and type(info[field]) == "string" then
+				entry[field] = info[field]
+				if field == "classification" then
+					entry.points = math.max(entry.points or 0, ns.Points.forMob(info.classification))
+				end
+			end
+		end
+	end
 	entry.last = ctx.time
 	noteLevel(entry, info.level)
 	local place = entry.places[ctx.zone]

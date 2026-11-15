@@ -118,6 +118,28 @@ describe("Dex", function()
 		assert.equal(5, db.mobs.Ogre.points)
 	end)
 
+	it("fills a soul's missing details on a later catch and never overwrites them", function()
+		dex:recordMob({ name = "Scarlet Chaplain", level = 10 }, ctx())
+		local entry = db.mobs["Scarlet Chaplain"]
+		assert.is_nil(entry.classification)
+		assert.equal(ns.Points.forMob(nil), entry.points)
+
+		local elite = mob("Scarlet Chaplain", { classification = "elite", creatureType = "Humanoid", family = "Zealot" })
+		dex:recordMob(elite, ctx(nil, { time = 2000 }))
+		assert.equal("elite", entry.classification)
+		assert.equal("Humanoid", entry.creatureType)
+		assert.equal("Zealot", entry.family)
+		assert.equal(ns.Points.forMob("elite"), entry.points)
+		assert.equal(ns.Points.mobWorth(entry), dex:score())
+
+		local normal = mob("Scarlet Chaplain", { classification = "normal", creatureType = "Beast", family = "Wolf" })
+		dex:recordMob(normal, ctx(nil, { time = 3000 }))
+		assert.equal("elite", entry.classification)
+		assert.equal("Humanoid", entry.creatureType)
+		assert.equal("Zealot", entry.family)
+		assert.equal(ns.Points.forMob("elite"), entry.points)
+	end)
+
 	it("records a player", function()
 		local info = { name = "Bob", realm = "Realm", class = "MAGE", race = "Human", guild = "Guild", level = 30 }
 		local r = dex:recordPlayer(info, ctx())
