@@ -1,13 +1,15 @@
-## 💜 SoulDex 1.2.4: A Name, Bound
+## 💜 SoulDex 1.3.0: Rank and Reaping
 
-*A true name holds power. This one now has no seams.*
+*Every shard a step up the ladder. Every soul, now with a name.*
 
 **What's new**
 
-- **One name everywhere.** The addon is now simply SoulDex: the window, options, chat lines, guild announcements and the addon list all agree.
-- **Coming to CurseForge.** This is the first version on CurseForge, alongside GitHub.
-- **No gameplay changes.** Your dex, points and settings are untouched.
+- **Warlock ranks with emblems.** Your score earns a title, from Initiate to Lord of Souls, and each rank has its own emblem, from a dull sliver to a fel-crowned shard. Ranking up gets its own popup.
+- **Mastery stars.** Claim the same mob again and again to earn stars and points. Bosses, rares and players score on repeat claims too, and your existing dex already counts.
+- **A new window.** A rebuilt Me tab with your records, trophy-card details for every soul, grouped milestones with progress bars, and a livelier popup.
+- **Dungeon souls get their names.** WoW: Forever hides names inside dungeons; SoulDex now quietly whispers you to read them, so dungeon claims pop up like any other. Bosses killed mid-fight still show as Unknown.
+- **Forever's own raids.** The Barrow Deeps and Hyjal Summit are in the Raids list, rosters to come.
 
-**Install:** download `SoulDex-v1.2.4-forever.zip` below and unzip it into `Interface\AddOns`, replacing your old `SoulDex` folder, then `/reload`. No new files this time, so no full restart needed.
+**Install:** download `SoulDex-v1.3.0-forever.zip` below and unzip it into `Interface\AddOns`, replacing your old `SoulDex` folder. This release adds new files, so **fully restart the game** (a `/reload` is not enough).
 
-*Speak its name, warlock. Then go fill some shards.*
+*Go on, warlock. Climb.*

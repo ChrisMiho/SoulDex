@@ -5,27 +5,14 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-- Souls drained in dungeons now get their real names: SoulDex quietly whispers you to read them (bosses mid-fight still show as Unknown).
-- Your rank now has its own emblem, eight in all, from a dull sliver to a fel-crowned shard. It replaces the Soul Shard icon in the window, on the Me tab and in the popups.
-- New: WoW: Forever's own raids, The Barrow Deeps and Hyjal Summit, are in the Raids list. Their rosters are still TBD: every soul you claim inside is kept and will fill its slot when the list ships. They don't count toward Raid Reaper yet.
-- New look for the window: larger and shaded, with your rank beside the score and a progress line to the next rank on every tab, a green marker on the selected row and tab, and a rarity stripe on each soul.
-- A soul's details are now a trophy card: a header in its rarity colour with an icon for its creature type, its points as a badge, a row of mastery stars, and its facts in four boxes.
-- The Me tab is rebuilt: a rank crest, six headline tiles, and Records that pick out your most-claimed mob, nemesis, hunting ground, rarest trophy, latest claim and best day.
-- Milestones are grouped under Mobs, Players and Raids, with what is left to earn on top; click "N earned" to see the ones you have.
-- The popup has a colour bar, the points shown large and a flash of light as it lands. Ranking up gets its own popup and sound, and bosses have their own sound.
-- New option, off by default: "Claim chatter in chat" prints a line in your chat for every claim.
-- New: claiming a soul again can now score. Raid and world bosses score their full 25 points on every claim. Players score 3 points and rares 2, at most once a day each.
-- New: mastery stars. Claim the same mob 10, 25, 50, 100, 250, 500, 750 and 1,000 times to earn stars and points, then another star every 500 claims. Stars show beside the mob, in its details with a progress bar, on the Me tab and in a popup when you earn one.
-- Claims you made before this version count: your score and stars are worked out from what your dex already holds.
-- Rank thresholds are higher to match (Acolyte at 50 points, Lord of Souls at 25,000).
-- New: warlock ranks. Your score earns a title, from Initiate to Lord of Souls. The Me tab shows your rank and a progress bar to the next one, the Friends tab shows each friend's rank, and the login line names yours.
-- Ranking up turns that soul's popup fel green ("RANK UP: REAPER") and prints a chat line; from Reaper on it is announced to your guild if announcements are on.
-- Milestones now have names, such as First Harvest, Headhunter and Molten Core Drained, and unearned ones show a progress bar. Unfinished raids in the Raids list show one too.
-- The new-soul popup says what you claimed ("ELITE SOUL CLAIMED", "BOSS SOUL CLAIMED", "PLAYER SOUL CLAIMED") and its border takes the soul's colour.
-- The flavour line in a soul's details is now a soft violet instead of yellow.
-- Souls are now "claimed" rather than "caught" in the window, the popup and the options.
-- Scores and soul counts above 999 are written with a comma in the Friends and Me tabs.
-- A named Soul Shard's tooltip now shows "Soul of <name>" as its title, in place of "Soul Shard", instead of repeating it on a line below.
+## [1.3.0] - 2026-11-15
+
+- Warlock ranks, from Initiate to Lord of Souls, each with its own emblem; ranking up gets its own popup, and from Reaper on your guild hears about it.
+- Mastery stars and repeat claims: claiming the same mob again can earn stars and points, and bosses, rares and players score again too. Your existing dex counts.
+- A new window: a rebuilt Me tab with records, trophy-card soul details, grouped milestones with progress bars, and a livelier popup.
+- Souls drained in dungeons now get their real names (SoulDex quietly whispers you to read them); bosses killed mid-fight still show as Unknown.
+- WoW: Forever's own raids, The Barrow Deeps and Hyjal Summit, are listed with their rosters to come.
+- New option, off by default: claim chatter in chat. Souls are now "claimed" rather than "caught".
 
 ## [1.2.4] - 2026-11-14
 
