@@ -229,8 +229,9 @@ death detection is used; the capture window below replaces the death queue.)
   `PLAYER_INTERACTION_MANAGER_FRAME_HIDE` for its interaction type, or a scan
   where `C_PlayerInteractionManager.IsInteractingWithNpcOfType` readably says
   it is closed (an unreadable answer keeps it open). (changed after 1.4.0-beta.2:
-  WoW: Forever can skip the bank's close event, and the bank stayed "open" until
-  a reload, so every later shard went soulless.) The
+  WoW: Forever never sends `MAIL_CLOSED` (seen in game: only the hide event,
+  type 17) and seemingly skips the bank's close event too; the window stayed
+  "open" until a reload, so every later shard went soulless.) The
   shard map is saved after each shard, and an error while recording one catch
   leaves its shard soulless without losing the others. The same applies while any bag slot
   can't be read (secret item ID, or a shard with a secret or missing GUID),

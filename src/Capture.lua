@@ -825,7 +825,8 @@ local SHARD_SOURCES = {
 	MERCHANT_SHOW = "MERCHANT_CLOSED",
 }
 
--- WoW: Forever doesn't always send a window's close event (the bank's went missing): a
+-- WoW: Forever doesn't always send a window's close event (MAIL_CLOSED never comes; the
+-- bank's seemed to go missing too): a
 -- window left "open" kept every later shard soulless until a reload. Each window is
 -- therefore also closed by the newer interaction-hide event, and dropped when the game
 -- says it is no longer open. Open event -> Enum.PlayerInteractionType name, and the
