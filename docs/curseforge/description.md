@@ -22,7 +22,7 @@ claimed it, and when and where you took it first.
 Dungeon souls get their true names too. (A boss drained mid-fight still goes down as
 Unknown.)
 
-![Mobs tab](MOBS_IMAGE_URL)
+![Mobs tab](https://media.forgecdn.net/attachments/2219/36/feature-1-mobs-png.png)
 
 ### ◆ The raids: drain every one
 
@@ -33,7 +33,7 @@ is the one hunt you can finish.
 Forever's own raids, **The Barrow Deeps** and **Hyjal Summit**, are listed too. Their
 rosters are still sealed; every soul you claim inside is kept for when they open.
 
-![Raids tab](RAIDS_IMAGE_URL)
+![Raids tab](https://media.forgecdn.net/attachments/2219/37/feature-2-raids-png.png)
 
 ### ◆ The trophies: every shard has a name
 
@@ -42,7 +42,7 @@ player, with the points it earned. Mastery stars and rank-ups get popups of thei
 Hover a Soul Shard and its tooltip names the soul inside, so you know exactly whose soul
 you're about to spend. The name follows its shard through your bags, the bank and relogs.
 
-![Popups and shard tooltips](TOOLTIP_IMAGE_URL)
+![Popups and shard tooltips](https://media.forgecdn.net/attachments/2219/38/feature-3-catch-png.png)
 
 ### ◆ The rivals: hunt players, outrank friends
 
@@ -50,7 +50,7 @@ Every player you shard is a trophy, sorted by class. SoulDex users in your party
 and guild join your leaderboard on their own; add anyone else with `/souldex add <name>`.
 Browse a rival's dex, read-only: what they have and you don't is highlighted.
 
-![Players and Friends tabs](FRIENDS_IMAGE_URL)
+![Players and Friends tabs](https://media.forgecdn.net/attachments/2219/39/feature-4-players-friends-png.png)
 
 ### ◆ The climb: rise through the ranks
 
@@ -69,7 +69,7 @@ Browse a rival's dex, read-only: what they have and you don't is highlighted.
 Your guild hears only the big moments (Reaper and up, the bigger milestones, raid
 clears), never every soul. One tick turns it off.
 
-![Me and Milestones tabs](ME_IMAGE_URL)
+![Me and Milestones tabs](https://media.forgecdn.net/attachments/2219/40/feature-5-me-milestones-png.png)
 
 ### ◆ The grimoire: bend it to your will
 

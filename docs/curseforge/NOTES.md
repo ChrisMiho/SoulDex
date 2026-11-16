@@ -18,7 +18,7 @@ should replace them. Upload steps are in `SUBMISSION.md`.
   - Commands table: every command `/dex help` lists (`src/Init.lua`), and a pointer to `/dex help`.
   - Removed the "How claiming works on WoW: Forever" section (and with it the
     experimental option and the Classic Era raid-data note).
-  - Image links 1–5 are now placeholders (`MOBS_IMAGE_URL` … `ME_IMAGE_URL`), since
+  - Image links 1–5 point at the new uploads (attachments 2219/36–40), since
     all five images are new uploads. The banner keeps its current URL (unchanged).
 - `README.md`: the same additions.
 - `source/`: the window, popup and Me crest icons now show the real rank emblem
