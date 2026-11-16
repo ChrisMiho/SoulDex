@@ -2,6 +2,7 @@
 <html><head><meta charset="utf-8"><title>SoulDex: Raids</title>
 <link rel="stylesheet" href="shared.css">
 <style>
+	.zr > span:last-child { white-space: nowrap; flex-shrink: 0; }
 	.zr > span:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; padding-right: 4px; }
 	.zr .pb { position: absolute; left: 4px; right: 4px; bottom: 0; height: 1.5px; background: #2d2240; }
 	.zr .pb::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: var(--p, 0%); background: #7dff6a; }
@@ -12,19 +13,21 @@
 	<div class="copy">
 		<div class="kicker"><img src="shard.svg" alt=""><b>02</b><i></i>The raids</div>
 		<h1>Drain <em>every raid</em></h1>
-		<p>Every creature in every vanilla raid, from Zul'Gurub to Naxxramas. The one hunt you can finish.</p>
+		<p>Every creature in every vanilla raid, from Zul'Gurub to Naxxramas, and Forever's own raids waiting at the top. The one hunt you can finish.</p>
 		<ul>
 			<li>Unclaimed souls stay <b>? ? ?</b></li>
-			<li>Bosses are marked before you claim them</li>
+			<li><b>The Barrow Deeps</b> and <b>Hyjal Summit</b> are listed</li>
 			<li>Bosses score <b>every time</b> you claim them</li>
 		</ul>
 	</div>
 	<div class="shot">
 		<div class="w">
-			<div class="tb"><div class="gem"></div><span class="nm">SoulDex</span><span class="tab">· Raids</span><span class="sp"></span><span class="chip">Shardbinder</span><span class="pts">79/243 · 1,264 pts</span><span class="ic">⚙</span><span class="ic" style="color:#c9a8ff">×</span></div>
+			<div class="tb"><iframe class="gem emb" src="../../../scripts/art/emblem.html?rank=4&s=14"></iframe><span class="nm">SoulDex</span><span class="tab">· Raids</span><span class="sp"></span><span class="chip">Shardbinder</span><span class="pts">79/243 · 1,264 pts</span><span class="ic">⚙</span><span class="ic" style="color:#c9a8ff">×</span></div>
 			<div class="rankbar"></div>
 			<div class="bd">
 				<div class="lf">
+					<div class="zr"><span>The Barrow Deeps</span><span class="n">3 / ?</span></div>
+					<div class="zr"><span>Hyjal Summit</span><span class="n">TBD</span></div>
 					<div class="zr"><span>Zul'Gurub</span><span class="grn">✓</span></div>
 					<div class="zr sel"><span>Molten Core</span><span class="n">19/27</span><i class="pb" style="--p:70%"></i></div>
 					<div class="zr"><span>Onyxia's Lair</span><span class="n">1/2</span><i class="pb" style="--p:50%"></i></div>

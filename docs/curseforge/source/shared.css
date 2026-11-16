@@ -151,6 +151,15 @@ body {
 .tabs .on{background:#33254e;color:#fff;border-color:#6b4fa0}
 .tabs .on::after{content:"";position:absolute;left:3px;right:3px;bottom:-1px;height:2px;background:#9dff3a;box-shadow:0 0 5px #9dff3a}
 
+/* The rank emblem (scripts/art/emblem.html, the art the game's art/rank<N>.tga is made
+   from), wherever the addon shows one: the title bar, the Me crest, the popups and a
+   mob's trophy card. ?s= is the box's size; it is vector art, so the zoom keeps it sharp. */
+iframe.emb{border:0;display:block;background:transparent!important;overflow:hidden;box-shadow:none}
+.tb iframe.gem{border:0}
+.crest iframe.gem{width:52px;height:52px;border:0}
+.t iframe.i{border:0;filter:drop-shadow(0 0 5px var(--c))}
+.card iframe.port{background:#0d0a14!important}
+
 /* trophy card */
 .card{position:absolute;inset:0 0 0 0;background:#0d0a14;border-left:1px solid #8a72b8;overflow:hidden}
 .card .band{height:44px;padding:6px 7px;display:flex;gap:7px;background:linear-gradient(180deg,color-mix(in srgb,var(--r) 30%,transparent),transparent)}

@@ -52,6 +52,6 @@ shoot logo.html "?s=800" 800 800 logo-800.png
 shoot logo.html "?mark&s=256" 256 256 icon-256.png
 shoot logo.html "?mark&s=64" 64 64 icon-64.png
 shoot banner.html "" 1200 400 banner-1200x400.png
-for page in 1-mobs 2-raids 3-catch 4-players-friends 5-me-milestones; do
+for page in 1-mobs 2-raids 3-catch 4-players-friends 5-me-milestones 6-settings; do
 	shoot "feature-$page.html" "" 1280 720 "feature-$page.png"
 done

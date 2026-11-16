@@ -24,7 +24,9 @@ Type `/souldex` or `/dex` in game to open it.
 
 Every creature you've drained, filed by zone and dungeon, in its rarity colour.
 Click any soul for its trophy card: level and type, a one-line epitaph, its mastery
-stars, how many times you claimed it, and when and where you took it first.
+stars, how many times you claimed it, and when and where you took it first. Dungeon souls get their true names too: where the game hides a
+name, SoulDex reads it through a hidden whisper to yourself (a boss drained
+mid-fight still goes down as Unknown).
 
 ![Mobs tab](docs/curseforge/images/feature-1-mobs.png)
 
@@ -42,7 +44,8 @@ the list ships.
 
 ### ◆ The trophies: every shard has a name
 
-A popup and a sound for every new soul, coloured by what you claimed. Hover a Soul
+A popup and a sound for every new soul, coloured by what you claimed, with the
+points it earned; mastery stars and rank-ups get popups of their own. Hover a Soul
 Shard in your bags and its tooltip names the soul inside, with where and when you
 took it. The name follows its shard through bags, the bank and relogs.
 
@@ -61,11 +64,20 @@ their dex read-only; what you lack is highlighted.
 First claims score most (1 normal, 5 elite, 10 rare or player, 25 boss). The mobs
 you farm earn **mastery stars** at 10 to 1,000 claims and beyond, bosses score on
 every claim, and players and rares pay a little again once a day. Your score earns
-one of 8 warlock ranks, 19 named milestones track the rest, and a **Me** tab shows
-your rank, your progress to the next one and your stats. Guild announcements are
+one of 8 warlock ranks, each with its own emblem; 19 named milestones track the
+rest, and a **Me** tab shows your rank crest, your progress to the next rank and
+your records (most-claimed mob, nemesis, rarest trophy, best day and more). Guild announcements are
 optional and for big moments only.
 
 ![Me and Milestones tabs](docs/curseforge/images/feature-5-me-milestones.png)
+
+### ◆ The grimoire: bend it to your will
+
+Switches for every popup and chat line, a SIZE section for the window and the
+popups (60% to 160%), a page under the game's Settings > AddOns, a key binding
+and an entry in the addon list by the minimap.
+
+![Settings and commands](docs/curseforge/images/feature-6-settings.png)
 
 <sub>The images are illustrations of the in-game window.</sub>
 
@@ -88,7 +100,11 @@ optional and for big moments only.
 The new-soul popup, the sound, guild announcements, claim chatter and the login
 message each have their own on/off switch in the settings, with the size of the
 window and of the popups under them. The settings are also a page of the game's
-own Settings window (Options > AddOns > SoulDex).
+own Settings window (Options > AddOns > SoulDex). `/dex help` lists the commands
+in game.
+
+Experimental, off by default: "Boss names after the fight (test)" names a boss
+drained mid-fight once the fight ends, if you keep it targeted.
 
 SoulDex is in the game's addon list by the minimap (click to open, right-click
 for the settings), and you can bind a key to it under Options > Keybindings >
