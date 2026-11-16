@@ -1,13 +1,15 @@
-## 💜 SoulDex 1.4.0-beta.3: Unsealed Letters (test build)
+## 💜 SoulDex 1.4.0: The Grimoire Opens
 
-*A test build, played in game before it went out: the shards answer to their souls again, wherever you last collected your mail.*
+*Three betas, a mailbox and many a drained soul later: your dex is sharper, bigger when you want it, and one click away.*
 
 **What's new**
 
-- **Mailbox fix.** After a visit to a mailbox, no Drain Soul shard was named and no popup showed until a reload. The game never says the mailbox closed; SoulDex now sees it anyway.
-- **Bank, vendor and trade checked.** A shard that lands while one of them is open still stays unnamed (it might not be a kill's), and each one now ends cleanly when you close it or walk away.
-- **Everything from beta.2.** The addon-list button, key binding, `/dex find`, window and popup sizes, fewer wrong names, and the Friends fixes.
+- **Always at hand.** SoulDex is in the addon list by the minimap, has its own key binding, and its settings are a page of the game's Settings window.
+- **Your size.** Scale the window and the popups from 60% to 160%, or try `/souldex scale`.
+- **Truer names.** Fewer unnamed or wrongly named shards, after mailboxes, Shadowburn, target changes and recast Drain Souls.
+- **Friends that answer.** Large dexes browse without timing out, and Clean up leaves your guild alone.
+- **New commands.** `/souldex find`, `/souldex test`, `/souldex reset` and `/souldex version` (or `/dex` for short).
 
-**Install:** download `SoulDex-v1.4.0-beta.3-forever.zip` below and unzip it into `Interface\AddOns`, replacing your old `SoulDex` folder. Coming from 1.4.0-beta.2, a `/reload` is enough; coming from 1.3.0 or older, **fully restart the game**.
+**Install:** download `SoulDex-v1.4.0-forever.zip` below and unzip it into `Interface\AddOns`, replacing your old `SoulDex` folder. Coming from a 1.4.0 beta, a `/reload` is enough; coming from 1.3.0 or older, **fully restart the game**.
 
-*Go and collect, warlock. The post can wait.*
+*The grimoire is open, warlock. Go and fill it.*

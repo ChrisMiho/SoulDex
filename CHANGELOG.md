@@ -5,19 +5,17 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-- SoulDex is now in the game's addon list by the minimap (click to open, right-click for options), has a key binding (Options > Keybindings > AddOns), and its settings are also a page of the game's own Settings window.
-- New commands: `/dex find <text>` looks a soul up by name, `/dex scale <60-160>` and `/dex reset` size and re-centre the window, `/dex test` shows a sample popup, `/dex version` prints the version.
-- New in the options: a SIZE section to make the window and the popups bigger or smaller, from 60% to 160%.
-- New options: "Test popup", "Reset window", and a switch for the login message.
+## [1.4.0] - 2026-11-16
+
+- SoulDex is in the game's addon list by the minimap (click to open, right-click for options), has a key binding (Options > Keybindings > AddOns), and its settings are also a page of the game's own Settings window.
+- New commands: `/souldex find <text>`, `/souldex scale <60-160>`, `/souldex reset`, `/souldex test` and `/souldex version` (`/dex` works for every one).
+- New in the options: SIZE (the window and the popups, 60% to 160%), "Test popup", "Reset window" and a switch for the login message.
 - One chat line when someone in your guild or group runs a newer SoulDex.
-- Fixed: after a visit to a mailbox, no Drain Soul shard was named (and no popup showed) until a reload.
-- Fixed: a shard could be named after the wrong mob (a Shadowburn followed by a Drain Soul on another mob; changing target as a cast went off in a dungeon).
-- Fixed: recasting Drain Soul on the same dungeon mob left its shard unnamed.
-- Experimental, off by default: "Boss names after the fight (test)" in the options. A boss drained during its fight keeps its shard waiting and gets its name when the fight ends, if you keep it targeted.
-- Raid souls whose names are read after the kill now fill their slot in the raid's list (they used to land under Mobs > Raids).
-- Fixed: browsing a friend's large dex timed out ("No answer"); it now waits for as long as the dex needs and says "Receiving".
-- Fixed: Friends "Clean up" could remove guild members; an added friend who hadn't answered yet couldn't be selected or removed; the × on a row vanished while you were pointing at it; "today" and "yesterday" on the Me tab went by the wrong clock.
-- Lighter on memory and saved data for warlocks who farm many shards; people you only once grouped with drop off the Friends list after 30 days.
+- Fewer unnamed or wrongly named shards: after a mailbox visit, after a Shadowburn and a Drain Soul on different mobs, after a target change mid-cast in a dungeon, and when recasting Drain Soul on the same mob.
+- Raid souls named after the kill now fill their slot in the raid's list.
+- Friends: browsing a large dex no longer times out, "Clean up" no longer removes guild members, and adding and removing people works as it should.
+- Lighter on memory and saved data; "today" and "yesterday" on the Me tab go by your clock.
+- Experimental, off by default: "Boss names after the fight (test)" in the options.
 
 ## [1.3.0] - 2026-11-15
 
