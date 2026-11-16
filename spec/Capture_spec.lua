@@ -380,7 +380,8 @@ describe("Capture glue", function()
 		-- WoW: Forever: a window's close event may never come (seen with the bank). The open
 		-- flag then has to end some other way, or every later shard stays soulless.
 		describe("a window whose close event never comes", function()
-			local BANKER, MERCHANT = 8, 5
+			-- WoW: Forever's bank is interaction type 67 (CharacterBanker), not 8 (Banker).
+			local BANKER, CHARACTER_BANKER, MERCHANT = 8, 67, 5
 
 			local function claimAfter()
 				world.clock = world.clock + 30
@@ -392,21 +393,37 @@ describe("Capture glue", function()
 
 			it("ends when the game says it is no longer open", function()
 				world.target = HOGGER
-				local open = { [BANKER] = true }
+				local open = { [CHARACTER_BANKER] = true }
 				_G.C_PlayerInteractionManager = {
 					IsInteractingWithNpcOfType = function(kind) return open[kind] == true end,
 				}
 				local _, db = boot()
 				fire("BANKFRAME_OPENED")
-				open[BANKER] = nil -- walked away: no BANKFRAME_CLOSED
+				open[CHARACTER_BANKER] = nil -- walked away: no BANKFRAME_CLOSED
 				claimAfter()
 				assert.equal("Hogger", db.shardSouls.AFTER.soul.name)
 			end)
 
-			it("stays open while the game says it is open", function()
+			it("stays open while the game says it is open, as any kind of banker", function()
+				for _, banker in ipairs({ BANKER, CHARACTER_BANKER }) do
+					world.target = HOGGER
+					world.bags = { [0] = {} }
+					frames = {}
+					_G.C_PlayerInteractionManager = {
+						IsInteractingWithNpcOfType = function(kind) return kind == banker end,
+					}
+					local _, db = boot()
+					fire("BANKFRAME_OPENED")
+					claimAfter()
+					assert.is_false(db.shardSouls.AFTER.soul)
+				end
+			end)
+
+			it("uses the client's Enum for the bank's types", function()
 				world.target = HOGGER
+				_G.Enum = { TooltipDataType = { Item = 0 }, PlayerInteractionType = { CharacterBanker = 90 } }
 				_G.C_PlayerInteractionManager = {
-					IsInteractingWithNpcOfType = function(kind) return kind == BANKER end,
+					IsInteractingWithNpcOfType = function(kind) return kind == 90 end,
 				}
 				local _, db = boot()
 				fire("BANKFRAME_OPENED")
@@ -427,7 +444,7 @@ describe("Capture glue", function()
 				world.target = HOGGER
 				local _, db = boot()
 				fire("BANKFRAME_OPENED")
-				fire("PLAYER_INTERACTION_MANAGER_FRAME_HIDE", BANKER)
+				fire("PLAYER_INTERACTION_MANAGER_FRAME_HIDE", CHARACTER_BANKER)
 				claimAfter()
 				assert.equal("Hogger", db.shardSouls.AFTER.soul.name)
 			end)

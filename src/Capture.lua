@@ -825,38 +825,55 @@ local SHARD_SOURCES = {
 	MERCHANT_SHOW = "MERCHANT_CLOSED",
 }
 
--- WoW: Forever doesn't always send a window's close event (MAIL_CLOSED never comes; the
--- bank's seemed to go missing too): a
+-- WoW: Forever doesn't always send a window's close event (MAIL_CLOSED never comes): a
 -- window left "open" kept every later shard soulless until a reload. Each window is
 -- therefore also closed by the newer interaction-hide event, and dropped when the game
--- says it is no longer open. Open event -> Enum.PlayerInteractionType name, and the
--- number it has where the client has no Enum.
+-- says it is no longer open. Open event -> its Enum.PlayerInteractionType names, each
+-- with the number it has where the client's Enum lacks it (nil: no known number). The
+-- bank has several: Forever's is CharacterBanker (67), not Banker (8).
 local SOURCE_INTERACTIONS = {
-	BANKFRAME_OPENED = { "Banker", 8 },
-	MAIL_SHOW = { "MailInfo", 17 },
-	TRADE_SHOW = { "TradePartner", 1 },
-	MERCHANT_SHOW = { "Merchant", 5 },
+	BANKFRAME_OPENED = { { "Banker", 8 }, { "CharacterBanker", 67 }, { "AccountBanker" } },
+	MAIL_SHOW = { { "MailInfo", 17 } },
+	TRADE_SHOW = { { "TradePartner", 1 } },
+	MERCHANT_SHOW = { { "Merchant", 5 } },
 }
 
--- The interaction type number for a shard-source open event.
-function Capture.interactionOf(openEvent)
-	local entry = SOURCE_INTERACTIONS[openEvent]
-	if not entry then
+-- The interaction type numbers for a shard-source open event, as a set.
+function Capture.interactionsOf(openEvent)
+	local entries = SOURCE_INTERACTIONS[openEvent]
+	if not entries then
 		return nil
 	end
 	local types = Enum and Enum.PlayerInteractionType
-	local value = type(types) == "table" and types[entry[1]]
-	return plainNumber(value) and value or entry[2]
+	local set = {}
+	for _, entry in ipairs(entries) do
+		local value = type(types) == "table" and types[entry[1]]
+		value = plainNumber(value) and value or entry[2]
+		if value then
+			set[value] = true
+		end
+	end
+	return set
 end
 
--- false only when the game readably says this window is not open; nil when it can't tell.
+-- true when the game readably says any of this window's types is open; false only when
+-- it readably says none is; nil when it can't tell.
 local function interactionOpen(openEvent)
 	local manager = C_PlayerInteractionManager
-	local kind = Capture.interactionOf(openEvent)
-	if type(manager) ~= "table" or not kind then
+	local kinds = Capture.interactionsOf(openEvent)
+	if type(manager) ~= "table" or not kinds then
 		return nil
 	end
-	return flag(manager.IsInteractingWithNpcOfType, kind)
+	local answer = false
+	for kind in pairs(kinds) do
+		local open = flag(manager.IsInteractingWithNpcOfType, kind)
+		if open then
+			return true
+		elseif open == nil then
+			answer = nil
+		end
+	end
+	return answer
 end
 
 -- Registers each event on its own, so one the client refuses can't stop the rest.
@@ -1347,7 +1364,8 @@ function Capture.start(db, dex)
 			return
 		end
 		for openEvent in pairs(SHARD_SOURCES) do
-			if sourcesOpen[openEvent] and Capture.interactionOf(openEvent) == kind then
+			local kinds = sourcesOpen[openEvent] and Capture.interactionsOf(openEvent)
+			if kinds and kinds[kind] then
 				sourcesOpen[openEvent] = nil
 				queueScan()
 			end
