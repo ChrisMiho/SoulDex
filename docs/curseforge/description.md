@@ -7,8 +7,7 @@ every one a trophy: each shard that lands in your bags claims the mob or player 
 from for your dex. Score points, climb the warlock ranks from Initiate to Lord of Souls,
 and outrank the other warlocks in your guild.
 
-Made for **World of Warcraft: Forever**. Type `/souldex` (or the shorthand `/dex`) to open
-it, bind it to a key, or pick it from the addon list by the minimap.
+Made for **World of Warcraft: Forever**. Type `/souldex` (or `/dex`) to open it.
 
 ---
 
@@ -19,16 +18,11 @@ zone and dungeon. Elites, rares and bosses show in their colours. Click a soul f
 trophy card: level and type, a one-line epitaph, its mastery stars, how often you
 claimed it, and when and where you took it first.
 
-Dungeon souls get their true names too. (A boss drained mid-fight still goes down as
-Unknown.)
-
 ![Mobs tab](https://media.forgecdn.net/attachments/2219/36/feature-1-mobs-png.png)
 
 ### ◆ The raids: drain every one
 
-Every creature in every vanilla raid, from Zul'Gurub to Naxxramas. Unclaimed souls stay
-`? ? ?`, bosses are marked before you claim them, and each raid has a progress bar. It
-is the one hunt you can finish.
+Every creature in every vanilla raid, from Zul'Gurub to Naxxramas. Unclaimed souls stay `? ? ?`, bosses are marked before you claim them, and each raid has a progress bar. It is the one hunt you can finish.
 
 Forever's own raids, **The Barrow Deeps** and **Hyjal Summit**, are listed too. Their
 rosters are still sealed; every soul you claim inside is kept for when they open.
@@ -37,23 +31,21 @@ rosters are still sealed; every soul you claim inside is kept for when they open
 
 ### ◆ The trophies: every shard has a name
 
-A popup and a sound for every new soul, coloured by what you took: elite, rare, boss or
+A popup and a sound for every new soul, colored by what you took: elite, rare, boss or
 player, with the points it earned. Mastery stars and rank-ups get popups of their own.
-Hover a Soul Shard and its tooltip names the soul inside, so you know exactly whose soul
-you're about to spend. The name follows its shard through your bags, the bank and relogs.
+
+Hover a Soul Shard and its tooltip names the soul inside, so you know exactly whose soul you're about to spend. The name follows its shard through your bags, the bank and relogs.
 
 ![Popups and shard tooltips](https://media.forgecdn.net/attachments/2219/38/feature-3-catch-png.png)
 
 ### ◆ The rivals: hunt players, outrank friends
 
 Every player you shard is a trophy, sorted by class. SoulDex users in your party, raid
-and guild join your leaderboard on their own; add anyone else with `/souldex add <name>`.
-Browse a rival's dex, read-only: what they have and you don't is highlighted.
+and guild join your leaderboard on their own; add anyone else with `/souldex add <name>`. Browse a rival's dex, read-only: what they have and you don't is highlighted.
 
 ![Players and Friends tabs](https://media.forgecdn.net/attachments/2219/39/feature-4-players-friends-png.png)
 
 ### ◆ The climb: rise through the ranks
-
 - **Points** for each first claim: 1 for a normal mob, 5 for an elite, 10 for a rare
   or a player, 25 for a boss.
 - **Mastery stars** for the mobs you farm: 10, 25, 50, 100, 250, 500, 750 and 1,000
@@ -97,5 +89,3 @@ AddOns > SoulDex**. Bind a key under **Keybindings > AddOns**.
 
 `/dex` is the shorthand: every command works with it in place of `/souldex`, such as
 `/dex options`.
-
-*Images are illustrations of the in-game window.*
