@@ -207,7 +207,12 @@ death detection is used; the capture window below replaces the death queue.)
   one line in your chat says so. In a dungeon the
   creature type and family are secret, so a soul named this way is recorded
   without them; a later catch of the same creature fills them in and tops up
-  its points (a top-up counts toward a rank-up). Full reasoning and probe results: `docs/superpowers/specs/2026-11-15-soul-name-whisper-design.md`.
+  its points (a top-up counts toward a rank-up). (changed after 1.4.0-beta.1.)
+  In a raid SoulDex lists, the name alone finds the creature's slot in that
+  raid's list, so a raid soul named by whisper is recorded in its raid (a boss
+  with its boss points), whether the name came before or after the shard; the
+  catch context saved with a held shard carries the instance type and id for
+  this. Full reasoning and probe results: `docs/superpowers/specs/2026-11-15-soul-name-whisper-design.md`.
 - Recorded with the catch: date and time, your level, the zone (and subzone
   if known), and **your** map coordinates at that moment (the source's own
   position isn't available). **[call]**
@@ -1055,6 +1060,12 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
   moment later it works. No guild member disappears from the list.
 - Me tab, "Latest": a soul claimed this afternoon still reads "today" in the
   evening.
+- (after 1.4.0-beta.1) In a listed raid, drain a trash mob out of a boss
+  fight: after the popup, the Raids tab shows it claimed in that raid's list,
+  not under Mobs > Raids.
+- (after 1.4.0-beta.1) While a second player browses your dex, nothing shows
+  in your chat; if they log off while it is still sending, still nothing (no
+  "No player named ..." lines).
 
 **Raid data**
 - In a raid, `/dump UnitGUID("target")` on a mob: the sixth dash-separated
@@ -1200,6 +1211,60 @@ that overlaps, is cut off, or shows as a solid green square (a missing icon).
 - A dev checkout without `Libs/`: one chat line "Friends are offline:
   AceComm-3.0 is missing...", no Lua errors.
 
+### Naming souls in dungeons and raids: where it stands and what to try next
+
+**[user: "I want dungeons and raids to allow us to capture where the soul is
+coming from ... note the limitations but keep thinking about how we can solve
+and investigate"]** (added after 1.4.0-beta.1.)
+
+What the game hides, and where. Inside instances the client applies a "Map"
+addon restriction: `UnitName`, `UnitGUID`, `UnitCreatureID`,
+`UnitCreatureType`/`Family` and the `UNIT_DIED` / `PARTY_KILL` event GUIDs are
+secret for every unit, in and out of combat (the client's own API docs mark
+them `SecretWhenUnitIdentityRestricted`; build 1.60.1 (70938), branch
+`forever` of Gethe/wow-ui-source). During a boss encounter chat is locked as
+well, which stops the self-whisper.
+
+What works today:
+- Dungeon and raid trash, and bosses drained **before or after** their
+  encounter: named by the self-whisper (4.2).
+- A raid soul named that way fills its raid slot by name (above).
+
+What does not, yet:
+1. **A boss that dies during its encounter** is an Unknown soul (chat locked,
+   so no whisper).
+2. **A creature a raid doesn't list, or any raid creature on a non-English
+   client,** is filed as a plain mob under Mobs > Raids.
+3. **Creature type and family** are missing for souls only ever claimed in
+   instances.
+4. The target must be the **target** at the cast: mouseover, focus and
+   click-cast casts on a hidden name stay Unknown.
+
+Leads, most promising first. None is built; each needs the probe
+(`scripts/probe/SoulDexProbe`, `/sdprobe`) to say whether the client allows it.
+The rule stands: a lead that could give a wrong name is not used.
+
+| # | Lead | Would solve | What must be true (probe) |
+|---|---|---|---|
+| A | Ask late: keep the boss's shard held through the encounter and send the whisper when the chat lock lifts (`ENCOUNTER_END`, `ADDON_RESTRICTION_STATE_CHANGED`), if the target hasn't changed since the cast (the target-change count already exists). | 1 | `%t` still expands to a **dead** target's name, and the send is allowed right after the encounter ends. The probe sends `SDXP:ENCOUNTER_END+0/+1/+3:%t` and logs the replies. |
+| B | `BOSS_KILL` / `ENCOUNTER_END` carry `encounterID` and `encounterName`, and the docs do not mark them secret. A shard gained from a capture on a boss-classified target while that encounter runs could take the name the raid lists for that encounter. | 1 | The payload is readable inside the instance. Needs a table from encounter name to boss (the encounter is "The Four Horsemen", the soul is one horseman), so only encounters whose name is a listed boss can be used; dungeons have no list yet. |
+| C | `CHAT_MSG_COMBAT_XP_GAIN` ("<name> dies, you gain N experience") names what died at the moment of the kill. | 1, 4 (while levelling only) | The text is readable in an instance and during an encounter. No use at level cap, and with a group kill of two mobs in one moment the names can't be told apart. |
+| D | `C_Secrets.ShouldUnitIdentityBeSecret(unit)` says beforehand whether a unit's identity is hidden. | Cleaner guard, nothing new named | It answers readably. Would replace reading the name to find out. |
+| E | The target's tooltip (`C_TooltipInfo.GetUnit`, `GameTooltip` text) or nameplate text. | 1, 3 | Almost certainly secret too (text carries the same restriction); logged by `/sdprobe target` to be sure. |
+| F | Boss yells and emotes (`CHAT_MSG_MONSTER_YELL`, `CHAT_MSG_RAID_BOSS_EMOTE`) carry the speaker's name. | 1, weakly | Readable during the encounter. Only tells who spoke, not who died: could only confirm a name from B. |
+| G | Localised raid lists, or a list of names per NPC id per language. | 2 | No probe: a data job (Questie ships localised names). |
+
+Probe run to do (adds to section 9): install `scripts/probe/SoulDexProbe` as its
+own addon, then in a dungeon:
+- target a mob and type `/sdprobe target` out of combat and mid-pull;
+- kill a boss with it targeted and leave it targeted for 5 s after it dies;
+- loot it; then `/reload` and send the `SoulDexProbeLog` from
+  `WTF/Account/<account>/SavedVariables/SoulDexProbe.lua`.
+The lines that decide the leads: `ENCOUNTER_START`, `BOSS_KILL`,
+`ENCOUNTER_END` (are the names readable?), the three `ask(...)` lines and their
+`reply:` lines (does a late ask name the dead boss?), `CHAT_MSG_COMBAT_XP_GAIN`
+(is the text readable?), and `idSecret=` / `names(target)` on the target lines.
+
 ### Known limitations
 
 - Newcomer replies can be sent needlessly near the 6-minute mark (the newcomer
@@ -1219,8 +1284,12 @@ that overlaps, is cut off, or shows as a solid green square (a missing icon).
 - WoW: Forever can hide target names (secret values): SoulDex asks for them
   with a self-whisper; when it can't ask or no name comes back, the catch is
   counted as an "Unknown soul" per zone.
-- A raid creature named by whisper has no NPC ID: it goes under Mobs > Raids,
-  not its raid's list, and doesn't count toward Raid Reaper. **[accepted]**
+- A raid creature named by whisper has no NPC ID. (changed after
+  1.4.0-beta.1.) Its name is looked up in that raid's list (`Raids.idByName`,
+  exact name, never a name the raid lists twice), so it fills its slot and
+  counts toward Raid Reaper. Still under Mobs > Raids: a creature the raid
+  doesn't list, and every raid creature on a client in another language (the
+  lists are English).
 - A whisper reply that arrives as a secret value can't be checked by the chat
   filter and may show its `SDX1:` line in chat (not seen in testing).
 - Bosses killed during their encounter stay Unknown souls: chat is locked
@@ -1260,7 +1329,12 @@ that overlaps, is cut off, or shows as a solid green square (a missing icon).
   dex and get it (one at a time, 10 s apart), which includes the list of
   players you have sharded. Limiting it to people you know would stop someone
   who added you by name from browsing your dex unless you add them back.
-  **[open: the user's decision]**
+  **[user: "I'm okay with people requesting for now ... so long as it doesn't
+  create chatter clutter for the person receiving the messages"]** It makes no
+  chat line on your side: the request and the dex are hidden addon messages,
+  and the "No player named ..." lines the game prints when the asker logs off
+  mid-transfer are hidden for as long as pieces are still going out (changed
+  after 1.4.0-beta.1: they were hidden for the first 5 s only).
 - Clean up uses the guild roster the game has cached; if it is stale, a guild
   member may be removed and comes back on their next score update.
 - A Drain Soul started within 3 s after another one ended on a different

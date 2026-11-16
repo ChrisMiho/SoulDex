@@ -1486,6 +1486,42 @@ describe("Capture glue", function()
 				assert.equal(1, #timers) -- the popup, a frame later
 			end)
 
+			it("a raid soul named by whisper fills its slot in the raid's list (held shard)", function()
+				world.target = { name = SECRET, guid = SECRET, level = 62, classification = "elite" }
+				world.instanceType, world.instanceID, world.zone = "raid", 409, "Molten Core"
+				local _, db, caught = bootCaught()
+				drain("cast1", SECRET)
+				local token = tokenOf(sends[1])
+				newShard(1, "NEW")
+				whisper("SDX1:" .. token .. ":Core Hound", ME_GUID)
+				assert.is_not_nil(db.raids[11671])
+				assert.equal(409, db.raids[11671].instanceID)
+				assert.is_nil(db.mobs["Core Hound"])
+				assert.equal("raid", caught[1][2].kind)
+			end)
+
+			it("a raid soul named before its shard arrives fills its slot too; a boss scores as one", function()
+				world.target = { name = SECRET, guid = SECRET, level = -1, classification = "worldboss" }
+				world.instanceType, world.instanceID, world.zone = "raid", 409, "Molten Core"
+				local _, db, caught = bootCaught()
+				drain("cast1", SECRET)
+				whisper("SDX1:" .. tokenOf(sends[1]) .. ":Ragnaros", ME_GUID)
+				newShard(1, "NEW")
+				assert.is_not_nil(db.raids[11502])
+				assert.equal(25, caught[1][1].points)
+			end)
+
+			it("a whisper-named creature the raid doesn't list stays a plain mob under Raids", function()
+				world.target = { name = SECRET, guid = SECRET, level = 60, classification = "elite" }
+				world.instanceType, world.instanceID, world.zone = "raid", 409, "Molten Core"
+				local _, db = bootCaught()
+				drain("cast1", SECRET)
+				whisper("SDX1:" .. tokenOf(sends[1]) .. ":Some New Thing", ME_GUID)
+				newShard(1, "NEW")
+				assert.is_not_nil(db.mobs["Some New Thing"])
+				assert.same({}, db.raids)
+			end)
+
 			it("a reply before the shard records the named soul when the shard arrives", function()
 				world.target = MONK
 				local ns, db, caught = bootCaught()

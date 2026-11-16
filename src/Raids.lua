@@ -81,6 +81,27 @@ function Raids.completable()
 	return list
 end
 
+-- The npc id of the creature a raid lists under this exact name (case and outer spaces
+-- ignored), or nil: for a soul whose name is known but whose GUID is hidden. nil too when
+-- the raid lists that name more than once, so a name can never pick the wrong slot.
+function Raids.idByName(instanceID, name)
+	local raid = Raids.byInstance(instanceID)
+	if not raid or type(name) ~= "string" then
+		return nil
+	end
+	local wanted = name:lower():match("^%s*(.-)%s*$")
+	local found
+	for _, mob in ipairs(raid.mobs) do
+		if type(mob.name) == "string" and mob.name:lower() == wanted then
+			if found then
+				return nil
+			end
+			found = mob.id
+		end
+	end
+	return found
+end
+
 -- Returns the raid for the instance (nil if it is not a tracked raid) and
 -- the mob entry for the npc id (nil if the raid does not list it).
 function Raids.find(instanceID, npcID)

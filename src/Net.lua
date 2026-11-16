@@ -378,7 +378,18 @@ local function whisper(msg, target, prio, callback, arg)
 	if key then
 		state.whispered[key] = GetTime()
 	end
-	send(msg, "WHISPER", target, prio, callback, arg)
+	-- A long message (a dex) goes out in pieces over minutes. If the other player logs
+	-- off meanwhile, every later piece earns a "No player named ..." line: the time is
+	-- stamped again as each piece is sent, so the chat filter (start) hides them all.
+	local function pieceSent(a, sent, total)
+		if key then
+			state.whispered[key] = GetTime()
+		end
+		if callback then
+			callback(a, sent, total)
+		end
+	end
+	send(msg, "WHISPER", target, prio, pieceSent, arg)
 end
 
 local function summaryMessage()

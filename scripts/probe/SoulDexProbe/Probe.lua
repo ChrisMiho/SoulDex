@@ -66,7 +66,66 @@ local function unitLine(unit)
 		try("family", UnitCreatureFamily, unit),
 		try("player", UnitIsPlayer, unit),
 		try("canAttack", UnitCanAttack, "player", unit),
+		-- Identity leads (design spec, "Naming souls in dungeons and raids"):
+		try("idSecret", C_Secrets and C_Secrets.ShouldUnitIdentityBeSecret, unit),
+		try("creatureID", UnitCreatureID, unit),
+		try("nameUnmod", UnitNameUnmodified, unit),
 	}, " ")
+end
+
+-- Which addon restrictions are on now: Combat, Encounter, ChallengeMode, PvPMatch, Map, Chat.
+local RESTRICTIONS = { [0] = "Combat", "Encounter", "ChallengeMode", "PvPMatch", "Map", "Chat" }
+local function restrictionLine()
+	local parts = {}
+	for id = 0, 5 do
+		parts[#parts + 1] = try(RESTRICTIONS[id], C_RestrictedActions and C_RestrictedActions.GetAddOnRestrictionState, id)
+	end
+	parts[#parts + 1] = try("chatLock", C_ChatInfo and C_ChatInfo.InChatMessagingLockdown)
+	parts[#parts + 1] = try("encounter", IsEncounterInProgress)
+	return "restrictions: " .. table.concat(parts, " ")
+end
+
+-- Other places the target's name might be readable: its tooltip and its nameplate.
+local function tooltipLine(unit)
+	local parts = {}
+	local ok, data = pcall(function() return C_TooltipInfo and C_TooltipInfo.GetUnit and C_TooltipInfo.GetUnit(unit) end)
+	if not ok then
+		parts[#parts + 1] = "tooltipInfo=<error " .. s(data) .. ">"
+	elseif type(data) ~= "table" or isSecret(data) then
+		parts[#parts + 1] = "tooltipInfo=" .. s(data)
+	else
+		local line = type(data.lines) == "table" and data.lines[1]
+		parts[#parts + 1] = "tooltipInfo.line1=" .. s(type(line) == "table" and line.leftText or line)
+		parts[#parts + 1] = "tooltipInfo.guid=" .. s(data.guid)
+	end
+	parts[#parts + 1] = try("gameTooltipLine1", function()
+		GameTooltip:SetOwner(UIParent, "ANCHOR_NONE")
+		GameTooltip:SetUnit(unit)
+		local text = GameTooltipTextLeft1 and GameTooltipTextLeft1:GetText()
+		GameTooltip:Hide()
+		return text
+	end)
+	parts[#parts + 1] = try("nameplateText", function()
+		local plate = C_NamePlate and C_NamePlate.GetNamePlateForUnit and C_NamePlate.GetNamePlateForUnit(unit)
+		local frame = plate and plate.UnitFrame
+		return frame and frame.name and frame.name:GetText()
+	end)
+	return "names(" .. unit .. "): " .. table.concat(parts, " ")
+end
+
+-- Asks the game for the target's name the way SoulDex does (a whisper to yourself with
+-- %t), tagged so the reply can be told apart in the log. The line shows in chat: this is
+-- a probe. Never sent while chat is locked (that raises a red error).
+local function askTarget(tag)
+	local locked = C_ChatInfo and C_ChatInfo.InChatMessagingLockdown and C_ChatInfo.InChatMessagingLockdown()
+	if isSecret(locked) or locked then
+		log("ask(" .. tag .. "): chat locked, not sent | " .. unitLine("target"), true)
+		return
+	end
+	local me = GetUnitName and GetUnitName("player", true)
+	local fn = C_ChatInfo and C_ChatInfo.SendChatMessage or SendChatMessage
+	local ok, err = pcall(fn, "SDXP:" .. tag .. ":%t", "WHISPER", nil, me)
+	log("ask(" .. tag .. "): sent=" .. s(ok) .. " " .. s(err) .. " | " .. unitLine("target"), true)
 end
 
 local function shardSlots()
@@ -126,6 +185,10 @@ local OTHER_EVENTS = {
 	"PLAYER_REGEN_DISABLED", "ADDON_ACTION_BLOCKED", "ADDON_ACTION_FORBIDDEN", "CHAT_MSG_LOOT",
 	"ITEM_PUSH", "UNIT_DIED", "PLAYER_DEAD", "UI_ERROR_MESSAGE", "CHAT_MSG_COMBAT_XP_GAIN",
 	"CHAT_MSG_COMBAT_HONOR_GAIN", "PLAYER_XP_UPDATE",
+	-- Leads for naming souls in dungeons and raids: is any of these readable there?
+	"ENCOUNTER_START", "ENCOUNTER_END", "BOSS_KILL", "PARTY_KILL", "ADDON_RESTRICTION_STATE_CHANGED",
+	"CHAT_MSG_MONSTER_YELL", "CHAT_MSG_MONSTER_EMOTE", "CHAT_MSG_MONSTER_SAY", "CHAT_MSG_RAID_BOSS_EMOTE",
+	"CHAT_MSG_WHISPER", "LOOT_OPENED", "INSTANCE_ENCOUNTER_ENGAGE_UNIT",
 }
 
 local frame = CreateFrame("Frame")
@@ -158,6 +221,27 @@ frame:SetScript("OnEvent", function(_, event, ...)
 				.. " | " .. unitLine("target"))
 		elseif event == "PLAYER_TARGET_CHANGED" then
 			log(event .. " | " .. unitLine("target"))
+		elseif event == "CHAT_MSG_WHISPER" then
+			-- Only the probe's own replies: never log anyone's real whispers.
+			local text = ...
+			if isSecret(text) then
+				log("CHAT_MSG_WHISPER <secret text>")
+			elseif type(text) == "string" and text:find("^SDXP:") then
+				log("reply: " .. text, true)
+			end
+		elseif event == "ENCOUNTER_START" or event == "ENCOUNTER_END" or event == "BOSS_KILL" then
+			log(event .. " " .. argsLine(...) .. " | " .. unitLine("target") .. " | " .. unitLine("boss1")
+				.. " | " .. restrictionLine(), true)
+			if event ~= "ENCOUNTER_START" then
+				-- The boss is dead and probably still your target. Can its name be asked
+				-- for once the chat lock lifts? Tried now, then 1 s and 3 s later.
+				askTarget(event .. "+0")
+				C_Timer.After(1, function() askTarget(event .. "+1") end)
+				C_Timer.After(3, function() askTarget(event .. "+3") end)
+			end
+		elseif event == "LOOT_OPENED" then
+			log(event .. " " .. argsLine(...) .. " " .. try("lootSource1", GetLootSourceInfo, 1)
+				.. " | " .. unitLine("target"))
 		else
 			log(event .. " " .. argsLine(...) .. " | " .. unitLine("target"),
 				event == "ADDON_ACTION_BLOCKED" or event == "ADDON_ACTION_FORBIDDEN")
@@ -171,6 +255,12 @@ SlashCmdList["SOULDEXPROBE"] = function(msg)
 	if msg == "clear" then
 		wipe(SoulDexProbeLog)
 		print(PREFIX .. "log cleared")
+	elseif msg == "target" then
+		-- Everything known about the target right now (alive or dead), and one ask.
+		log(unitLine("target"), true)
+		log(tooltipLine("target"), true)
+		log(restrictionLine(), true)
+		askTarget("manual")
 	else
 		apiReport()
 		bagCheck("manual")

@@ -11,6 +11,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - One chat line when someone in your guild or group runs a newer SoulDex.
 - Fixed: a shard could be named after the wrong mob (a Shadowburn followed by a Drain Soul on another mob; changing target as a cast went off in a dungeon).
 - Fixed: recasting Drain Soul on the same dungeon mob left its shard unnamed.
+- Raid souls named by whisper now fill their slot in the raid's list (they used to land under Mobs > Raids).
 - Fixed: browsing a friend's large dex timed out ("No answer"); it now waits for as long as the dex needs and says "Receiving".
 - Fixed: Friends "Clean up" could remove guild members; an added friend who hadn't answered yet couldn't be selected or removed; the × on a row vanished while you were pointing at it; "today" and "yesterday" on the Me tab went by the wrong clock.
 - Lighter on memory and saved data for warlocks who farm many shards; people you only once grouped with drop off the Friends list after 30 days.

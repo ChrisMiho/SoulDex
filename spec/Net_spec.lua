@@ -844,6 +844,22 @@ describe("Net", function()
 			assert.is_false(filter(nil, "CHAT_MSG_SYSTEM", "No player named 'Ann' is currently playing."))
 		end)
 
+		it("keeps hiding them while a long dex is still going out to someone who logged off", function()
+			start()
+			finishSends = false
+			ns.Net:OnCommReceived("SoulDex", ns.Comm.encodeRequest("R"), "WHISPER", "Bob")
+			local dex = sent[#sent]
+			local line = "No player named 'Bob' is currently playing."
+			clock = clock + 120 -- two minutes in: Bob has logged off, pieces still go out
+			assert.is_false(filter(nil, "CHAT_MSG_SYSTEM", line))
+			dex.progress(500) -- a piece is sent; the game answers with the line
+			assert.is_true(filter(nil, "CHAT_MSG_SYSTEM", line))
+			clock = clock + 90
+			dex.progress(1000)
+			clock = clock + 2
+			assert.is_true(filter(nil, "CHAT_MSG_SYSTEM", line))
+		end)
+
 		it("leaves a system line it can't read alone", function()
 			local secret = setmetatable({}, { __index = function() error("touched a secret value") end })
 			_G.issecretvalue = function(v) return rawequal(v, secret) end

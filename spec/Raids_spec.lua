@@ -148,6 +148,21 @@ describe("Raids with TBD raids", function()
 		assert.is_nil(Raids.byKey("BD").instanceID)
 		assert.equal("MC", Raids.byInstance(409).key)
 	end)
+	it("finds a listed creature's id by its exact name", function()
+		local data = Raids.byInstance(409).mobs
+		local first = data[1]
+		assert.equal(first.id, Raids.idByName(409, first.name))
+		assert.equal(first.id, Raids.idByName(409, "  " .. first.name:upper() .. " "))
+		assert.is_nil(Raids.idByName(409, first.name .. "x"))
+		assert.is_nil(Raids.idByName(9999, first.name))
+		assert.is_nil(Raids.idByName(409, nil))
+	end)
+	it("gives no id for a name the raid lists twice", function()
+		local mobs = Raids.byInstance(409).mobs
+		mobs[#mobs + 1] = { id = 99999, name = mobs[1].name }
+		assert.is_nil(Raids.idByName(409, mobs[1].name))
+		mobs[#mobs] = nil
+	end)
 	it("lists only completable raids", function()
 		local list = Raids.completable()
 		assert.equal(1, #list)

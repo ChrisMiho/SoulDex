@@ -178,7 +178,13 @@ function Capture.recordCatch(dex, cand, ctx, instanceType, instanceID)
 	end
 	if instanceType == "raid" then
 		local npcID = Capture.npcIdFromGuid(cand.guid)
-		if instanceID and npcID and dex:raidFor(instanceID, ctx.instanceName) then
+		local raid = instanceID and dex:raidFor(instanceID, ctx.instanceName)
+		if raid and not npcID then
+			-- The GUID is hidden in raids (the name came by whisper): the raid's own list
+			-- gives the id for that name, so the soul still fills its slot.
+			npcID = ns.Raids.idByName(instanceID, info.name)
+		end
+		if raid and npcID then
 			return dex:recordRaid(info, ctx, instanceID, npcID), "raid"
 		end
 		-- A raid we do not list: a plain mob (ctx.group is already "Raids").
@@ -295,7 +301,9 @@ local function mapInfo(id)
 	return { mapType = num(info.mapType), parentMapID = num(info.parentMapID), name = str(info.name) }
 end
 
--- Where and when: { time, myLevel, zone, group, instanceName, x, y }, instance type and ID.
+-- Where and when: { time, myLevel, zone, group, instanceName, instanceType, instanceID, x,
+-- y }, then the instance type and ID again (a held shard is recorded later from its saved
+-- ctx alone, so the ctx carries them too).
 function Capture.buildContext()
 	local instanceName, instanceType, _, _, _, _, _, instanceID = call(GetInstanceInfo)
 	instanceType, instanceID = str(instanceType), num(instanceID)
@@ -308,6 +316,8 @@ function Capture.buildContext()
 		zone = zone,
 		group = Capture.groupFor(instanceType, continent),
 		instanceName = str(instanceName), -- matches a raid whose instance id is not known yet
+		instanceType = instanceType,
+		instanceID = instanceID,
 	}
 	if instanceType == "raid" then
 		ctx.group = "Raids"
@@ -682,7 +692,8 @@ local function afterCatch(db, dex, result, entry)
 end
 
 -- The info to record for a soul named by whisper: the details read at the cast, plus the
--- name. No GUID, so a raid catch falls through to a plain mob.
+-- name. No GUID: in a listed raid the name finds its slot (Raids.idByName); a creature
+-- the raid doesn't list falls through to a plain mob.
 function Capture.namedInfo(pend)
 	local d = type(pend.details) == "table" and pend.details or {}
 	local info = {
@@ -745,7 +756,9 @@ end
 -- an Unknown soul for a whisper that failed or ran out. Returns soul, afterCatch work.
 function Capture.recordHeld(dex, pend, ctx)
 	if pend.state == "named" then
-		return recordNamed(dex, Capture.namedInfo(pend), ctx)
+		local instanceType = type(ctx.instanceType) == "string" and ctx.instanceType or nil
+		local instanceID = type(ctx.instanceID) == "number" and ctx.instanceID or nil
+		return recordNamed(dex, Capture.namedInfo(pend), ctx, instanceType, instanceID)
 	end
 	return recordUnknown(dex, { unknown = true }, ctx)
 end
