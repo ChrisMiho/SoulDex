@@ -1,12 +1,14 @@
 ---
 name: release
-description: Cut a SoulDex alpha, beta or release. Checks the stage's conditions, writes the changelog and release intro, commits, tags v<version> and pushes so the release workflow builds and publishes the zip.
+description: Cut a SoulDex alpha, beta or release. Works out the version number, checks the stage's conditions, writes the changelog and release intro, commits, tags v<version> and pushes so the release workflow builds and publishes the zip.
 disable-model-invocation: true
 ---
 
-Argument: the version to tag, e.g. `1.5.0-alpha.1`, `1.5.0-beta.2` or `1.5.0` (SemVer).
-Ask for it if it is missing. The suffix picks the stage, and the tag's name alone decides
-where the zip goes (`.github/workflows/release.yml`):
+Argument: the stage, `alpha`, `beta` or `release`. Ask for it if it is missing. You work
+out the version number (below); the user does not keep track of it. A full version given
+instead (`1.5.0-beta.2`) is used as it is.
+
+The tag's name alone decides where the zip goes (`.github/workflows/release.yml`):
 
 | Stage | Tag | Goes to | Cut it when |
 |---|---|---|---|
@@ -18,6 +20,29 @@ Everyday testing needs no tag: `scripts/build.sh` builds and installs into the g
 
 **The rule behind the stages: nothing reaches CurseForge that the user has not played.**
 Agents cannot run the game, so only the user can say a build was played. Never infer it.
+
+## The version
+
+Versions follow SemVer. Read the tags (`git tag --sort=-v:refname`): the last plain
+`vX.Y.Z` is the last release; any `-alpha.N` / `-beta.N` tags above it belong to the
+version in progress.
+
+1. **The base version.** Judge the bump from what changed since the last release (the
+   lines under `## [Unreleased]` in `CHANGELOG.md`, and `git log <last release>..HEAD`):
+   - **major**: a player loses something on updating: saved data an older version wrote
+     no longer loads, or the Friends wire format stops talking to the last release.
+   - **minor**: anything new a player can see or use (a feature, an option, a command).
+   - **patch**: fixes only.
+   If a version is already in progress, keep its base, unless what was added since now
+   calls for a bigger bump (a feature landed on what was a patch): then move to the
+   bigger base and start its numbering again at 1.
+2. **The suffix.** `alpha` and `beta`: one more than the highest N that stage has for the
+   base, or 1. `release`: no suffix.
+3. An alpha asked for when the base already has a beta would go backwards: say so and ask
+   whether a beta was meant.
+
+Say which version you chose and why, in one line, when you show the changelog and intro
+for approval (step 4): the user can correct it there.
 
 ## Conditions, by stage
 
