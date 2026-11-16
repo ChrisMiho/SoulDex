@@ -72,11 +72,11 @@ optional and for big moments only.
 
 ### ◆ The grimoire: bend it to your will
 
-Switches for every popup and chat line, a SIZE section for the window and the
-popups (60% to 160%), a page under the game's Settings > AddOns, a key binding
-and an entry in the addon list by the minimap.
-
-![Settings and commands](docs/curseforge/images/feature-6-settings.png)
+Turn the popup, the sound and guild announcements on or off, or add a chat
+line in your warlock's voice for every claim. SIZE scales the window and the
+popups (60% to 160%). The settings are also a page under the game's Settings >
+AddOns, and SoulDex has a key binding and an entry in the addon list by the
+minimap.
 
 <sub>The images are illustrations of the in-game window.</sub>
 
@@ -96,8 +96,8 @@ and an entry in the addon list by the minimap.
 | `/souldex test` or `/dex test` | Show a sample popup |
 | `/souldex version` or `/dex version` | Print the version you are running |
 
-The new-soul popup, the sound, guild announcements, claim chatter and the login
-message each have their own on/off switch in the settings, with the size of the
+The new-soul popup, the sound, guild announcements, a chat line for every claim and the
+login message each have their own on/off switch in the settings, with the size of the
 window and of the popups under them. The settings are also a page of the game's
 own Settings window (Options > AddOns > SoulDex). `/dex help` lists the commands
 in game.

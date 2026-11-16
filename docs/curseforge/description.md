@@ -73,12 +73,10 @@ clears), never every soul. One tick turns it off.
 
 ### ◆ The grimoire: bend it to your will
 
-Every switch has its own tick: the popup, the sound, guild announcements, claim chatter
-in chat and the login line. **SIZE** scales the window and the popups from 60% to 160%.
-The settings sit behind the gear on the window and as a page under **Settings > AddOns >
-SoulDex**. Bind a key under **Keybindings > AddOns**.
-
-![Settings and commands](SETTINGS_IMAGE_URL)
+Turn the popup, the sound and the guild announcements on or off, or add a line in chat
+in your warlock's voice for every claim. **SIZE** scales the window and the popups from
+60% to 160%. The settings sit behind the gear on the window and under **Settings >
+AddOns > SoulDex**. Bind a key under **Keybindings > AddOns**.
 
 ---
 

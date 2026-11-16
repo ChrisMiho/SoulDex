@@ -8,7 +8,7 @@ Everything for the CurseForge project page is in this folder. `docs/` is already
 | `images/logo-400.png` | Project **avatar / logo** (square). `logo-800.png` if a bigger one is asked for |
 | `images/icon-256.png`, `icon-64.png` | Same mark without the word, for places where text would be too small |
 | `images/banner-1200x400.png` | Header image at the top of the description |
-| `images/feature-1-mobs.png` … `feature-6-settings.png` | **Images** tab (gallery), 1280×720 |
+| `images/feature-1-mobs.png` … `feature-5-me-milestones.png` | **Images** tab (gallery), 1280×720 |
 | `description.md` | Project **description** |
 | `source/` | HTML the images are made from. Edit, then run `docs/curseforge/source/render.sh` (Git Bash on Windows) |
 
@@ -41,25 +41,24 @@ CurseForge reviews every new project by hand; that can take a few days.
 
 ## 3. Description
 
-1. Upload the banner and the six `feature-*.png` images on the Media tab, and copy each
+1. Upload the banner and the five `feature-*.png` images on the Media tab, and copy each
    one's URL.
 2. In `description.md`, replace the placeholders with those URLs: `BANNER_IMAGE_URL`,
    `MOBS_IMAGE_URL` (feature 1), `RAIDS_IMAGE_URL` (2), `TOOLTIP_IMAGE_URL` (3),
-   `FRIENDS_IMAGE_URL` (4), `ME_IMAGE_URL` (5), `SETTINGS_IMAGE_URL` (6).
+   `FRIENDS_IMAGE_URL` (4), `ME_IMAGE_URL` (5).
 3. Paste the whole file into the description, with the editor set to **Markdown**. If the
    project only offers the WYSIWYG editor, paste it into a Markdown previewer first
    (e.g. VS Code preview) and copy the rendered text across.
 
 ## 4. Images tab
 
-Upload the six `feature-*.png` files, in order, with these titles:
+Upload the five `feature-*.png` files, in order, with these titles:
 
 1. **The hunt** — Every kill a trophy
 2. **The raids** — Drain every raid
 3. **The trophies** — Every shard has a name
 4. **The rivals** — Hunt players. Outrank friends.
 5. **The climb** — Rise through the ranks
-6. **The grimoire** — Bend it to your will
 
 These are drawn illustrations of the window, built from the addon's own colours and
 labels (each one says "Illustration" in the corner). **Add real in-game screenshots as
