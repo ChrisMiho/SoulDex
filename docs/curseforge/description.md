@@ -7,8 +7,8 @@ every one a trophy: each shard that lands in your bags claims the mob or player 
 from for your dex. Score points, climb the warlock ranks from Initiate to Lord of Souls,
 and outrank the other warlocks in your guild.
 
-Made for **World of Warcraft: Forever**. Type `/dex` to open it, bind it to a key, or
-pick it from the addon list by the minimap.
+Made for **World of Warcraft: Forever**. Type `/souldex` (or the shorthand `/dex`) to open
+it, bind it to a key, or pick it from the addon list by the minimap.
 
 ---
 
@@ -47,7 +47,7 @@ you're about to spend. The name follows its shard through your bags, the bank an
 ### ◆ The rivals: hunt players, outrank friends
 
 Every player you shard is a trophy, sorted by class. SoulDex users in your party, raid
-and guild join your leaderboard on their own; add anyone else with `/dex add <name>`.
+and guild join your leaderboard on their own; add anyone else with `/souldex add <name>`.
 Browse a rival's dex, read-only: what they have and you don't is highlighted.
 
 ![Players and Friends tabs](FRIENDS_IMAGE_URL)
@@ -82,19 +82,20 @@ AddOns > SoulDex**. Bind a key under **Keybindings > AddOns**.
 
 ### Commands
 
-`/dex` is short for `/souldex`; every command works with either. `/dex help` lists them
-in game.
-
 | Command | What it does |
 |---|---|
-| `/dex` | Open or close the window |
-| `/dex options` | The settings (also the gear on the window) |
-| `/dex find <text>` | Look a soul up by name |
-| `/dex add <name>` | Follow a friend's dex by name |
-| `/dex remove <name>` | Stop following them |
-| `/dex scale <60-160>` | The window's size in percent |
-| `/dex reset` | The window back in the middle, at normal size |
-| `/dex test` | Show a sample popup |
-| `/dex version` | The version you are running |
+| `/souldex` | Open or close the window |
+| `/souldex help` | List the commands in game |
+| `/souldex options` | The settings (also the gear on the window) |
+| `/souldex find <text>` | Look a soul up by name |
+| `/souldex add <name>` | Follow a friend's dex by name |
+| `/souldex remove <name>` | Stop following them |
+| `/souldex scale <60-160>` | The window's size in percent |
+| `/souldex reset` | The window back in the middle, at normal size |
+| `/souldex test` | Show a sample popup |
+| `/souldex version` | The version you are running |
+
+`/dex` is the shorthand: every command works with it in place of `/souldex`, such as
+`/dex options`.
 
 *Images are illustrations of the in-game window.*
