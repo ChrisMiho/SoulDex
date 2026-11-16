@@ -7,8 +7,8 @@ should replace them. Upload steps are in `SUBMISSION.md`.
 
 - `description.md`
   - Intro: open with `/dex`, a key binding or the addon list by the minimap.
-  - The hunt: dungeon souls get their real names, read through a hidden whisper to
-    yourself (a boss drained mid-fight is still Unknown).
+  - The hunt: dungeon souls get their real names (a boss drained mid-fight is still
+    Unknown). How SoulDex reads them is deliberately left off the page.
   - The raids: The Barrow Deeps and Hyjal Summit are listed, rosters still to come.
   - The trophies: points on the popup; mastery stars and rank-ups get their own popups.
   - The climb: rank emblems, milestones from First Harvest to Raid Reaper, the Me tab's

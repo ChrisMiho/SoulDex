@@ -19,9 +19,8 @@ zone and dungeon. Elites, rares and bosses show in their colours. Click a soul f
 trophy card: level and type, a one-line epitaph, its mastery stars, how often you
 claimed it, and when and where you took it first.
 
-Dungeon souls get their true names too. Where the game hides a name, SoulDex reads it
-through a hidden whisper to yourself: nobody else sees a thing. (A boss drained mid-fight
-still goes down as Unknown.)
+Dungeon souls get their true names too. (A boss drained mid-fight still goes down as
+Unknown.)
 
 ![Mobs tab](MOBS_IMAGE_URL)
 

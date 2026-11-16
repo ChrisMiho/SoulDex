@@ -24,9 +24,8 @@ Type `/souldex` or `/dex` in game to open it.
 
 Every creature you've drained, filed by zone and dungeon, in its rarity colour.
 Click any soul for its trophy card: level and type, a one-line epitaph, its mastery
-stars, how many times you claimed it, and when and where you took it first. Dungeon souls get their true names too: where the game hides a
-name, SoulDex reads it through a hidden whisper to yourself (a boss drained
-mid-fight still goes down as Unknown).
+stars, how many times you claimed it, and when and where you took it first. Dungeon souls get their true names too (a boss drained mid-fight still
+goes down as Unknown).
 
 ![Mobs tab](docs/curseforge/images/feature-1-mobs.png)
 
