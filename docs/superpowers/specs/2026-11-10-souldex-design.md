@@ -751,6 +751,27 @@ left out if the dex isn't loaded yet). The settings:
   That's 12.", with "(+N pts)" when it scored). `Flavour.chatter`. **[user]**
 - Guild announcements on/off
 
+Under the switches, a **SIZE** section **[user]** with one row per thing that can
+be made bigger or smaller, each a label, then `-  100%  +`:
+
+- **Window**: the dex window, text and all. Saved as `db.window.scale`.
+- **Popup**: the new-soul and rank-up popups. Saved as `db.settings.popupScale`.
+
+Each click is one 10 % step, from 60 % to 160 % (`Settings.scale` rounds to 5 %
+and keeps any saved value inside the limits; a damaged one falls back to 100 %).
+The change is applied at once: the window resizes where it stands (a window
+that was dragged keeps its anchored corner at the same place on screen, one
+that never was stays centred), and a popup step shows a silent sample popup
+("Hogger", recorded nowhere) at the new size, also while the popup switch is
+off; it replaces a real popup that is on screen. The popups stay the same distance from the top of the screen at every
+size (`Toast.offsets`). A `-` or `+` that can go no further is dimmed. A small
+"Reset" on the SIZE line, shown only while a size is not 100 %, puts both back.
+The options panel itself is never scaled, so its buttons stay under the cursor.
+
+There is no separate text-size setting: the window is a fixed layout drawn
+around the game's own fonts, so its text grows and shrinks with the Window
+size rather than on its own.
+
 All saved.
 
 ## 7a. Code layout
@@ -900,9 +921,21 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
   off: it still goes out once.
 
 **Settings and commands**
-- `/souldex options` or the gear opens three checkboxes (popup, sound, guild
-  announcements); clicking the label text toggles too. Untick each in turn,
+- `/souldex options` or the gear opens four checkboxes (popup, sound, guild
+  announcements, claim chatter); clicking the label text toggles too. Untick each in turn,
   `/reload`: still unticked, and the matching behaviour stops.
+- Options, SIZE: click `+` on Window twice with the dex open: the window and
+  its text grow each time, it reads "120%", and the window does not jump
+  (**please check** after dragging it to a screen corner first). Click `-` down
+  to "60%": the `-` dims and further clicks do nothing; everything in the
+  window is still readable and lined up at 60 % and at 160 %.
+- Click `+` on Popup: a sample popup ("ELITE SOUL CLAIMED", Hogger) appears at
+  the new size with no sound, the same distance from the top of the screen as
+  before, and nothing new is in the dex. At 160 % the next real claim that also
+  ranks you up shows the rank-up popup just under the soul's, not overlapping.
+- "Reset" appears on the SIZE line once a size is not 100 %; click it: both
+  read "100%", the window and popups are back to normal, and "Reset" is gone.
+  Change both sizes, `/reload`: both are kept.
 - `/souldex help` (or any unknown word) prints the commands.
 - `/dex`, `/dex options`, `/dex add <name>` do the same as their `/souldex`
   forms.

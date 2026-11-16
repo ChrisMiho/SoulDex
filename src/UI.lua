@@ -301,13 +301,22 @@ local function savePosition()
 	end
 end
 
+-- The saved window scale, or the default for a missing or damaged one.
+local function savedScale()
+	local w = ns.db and ns.db.window
+	return ns.Settings.scale(w and w.scale) or ns.Settings.SCALE_DEFAULT
+end
+
 local function placeWindow()
 	local w = ns.db and ns.db.window or {}
+	local scale = savedScale()
+	frame:SetScale(scale)
 	frame:ClearAllPoints()
 	if w.point then
 		frame:SetPoint(w.point, UIParent, w.relPoint or w.point, w.x or 0, w.y or 0)
 	else
-		frame:SetPoint("CENTER", UIParent, "CENTER", 0, 60)
+		-- Offsets are in the window's own scaled units: 60 on screen at every size.
+		frame:SetPoint("CENTER", UIParent, "CENTER", 0, 60 / scale)
 	end
 end
 
@@ -608,6 +617,29 @@ function UI.refresh()
 	if frame and frame:IsShown() then
 		draw("refresh")
 	end
+end
+
+-- The window's scale (Settings.scale: 0.6 to 1.6), saved; returns the scale now in use.
+-- nil or junk leaves it as it is. A window that was dragged somewhere keeps that corner
+-- where it is on screen: its saved offsets are in the window's own scaled units.
+function UI.setScale(value)
+	local scale = ns.Settings.scale(value)
+	local w = ns.db and ns.db.window
+	if scale and w then
+		local old = savedScale()
+		if type(w.x) == "number" and type(w.y) == "number" then
+			w.x, w.y = w.x * old / scale, w.y * old / scale
+		end
+		w.scale = scale
+		if frame then
+			placeWindow()
+		end
+	end
+	return savedScale()
+end
+
+function UI.scale()
+	return savedScale()
 end
 
 function UI.currentTab()

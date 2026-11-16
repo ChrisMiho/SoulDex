@@ -5,6 +5,8 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- New in the options: a SIZE section to make the window and the popups bigger or smaller, from 60% to 160%.
+
 ## [1.3.0] - 2026-11-15
 
 - Warlock ranks, from Initiate to Lord of Souls, each with its own emblem; ranking up gets its own popup, and from Reaper on your guild hears about it.

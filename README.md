@@ -76,7 +76,7 @@ optional and for big moments only.
 | Command | What it does |
 |---------|--------------|
 | `/souldex` or `/dex` | Open or close the SoulDex window |
-| `/souldex options` or `/dex options` | Open the settings (also the gear on the window) |
+| `/souldex options` or `/dex options` | Open the settings: the switches, and the size of the window and popups (also the gear on the window) |
 | `/souldex add <name>` or `/dex add <name>` | Add a friend by name |
 | `/souldex remove <name>` or `/dex remove <name>` | Remove a friend |
 

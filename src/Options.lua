@@ -1,5 +1,6 @@
--- The options panel (/souldex options or the gear on the window): four switches
--- saved to db.settings the moment they are clicked. Game code.
+-- The options panel (/souldex options or the gear on the window): four switches and,
+-- under SIZE, the size of the window and of the popups. Everything is saved the moment
+-- it is clicked. Game code.
 local _, ns = ...
 
 local Options = {}
@@ -12,14 +13,153 @@ Options.ITEMS = {
 	{ key = "chatter", label = "Claim chatter in chat" },
 }
 
-local WIDTH, HEIGHT = 200, 128
+-- The SIZE rows: each is a label, then - 100% +. get/set read and save a scale.
+Options.SIZES = {
+	{
+		key = "window",
+		label = "Window",
+		get = function()
+			return ns.UI.scale()
+		end,
+		set = function(scale)
+			ns.UI.setScale(scale)
+		end,
+	},
+	{
+		key = "popup",
+		label = "Popup",
+		get = function()
+			local settings = ns.db and ns.db.settings
+			return ns.Settings.scale(settings and settings.popupScale) or ns.Settings.SCALE_DEFAULT
+		end,
+		-- The popups take the new size at once, and a sample shows it.
+		set = function(scale, preview)
+			if not (ns.db and ns.db.settings) then
+				return
+			end
+			ns.db.settings.popupScale = scale
+			if ns.Toast then
+				ns.Toast.rescale()
+				if preview then
+					Options.testPopup()
+				end
+			end
+		end,
+	},
+}
+
+local WIDTH = 200
+local ROW_H = 24
+local TOP = 24 -- the title strip
+local SIZE_TOP = TOP + #Options.ITEMS * ROW_H + 4 -- the rule above SIZE
+local SIZE_HEAD, SIZE_ROW = 20, 22
+local HEIGHT = SIZE_TOP + SIZE_HEAD + #Options.SIZES * SIZE_ROW + 6
+local DIM = 0.35 -- a - or + that can go no further
 local panel
 local checks = {}
+local steppers = {}
+local resetButton
 
 local function sync()
 	local settings = ns.db and ns.db.settings or {}
 	for i, item in ipairs(Options.ITEMS) do
 		checks[i]:SetChecked(settings[item.key] == true)
+	end
+	local S = ns.Settings
+	local changed = false
+	for i, size in ipairs(Options.SIZES) do
+		local scale = size.get()
+		steppers[i].value:SetText(S.percent(scale))
+		steppers[i].minus:SetAlpha(scale <= S.SCALE_MIN and DIM or 1)
+		steppers[i].plus:SetAlpha(scale >= S.SCALE_MAX and DIM or 1)
+		changed = changed or scale ~= S.SCALE_DEFAULT
+	end
+	-- "Reset" is there only while a size is not 100%.
+	if changed then
+		resetButton:Show()
+	else
+		resetButton:Hide()
+	end
+end
+
+-- A silent sample of the new-soul popup, so the player can see what the popup size does
+-- without draining anything (also while the popup itself is switched off). Nothing is
+-- recorded.
+function Options.testPopup()
+	local dex = ns.dex
+	if not (dex and ns.Toast and ns.Ranks and ns.Rarity) then
+		return
+	end
+	local info = { name = "Hogger", classification = "elite" }
+	local result = { isNew = true, points = 5, total = dex:uniqueSouls() + 1, kind = "mob" }
+	ns.Toast.show(result, info, { zone = "Elwynn Forest" }, ns.Rarity.color("elite"), ns.Ranks.of(dex:score()).emblem)
+end
+
+-- One step of a SIZE row's - or + (by: -1 or 1), kept within the limits.
+local function step(size, by)
+	return function()
+		local S = ns.Settings
+		local scale = S.scale(size.get() + by * S.SCALE_STEP)
+		if scale ~= size.get() then
+			size.set(scale, true)
+			sync()
+		end
+	end
+end
+
+-- Under the switches: a rule, the SIZE heading with "Reset" on its right, and one row
+-- per size.
+local function buildSizes()
+	local UI, C = ns.UI, ns.UIFormat.COLORS
+	local rule = panel:CreateTexture(nil, "ARTWORK")
+	rule:SetHeight(1)
+	rule:SetPoint("TOPLEFT", 6, -SIZE_TOP)
+	rule:SetPoint("TOPRIGHT", -6, -SIZE_TOP)
+	UI.fill(rule, "3d2d5c")
+	local head = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	head:SetPoint("TOPLEFT", 12, -SIZE_TOP - 7)
+	head:SetText("SIZE")
+	head:SetTextHeight(8)
+	UI.textColor(head, C.HEADER)
+
+	resetButton = CreateFrame("Button", nil, panel)
+	resetButton:SetSize(36, 14)
+	resetButton:SetPoint("TOPRIGHT", -8, -SIZE_TOP - 4)
+	resetButton.label = resetButton:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	resetButton.label:SetPoint("RIGHT", 0, 0)
+	resetButton.label:SetText("Reset")
+	UI.textColor(resetButton.label, C.MUTED)
+	resetButton:SetScript("OnEnter", function(self)
+		UI.textColor(self.label, C.WHITE)
+	end)
+	resetButton:SetScript("OnLeave", function(self)
+		UI.textColor(self.label, C.MUTED)
+	end)
+	resetButton:SetScript("OnClick", function()
+		for _, size in ipairs(Options.SIZES) do
+			if size.get() ~= ns.Settings.SCALE_DEFAULT then
+				size.set(ns.Settings.SCALE_DEFAULT, false)
+			end
+		end
+		sync()
+	end)
+
+	for i, size in ipairs(Options.SIZES) do
+		local y = -SIZE_TOP - SIZE_HEAD - (i - 1) * SIZE_ROW
+		local label = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+		label:SetPoint("TOPLEFT", 12, y - 3)
+		label:SetText(size.label)
+		UI.textColor(label, C.TEXT)
+		local plus = UI.button(panel, "+", 18, 16, step(size, 1))
+		plus:SetPoint("TOPRIGHT", -8, y)
+		local value = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+		value:SetPoint("RIGHT", plus, "LEFT", -4, 0)
+		value:SetWidth(36)
+		value:SetJustifyH("CENTER")
+		UI.textColor(value, C.WHITE)
+		local minus = UI.button(panel, "-", 18, 16, step(size, -1))
+		minus:SetPoint("RIGHT", value, "LEFT", -4, 0)
+		steppers[i] = { minus = minus, plus = plus, value = value }
 	end
 end
 
@@ -57,7 +197,7 @@ local function build()
 	for i, item in ipairs(Options.ITEMS) do
 		local check = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
 		check:SetSize(22, 22)
-		check:SetPoint("TOPLEFT", 6, -24 - (i - 1) * 24)
+		check:SetPoint("TOPLEFT", 6, -TOP - (i - 1) * ROW_H)
 		check:SetHitRectInsets(0, -(WIDTH - 40), 0, 0) -- the label is clickable too
 		local label = check:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 		label:SetPoint("LEFT", check, "RIGHT", 2, 0)
@@ -74,6 +214,7 @@ local function build()
 		end)
 		checks[i] = check
 	end
+	buildSizes()
 	panel:SetScript("OnShow", sync)
 	panel:Hide()
 end
