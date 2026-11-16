@@ -10,6 +10,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - New in the options: a SIZE section to make the window and the popups bigger or smaller, from 60% to 160%.
 - New options: "Test popup", "Reset window", and a switch for the login message.
 - One chat line when someone in your guild or group runs a newer SoulDex.
+- Fixed: after a visit to the bank, no Drain Soul shard was named (and no popup showed) until a reload.
 - Fixed: a shard could be named after the wrong mob (a Shadowburn followed by a Drain Soul on another mob; changing target as a cast went off in a dungeon).
 - Fixed: recasting Drain Soul on the same dungeon mob left its shard unnamed.
 - Experimental, off by default: "Boss names after the fight (test)" in the options. A boss drained during its fight keeps its shard waiting and gets its name when the fight ends, if you keep it targeted.

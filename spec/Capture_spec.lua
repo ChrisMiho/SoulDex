@@ -15,7 +15,7 @@ local STUBBED = {
 	"UNKNOWN", "UNKNOWNOBJECT", "NUM_BAG_SLOTS", "NUM_TOTAL_EQUIPPED_BAG_SLOTS", "RAID_CLASS_COLORS",
 	"UnitExists", "UnitIsUnit", "UnitIsAFK", "UnitIsDND", "GetUnitName", "ChatFrameUtil",
 	"ChatFrame_AddMessageEventFilter", "ChatEdit_GetLastTellTarget", "ChatEdit_SetLastTellTarget",
-	"InCombatLockdown",
+	"InCombatLockdown", "C_PlayerInteractionManager",
 }
 
 describe("Capture glue", function()
@@ -187,6 +187,7 @@ describe("Capture glue", function()
 		_G.ChatEdit_GetLastTellTarget = nil
 		_G.ChatEdit_SetLastTellTarget = nil
 		_G.InCombatLockdown = nil
+		_G.C_PlayerInteractionManager = nil
 	end)
 
 	after_each(function()
@@ -374,6 +375,72 @@ describe("Capture glue", function()
 				assert.is_false(db.shardSouls[pair[1]].soul)
 			end
 			assert.same({}, db.mobs)
+		end)
+
+		-- WoW: Forever: a window's close event may never come (seen with the bank). The open
+		-- flag then has to end some other way, or every later shard stays soulless.
+		describe("a window whose close event never comes", function()
+			local BANKER, MERCHANT = 8, 5
+
+			local function claimAfter()
+				world.clock = world.clock + 30
+				drain("cast" .. world.clock, "Hogger")
+				putShard(1, "AFTER")
+				fire("BAG_UPDATE_DELAYED")
+				flush()
+			end
+
+			it("ends when the game says it is no longer open", function()
+				world.target = HOGGER
+				local open = { [BANKER] = true }
+				_G.C_PlayerInteractionManager = {
+					IsInteractingWithNpcOfType = function(kind) return open[kind] == true end,
+				}
+				local _, db = boot()
+				fire("BANKFRAME_OPENED")
+				open[BANKER] = nil -- walked away: no BANKFRAME_CLOSED
+				claimAfter()
+				assert.equal("Hogger", db.shardSouls.AFTER.soul.name)
+			end)
+
+			it("stays open while the game says it is open", function()
+				world.target = HOGGER
+				_G.C_PlayerInteractionManager = {
+					IsInteractingWithNpcOfType = function(kind) return kind == BANKER end,
+				}
+				local _, db = boot()
+				fire("BANKFRAME_OPENED")
+				claimAfter()
+				assert.is_false(db.shardSouls.AFTER.soul)
+			end)
+
+			it("stays open when the game's answer is secret", function()
+				world.target = HOGGER
+				_G.C_PlayerInteractionManager = { IsInteractingWithNpcOfType = function() return SECRET end }
+				local _, db = boot()
+				fire("BANKFRAME_OPENED")
+				claimAfter()
+				assert.is_false(db.shardSouls.AFTER.soul)
+			end)
+
+			it("ends on the interaction-hide event for its own window", function()
+				world.target = HOGGER
+				local _, db = boot()
+				fire("BANKFRAME_OPENED")
+				fire("PLAYER_INTERACTION_MANAGER_FRAME_HIDE", BANKER)
+				claimAfter()
+				assert.equal("Hogger", db.shardSouls.AFTER.soul.name)
+			end)
+
+			it("is not ended by another window's hide, or an unreadable one", function()
+				world.target = HOGGER
+				local _, db = boot()
+				fire("BANKFRAME_OPENED")
+				fire("PLAYER_INTERACTION_MANAGER_FRAME_HIDE", MERCHANT)
+				fire("PLAYER_INTERACTION_MANAGER_FRAME_HIDE", SECRET)
+				claimAfter()
+				assert.is_false(db.shardSouls.AFTER.soul)
+			end)
 		end)
 
 		it("a shard is saved even when recording its catch errors", function()

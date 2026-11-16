@@ -224,7 +224,13 @@ death detection is used; the capture window below replaces the death queue.)
   `shardSlots` is discarded.) Bags 0 to the last equipped bag are scanned on
   `BAG_UPDATE_DELAYED`, `PLAYER_REGEN_ENABLED` and after each of your spell
   events. While something is on the cursor or the bank, mailbox, trade or
-  vendor window is open, new GUIDs are stored as soulless, never named. The
+  vendor window is open, new GUIDs are stored as soulless, never named. A
+  window counts as open from its open event until its close event, the
+  `PLAYER_INTERACTION_MANAGER_FRAME_HIDE` for its interaction type, or a scan
+  where `C_PlayerInteractionManager.IsInteractingWithNpcOfType` readably says
+  it is closed (an unreadable answer keeps it open). (changed after 1.4.0-beta.2:
+  WoW: Forever can skip the bank's close event, and the bank stayed "open" until
+  a reload, so every later shard went soulless.) The
   shard map is saved after each shard, and an error while recording one catch
   leaves its shard soulless without losing the others. The same applies while any bag slot
   can't be read (secret item ID, or a shard with a secret or missing GUID),
@@ -971,6 +977,9 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
   from the mailbox or a trade: that one stays unnamed too, never the mob's name.
 - Drain Soul a mob to death with the mailbox, a trade or a vendor window open:
   the shard stays unnamed (accepted).
+- Open the bank, close it (or walk away from the banker), then Drain Soul a mob
+  to death away from the bank: the shard takes the mob's name and the popup
+  shows. Same after the mailbox and a vendor.
 - The popup's "Soul #N" counts every different soul in your dex (mobs, raid
   creatures and players, all zones): with 41 already, a new one reads
   "Soul #42". Players and raid creatures show it too.

@@ -812,6 +812,7 @@ local OPTIONAL_EVENTS = {
 	"ADDON_RESTRICTION_STATE_CHANGED",
 	"ENCOUNTER_END",
 	"ZONE_CHANGED_NEW_AREA",
+	"PLAYER_INTERACTION_MANAGER_FRAME_HIDE",
 }
 local MAX_LINES = 32 -- whisper line ids kept for re-reading
 
@@ -823,6 +824,39 @@ local SHARD_SOURCES = {
 	TRADE_SHOW = "TRADE_CLOSED",
 	MERCHANT_SHOW = "MERCHANT_CLOSED",
 }
+
+-- WoW: Forever doesn't always send a window's close event (the bank's went missing): a
+-- window left "open" kept every later shard soulless until a reload. Each window is
+-- therefore also closed by the newer interaction-hide event, and dropped when the game
+-- says it is no longer open. Open event -> Enum.PlayerInteractionType name, and the
+-- number it has where the client has no Enum.
+local SOURCE_INTERACTIONS = {
+	BANKFRAME_OPENED = { "Banker", 8 },
+	MAIL_SHOW = { "MailInfo", 17 },
+	TRADE_SHOW = { "TradePartner", 1 },
+	MERCHANT_SHOW = { "Merchant", 5 },
+}
+
+-- The interaction type number for a shard-source open event.
+function Capture.interactionOf(openEvent)
+	local entry = SOURCE_INTERACTIONS[openEvent]
+	if not entry then
+		return nil
+	end
+	local types = Enum and Enum.PlayerInteractionType
+	local value = type(types) == "table" and types[entry[1]]
+	return plainNumber(value) and value or entry[2]
+end
+
+-- false only when the game readably says this window is not open; nil when it can't tell.
+local function interactionOpen(openEvent)
+	local manager = C_PlayerInteractionManager
+	local kind = Capture.interactionOf(openEvent)
+	if type(manager) ~= "table" or not kind then
+		return nil
+	end
+	return flag(manager.IsInteractingWithNpcOfType, kind)
+end
 
 -- Registers each event on its own, so one the client refuses can't stop the rest.
 -- Returns the names that failed.
@@ -867,7 +901,14 @@ function Capture.start(db, dex)
 		return C_Spell and str(call(C_Spell.GetSpellName, id))
 	end
 
+	-- Drops a window the game says is closed (its close event may never come; see
+	-- SOURCE_INTERACTIONS); an unreadable answer keeps it open.
 	local function sourceOpen()
+		for openEvent in pairs(sourcesOpen) do
+			if interactionOpen(openEvent) == false then
+				sourcesOpen[openEvent] = nil
+			end
+		end
 		return next(sourcesOpen) ~= nil
 	end
 
@@ -1297,6 +1338,18 @@ function Capture.start(db, dex)
 		handlers[closeEvent] = function()
 			sourcesOpen[openEvent] = nil
 			queueScan()
+		end
+	end
+	-- arg 1 is the interaction type; an unreadable one closes nothing.
+	handlers.PLAYER_INTERACTION_MANAGER_FRAME_HIDE = function(kind)
+		if not plainNumber(kind) then
+			return
+		end
+		for openEvent in pairs(SHARD_SOURCES) do
+			if sourcesOpen[openEvent] and Capture.interactionOf(openEvent) == kind then
+				sourcesOpen[openEvent] = nil
+				queueScan()
+			end
 		end
 	end
 

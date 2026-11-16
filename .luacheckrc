@@ -45,6 +45,7 @@ read_globals = {
 	"C_Spell",
 	"canaccesstable",
 	"C_Map",
+	"C_PlayerInteractionManager",
 	"C_Timer",
 	"ChatEdit_GetLastTellTarget",
 	"ChatEdit_SetLastTellTarget",
