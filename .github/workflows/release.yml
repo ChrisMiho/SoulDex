@@ -3,14 +3,18 @@ name: Release
 # Runs when a version tag such as v0.1.0 is pushed. The packager fetches the
 # libraries listed in .pkgmeta, stamps the version into the .toc, builds the
 # zip and attaches it to a GitHub release; then the intro goes on top.
-# With the CF_API_KEY secret set and X-Curse-Project-ID in SoulDex.toc, the
-# packager uploads the same zip to CurseForge too. A tag with "alpha" or "beta"
-# in its name is a test build: it becomes a GitHub pre-release only and is NOT
-# sent to CurseForge, so an untested build never reaches players' addon
-# managers. Two things keep it off, either one enough: the test-build step is
-# never given the CurseForge key, and "-p 0" unsets the project id.
-# (v1.4.0-beta.1 did go to CurseForge: a first attempt withheld the key with
-# "cond && '' || secret", which always gives the secret, because '' is false.)
+#
+# The tag's name decides where the zip goes (the cycle is in the /release skill,
+# .claude/skills/release/SKILL.md):
+#   v1.5.0-alpha.1  untested: a GitHub pre-release only, never CurseForge
+#   v1.5.0-beta.1   played by the author: GitHub pre-release + CurseForge beta file
+#   v1.5.0          GitHub release + CurseForge release file
+# An alpha stays off CurseForge for two reasons, either one enough: its step is
+# never given the CurseForge key, and "-p 0" unsets the project id. Do not
+# withhold the key with "cond && '' || secret": '' is false, so that always
+# gives the secret (it sent v1.4.0-beta.1 to CurseForge).
+# CurseForge needs the CF_API_KEY secret and X-Curse-Project-ID in SoulDex.toc;
+# without either that upload is skipped and the rest still runs.
 on:
   push:
     tags:
@@ -30,8 +34,8 @@ jobs:
       # The zip and its CurseForge display name are always
       # SoulDex-v<version>-forever.zip; scripts/build.sh uses the same name.
       # Exactly one of the next two steps runs.
-      - name: Package a test build (GitHub pre-release only, no CurseForge)
-        if: contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta')
+      - name: Package an alpha (GitHub pre-release only, no CurseForge)
+        if: contains(github.ref_name, 'alpha')
         uses: BigWigsMods/packager@v2.6.1
         with:
           args: -p 0 -n "{package-name}-{project-version}-forever:{package-name}-{project-version}-forever.zip"
@@ -39,8 +43,9 @@ jobs:
           GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
           # No CF_API_KEY here, on purpose: without it the packager cannot upload.
 
-      - name: Package a release (GitHub and CurseForge)
-        if: ${{ !(contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta')) }}
+      # The packager marks a tag with "beta" in its name as a beta file on CurseForge.
+      - name: Package a beta or a release (GitHub and CurseForge)
+        if: ${{ !contains(github.ref_name, 'alpha') }}
         uses: BigWigsMods/packager@v2.6.1
         with:
           args: -n "{package-name}-{project-version}-forever:{package-name}-{project-version}-forever.zip"

@@ -140,7 +140,14 @@ Behaviour is described in
 [the design spec](docs/superpowers/specs/2026-11-10-souldex-design.md); code
 and spec change together. Code conventions and repo layout are in
 [`CLAUDE.md`](CLAUDE.md), which is written for both people and coding agents.
-CI runs lint and tests on every push; releases are built from `v*` tags.
+CI runs lint and tests on every push. Builds are published from `v*` tags, and
+the tag's name decides who gets them:
+
+| Tag | Goes to |
+|-----|---------|
+| `v1.5.0-alpha.1` | A GitHub pre-release only: untested builds |
+| `v1.5.0-beta.1` | GitHub and CurseForge's beta channel: played by the author, fixes only from here |
+| `v1.5.0` | Everyone: a beta that survived real play |
 
 ## Data
 

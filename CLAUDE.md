@@ -94,9 +94,12 @@ list; keep it up to date.
 ## Changes and releases
 
 - Add a line under `## [Unreleased]` in `CHANGELOG.md` for each user-facing change.
-- Releases are made by pushing a `v*` tag. The `/release` skill then saves the
-  published zip to `releases/` (git-ignored); the release workflow uploads the same zip to CurseForge,
-  except for a tag with "alpha" or "beta" in its name, which is a GitHub pre-release only. Do not tag or push unless asked;
-  the steps are in the `/release` skill (`.claude/skills/release/SKILL.md`).
+- Builds are published by pushing a `v*` tag, and the tag's name decides who gets it:
+  `-alpha.N` is a GitHub pre-release only, `-beta.N` also goes to CurseForge's beta
+  channel, a plain version goes to everyone. Nothing reaches CurseForge that the user
+  has not played in game, so cut a beta or a release only when they say they have.
+  Day-to-day testing is `scripts/build.sh`, no tag.
+- Do not tag or push unless asked. The conditions and steps for each stage are in the
+  `/release` skill (`.claude/skills/release/SKILL.md`).
 - Personal details stay out of the repo: commit with the GitHub no-reply
   address, and write no local paths or emails into docs.
