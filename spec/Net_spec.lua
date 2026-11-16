@@ -7,8 +7,8 @@ describe("Net", function()
 			Print = function() end,
 		}
 		local files = {
-			"Settings", "Raids", "Points", "Rarity", "Ranks", "Flavour", "Dex", "Milestones", "View", "UIFormat", "Comm",
-			"Friends", "Shards", "Capture", "Net",
+			"Settings", "Raids", "Points", "Rarity", "Ranks", "Flavour", "Dex", "Milestones", "View", "UIFormat", "Version",
+			"Comm", "Friends", "Shards", "Capture", "Net",
 		}
 		for _, file in ipairs(files) do
 			LoadAddonFile("src/" .. file .. ".lua", ns)
@@ -31,6 +31,78 @@ describe("Net", function()
 			assert.equal("retrying", Net.browseStage(100, 190))
 			assert.equal("expired", Net.browseStage(100, 191))
 			assert.equal("expired", Net.browseStage(nil, 191))
+		end)
+
+		it("browse status: receiving once the dex is announced, until its own deadline", function()
+			assert.equal("receiving", Net.browseStage(100, 150, 400, true))
+			assert.equal("receiving", Net.browseStage(100, 300, 400, true)) -- past 60 s and 90 s: no retry, no give-up
+			assert.equal("receiving", Net.browseStage(100, 400, 400, true))
+			assert.equal("expired", Net.browseStage(100, 401, 400, true))
+			assert.equal("retrying", Net.browseStage(100, 170, 190, false))
+			assert.equal("Asking Bob...", Net.browseStatus("Bob", "asking"))
+			assert.equal("Asking Bob again...", Net.browseStatus("Bob", "retrying"))
+			assert.equal("Receiving Bob's dex... ~3 min", Net.browseStatus("Bob", "receiving", 170))
+			assert.equal("Receiving Bob's dex... ~2 min", Net.browseStatus("Bob", "receiving", 61))
+			assert.equal("Receiving Bob's dex... <1 min", Net.browseStatus("Bob", "receiving", 60))
+			assert.equal("Receiving Bob's dex... <1 min", Net.browseStatus("Bob", "receiving", 0))
+			assert.equal("Receiving Bob's dex...", Net.browseStatus("Bob", "receiving", nil))
+		end)
+
+		it("estimates how long a dex takes from its size", function()
+			assert.equal(30, Net.transferTime(0))
+			assert.equal(31, Net.transferTime(1))
+			assert.equal(130, Net.transferTime(30000)) -- 300 bytes a second plus 30 s
+			assert.equal(600, Net.transferTime(171000))
+			assert.equal(600, Net.transferTime(2000000)) -- never more than 10 minutes
+			assert.equal(30, Net.transferTime(nil))
+			-- the deadline only ever moves later
+			assert.equal(1130, Net.extendDeadline(1090, 1000, 30000))
+			assert.equal(1090, Net.extendDeadline(1090, 1000, 300))
+			-- seconds left of the estimate (without the margin), never negative
+			assert.equal(100, Net.receiveLeft(1000, 30000, 1000))
+			assert.equal(40, Net.receiveLeft(1000, 30000, 1060))
+			assert.equal(0, Net.receiveLeft(1000, 30000, 1200))
+		end)
+
+		it("sends one dex at a time, and not back to back", function()
+			-- nothing sent before
+			assert.is_true(Net.maySendDex(100, nil, nil, nil))
+			-- a dex is still going out (to anyone): no
+			local flight = { started = 90, ceiling = 60 }
+			assert.is_false(Net.maySendDex(100, nil, nil, flight))
+			assert.is_false(Net.maySendDex(149, nil, 90, flight))
+			-- its finished-callback never came: free again after the ceiling
+			assert.is_true(Net.maySendDex(150, nil, 90, flight))
+			-- finished: the same person waits 30 s, anyone else 10 s
+			assert.is_false(Net.maySendDex(100, 80, 80, nil))
+			assert.is_true(Net.maySendDex(110, 80, 80, nil))
+			assert.is_false(Net.maySendDex(100, nil, 95, nil))
+			assert.is_true(Net.maySendDex(105, nil, 95, nil))
+			-- the ceiling: twice the estimate
+			assert.equal(60, Net.sendCeiling(0))
+			assert.equal(260, Net.sendCeiling(30000))
+			assert.equal(1200, Net.sendCeiling(2000000))
+		end)
+
+		it("cleans up only when it can tell who is in your guild and group", function()
+			assert.is_true(Net.cleanUpSafe(false, 0, true)) -- not in a guild
+			assert.is_true(Net.cleanUpSafe(false, nil, true))
+			assert.is_true(Net.cleanUpSafe(true, 40, true))
+			assert.is_false(Net.cleanUpSafe(true, 0, true)) -- roster not loaded
+			assert.is_false(Net.cleanUpSafe(true, nil, true)) -- roster size unreadable
+			assert.is_false(Net.cleanUpSafe(nil, 40, true)) -- can't tell whether you are in a guild
+			assert.is_false(Net.cleanUpSafe(true, 40, false)) -- a name was unreadable
+			assert.is_false(Net.cleanUpSafe(false, 0, false))
+		end)
+
+		it("words the newer-version notice, once", function()
+			assert.equal("A newer SoulDex is out: v1.5.0. You have v1.4.0.", Net.versionNotice("1.5.0", "v1.4.0", false))
+			assert.is_nil(Net.versionNotice("v1.5.0", "v1.4.0", true)) -- already told this session
+			assert.is_nil(Net.versionNotice("v1.4.0", "v1.4.0", false))
+			assert.is_nil(Net.versionNotice("v1.3.0", "v1.4.0", false))
+			assert.is_nil(Net.versionNotice("v1.5.0", "dev", false))
+			assert.is_nil(Net.versionNotice("v1.5.0-beta.1", "v1.4.0", false))
+			assert.is_nil(Net.versionNotice("junk", "v1.4.0", false))
 		end)
 
 		it("forgets throttle entries older than their window", function()
@@ -70,6 +142,20 @@ describe("Net", function()
 			assert.is_true(Net.accepts("D", "WHISPER", false, true))
 			assert.is_false(Net.accepts("D", "GUILD", false, true))
 			assert.is_false(Net.accepts("X", "WHISPER", true, true))
+		end)
+
+		it("takes 'it's coming' only by whisper from someone it asked", function()
+			assert.is_true(Net.accepts("W", "WHISPER", false, true))
+			assert.is_false(Net.accepts("W", "WHISPER", true, false))
+			assert.is_false(Net.accepts("W", "GUILD", true, true))
+		end)
+
+		it("accepts versions from the guild, group and added friends only", function()
+			assert.is_true(Net.accepts("V", "GUILD"))
+			assert.is_true(Net.accepts("V", "PARTY"))
+			assert.is_true(Net.accepts("V", "RAID"))
+			assert.is_false(Net.accepts("V", "WHISPER", false, true))
+			assert.is_true(Net.accepts("V", "WHISPER", true))
 		end)
 
 		it("recognises yourself", function()
@@ -141,12 +227,20 @@ describe("Net", function()
 		it("adds a hint when there is nobody but you", function()
 			assert.is_false(Net.showSelf({ { name = "Fel", isMe = true } }))
 			assert.is_true(Net.showSelf({ { name = "Ann", heard = true }, { name = "Fel", isMe = true } }))
-			-- an added person we have not heard from does not count
-			local waiting = { { name = "Cid", heard = false }, { name = "Fel", isMe = true } }
+			-- an added person we have not heard from does not count: your own row stays out,
+			-- but theirs is listed so they can be selected and removed
+			local waiting = {
+				{ name = "Cid", score = 0, heard = false },
+				{ name = "Fel", score = 0, isMe = true },
+				{ name = "Gus", score = 0, heard = false },
+			}
 			assert.is_false(Net.showSelf(waiting))
-			local rows2 = Net.leaderRows(waiting, nil)
+			local rows2 = Net.leaderRows(waiting, "Gus")
 			assert.equal(2, #rows2)
-			assert.truthy(rows2[1].text:find("appear here"))
+			assert.equal("1. Cid", rows2[1].text)
+			assert.equal("Cid", rows2[1].value)
+			assert.equal("2. Gus", rows2[2].text)
+			assert.is_true(rows2[2].selected)
 			local rows = Net.leaderRows({ { name = "Fel", score = 0, online = true, isMe = true } }, nil)
 			assert.equal(2, #rows)
 			assert.is_nil(rows[1].value)
@@ -179,6 +273,7 @@ describe("Net", function()
 			"GetNumGroupMembers", "GetNumGuildMembers", "GetGuildRosterInfo", "issecretvalue",
 		}
 		local saved, ns, sent, registered, printed, clock, wall, timers, filter, shown
+		local onEvent, finishSends, windowShown
 
 		before_each(function()
 			saved = {}
@@ -187,17 +282,28 @@ describe("Net", function()
 			end
 			sent, registered, printed, timers, shown = {}, {}, {}, {}, {}
 			clock, wall = 100, 1000000
+			finishSends, windowShown, onEvent = true, true, nil
 			local AceComm = {
 				Embed = function(_, target)
 					target.RegisterComm = function(_, prefix) registered[#registered + 1] = prefix end
-					target.SendCommMessage = function(_, prefix, text, dist, target2, prio)
-						sent[#sent + 1] = { prefix = prefix, text = text, dist = dist, target = target2, prio = prio }
+					target.SendCommMessage = function(_, prefix, text, dist, target2, prio, callback, arg)
+						local m = { prefix = prefix, text = text, dist = dist, target = target2, prio = prio }
+						-- like AceComm: callback(arg, bytes sent so far, bytes in all)
+						m.progress = function(bytes)
+							if callback then
+								callback(arg, bytes, #text)
+							end
+						end
+						sent[#sent + 1] = m
+						if finishSends then
+							m.progress(#text)
+						end
 					end
 				end,
 			}
 			_G.LibStub = function(name) return name == "AceComm-3.0" and AceComm or nil end
 			_G.CreateFrame = function()
-				return { RegisterEvent = function() end, SetScript = function() end }
+				return { RegisterEvent = function() end, SetScript = function(_, _, fn) onEvent = fn end }
 			end
 			_G.C_Timer = {
 				After = function(delay, fn) timers[#timers + 1] = { delay = delay, fn = fn } end,
@@ -221,6 +327,7 @@ describe("Net", function()
 				currentTab = function() return ns.UI.tab end,
 				refresh = function() end,
 				showDex = function(dex, owner) shown[#shown + 1] = { dex = dex, owner = owner } end,
+				isShown = function() return windowShown end,
 				setCompare = function(dex) ns.UI.compare = dex end,
 				selectTab = function(name) ns.UI.tab = name end,
 			}
@@ -349,6 +456,47 @@ describe("Net", function()
 			assert.equal("Removed 2 people.", printed[#printed])
 		end)
 
+		it("clean up removes nobody while the guild roster is not loaded", function()
+			local db = start()
+			_G.GetNumGroupMembers = function() return 0 end
+			_G.GetNumGuildMembers = function() return 0 end
+			ns.Net:OnCommReceived("SoulDex", summary(1), "GUILD", "Gil")
+			ns.Net.cleanUp()
+			assert.is_not_nil(db.friends.Gil)
+			assert.equal(
+				"Can't read your guild and group right now, so nobody was removed. Try Clean up again in a moment.",
+				printed[#printed])
+		end)
+
+		it("clean up does not take a guild rank for part of a name", function()
+			local db = start()
+			_G.GetNumGroupMembers = function() return 0 end
+			_G.GetNumGuildMembers = function() return 1 end
+			_G.GetGuildRosterInfo = function() return "Gil", "Officer" end
+			for _, who in ipairs({ "Gil", "Gil Officer" }) do
+				ns.Net:OnCommReceived("SoulDex", summary(1), "GUILD", who)
+			end
+			ns.Net.cleanUp()
+			assert.is_not_nil(db.friends.Gil)
+			assert.is_nil(db.friends["Gil Officer"])
+			assert.equal("Removed 1 person.", printed[#printed])
+		end)
+
+		it("clean up removes nobody when a roster name is a secret value", function()
+			local secret = {}
+			_G.issecretvalue = function(v) return rawequal(v, secret) end
+			local db = start()
+			_G.GetNumGroupMembers = function() return 0 end
+			_G.GetNumGuildMembers = function() return 2 end
+			_G.GetGuildRosterInfo = function(i) return i == 1 and "Gil" or secret end
+			for _, who in ipairs({ "Gil", "Zed" }) do
+				ns.Net:OnCommReceived("SoulDex", summary(1), "GUILD", who)
+			end
+			ns.Net.cleanUp()
+			assert.is_not_nil(db.friends.Zed)
+			assert.matches("nobody was removed", printed[#printed])
+		end)
+
 		it("ignores a request with a bad version or shape", function()
 			start()
 			local before = #sent
@@ -377,6 +525,80 @@ describe("Net", function()
 			local payload = ns.Comm.encodeDex({ mobs = {}, places = {}, players = {}, raids = {} })
 			ns.Net:OnCommReceived("SoulDex", payload, "WHISPER", "Bob")
 			assert.equal(0, #shown)
+		end)
+
+		it("once the dex is announced it waits for it: no second ask, a later deadline", function()
+			start()
+			ns.Net.browse("Bob")
+			local asks = #sent
+			clock = clock + 5
+			ns.Net:OnCommReceived("SoulDex", ns.Comm.encodeComing(60000), "WHISPER", "Bob") -- 200 s + 30 s
+			clock = 160
+			timers[1].fn()
+			assert.equal(asks, #sent) -- no retry "R"
+			assert.equal(0, #printed)
+			clock = 190
+			timers[2].fn() -- the 90 s give-up: not yet
+			assert.equal(0, #printed)
+			assert.equal(3, #timers)
+			assert.equal(145, timers[3].delay) -- until 105 + 230
+			-- pressing Browse dex again changes nothing while it is on its way
+			ns.Net.browse("Bob")
+			assert.equal(asks, #sent)
+			assert.equal(3, #timers)
+			-- the dex arrives after the old 90 s limit and is still wanted
+			clock = 300
+			local payload = ns.Comm.encodeDex({ mobs = {}, places = {}, players = {}, raids = {} })
+			ns.Net:OnCommReceived("SoulDex", payload, "WHISPER", "Bob")
+			assert.equal(1, #shown)
+			timers[3].fn()
+			assert.equal(0, #printed)
+		end)
+
+		it("gives up on an announced dex at its own deadline", function()
+			start()
+			ns.Net.browse("Bob")
+			ns.Net:OnCommReceived("SoulDex", ns.Comm.encodeComing(60000), "WHISPER", "Bob")
+			ns.Net:OnCommReceived("SoulDex", ns.Comm.encodeComing(170000), "WHISPER", "Bob") -- a second one is ignored
+			clock = 190
+			timers[2].fn()
+			assert.equal(140, timers[3].delay) -- 100 + 230
+			clock = 330
+			timers[3].fn()
+			assert.equal("Bob's dex didn't arrive in time.", printed[#printed])
+			local payload = ns.Comm.encodeDex({ mobs = {}, places = {}, players = {}, raids = {} })
+			ns.Net:OnCommReceived("SoulDex", payload, "WHISPER", "Bob")
+			assert.equal(0, #shown)
+		end)
+
+		it("ignores 'it's coming' from someone it did not ask", function()
+			start()
+			ns.Net.browse("Bob")
+			ns.Net:OnCommReceived("SoulDex", ns.Comm.encodeComing(60000), "WHISPER", "Zed")
+			ns.Net:OnCommReceived("SoulDex", ns.Comm.encodeComing(60000), "GUILD", "Bob")
+			clock = 160
+			timers[1].fn()
+			assert.equal("No answer from Bob yet, asking again...", printed[#printed])
+		end)
+
+		it("a dex arriving while the window is closed does not open it", function()
+			start()
+			ns.Net.browse("Bob")
+			windowShown = false
+			local payload = ns.Comm.encodeDex({ mobs = {}, places = {}, players = {}, raids = {} })
+			ns.Net:OnCommReceived("SoulDex", payload, "WHISPER", "Bob")
+			assert.equal(0, #shown)
+			assert.equal("Friends", ns.UI.tab)
+			assert.equal("Bob's dex arrived while SoulDex was closed. Open it and press Browse dex again to see it.",
+				printed[#printed])
+			-- the request is over: no retry, no "no answer"
+			local count, lines = #sent, #printed
+			clock = 160
+			timers[1].fn()
+			clock = 190
+			timers[2].fn()
+			assert.equal(count, #sent)
+			assert.equal(lines, #printed)
 		end)
 
 		it("an answer before 60 s stops the retry", function()
@@ -419,6 +641,158 @@ describe("Net", function()
 			clock = clock + 30
 			ns.Net:OnCommReceived("SoulDex", request, "WHISPER", "Bob")
 			assert.equal("D", sent[#sent].text:sub(1, 1))
+		end)
+
+		it("says the dex is coming, with its size, before sending it", function()
+			start()
+			ns.Net:OnCommReceived("SoulDex", ns.Comm.encodeRequest("R"), "WHISPER", "Bob")
+			local coming, dex = sent[#sent - 1], sent[#sent]
+			assert.equal("D", dex.text:sub(1, 1))
+			assert.equal(ns.Comm.encodeComing(#dex.text), coming.text)
+			assert.equal("WHISPER", coming.dist)
+			assert.equal("Bob", coming.target)
+			assert.is_nil(coming.prio) -- normal priority: ahead of the bulk dex
+		end)
+
+		it("ignores dex requests while a dex is still being sent", function()
+			start()
+			finishSends = false
+			local request = ns.Comm.encodeRequest("R")
+			local function dexes()
+				local out = {}
+				for _, m in ipairs(sent) do
+					if m.text:sub(1, 1) == "D" then
+						out[#out + 1] = m
+					end
+				end
+				return out
+			end
+			ns.Net:OnCommReceived("SoulDex", request, "WHISPER", "Bob")
+			assert.equal(1, #dexes())
+			local first = dexes()[1]
+			first.progress(1) -- partly sent
+			clock = clock + 45 -- past the 30 s gap, still uploading
+			ns.Net:OnCommReceived("SoulDex", request, "WHISPER", "Bob") -- Bob's 60 s retry
+			ns.Net:OnCommReceived("SoulDex", request, "WHISPER", "Ann") -- someone else
+			assert.equal(1, #dexes())
+			first.progress(#first.text) -- done
+			clock = clock + 1
+			ns.Net:OnCommReceived("SoulDex", request, "WHISPER", "Ann")
+			assert.equal(2, #dexes())
+			assert.equal("Ann", dexes()[2].target)
+			-- Ann's finished-callback never comes: blocked until the ceiling (62 s for a tiny dex), then free
+			clock = clock + 61
+			ns.Net:OnCommReceived("SoulDex", request, "WHISPER", "Bob")
+			assert.equal(2, #dexes())
+			clock = clock + 1
+			ns.Net:OnCommReceived("SoulDex", request, "WHISPER", "Bob")
+			assert.equal(3, #dexes())
+			-- Ann's late callback must not end Bob's send
+			dexes()[2].progress(#dexes()[2].text)
+			clock = clock + 31
+			ns.Net:OnCommReceived("SoulDex", request, "WHISPER", "Cid")
+			assert.equal(3, #dexes())
+		end)
+
+		it("leaves 10 s between dexes to different people", function()
+			start()
+			local request = ns.Comm.encodeRequest("R")
+			ns.Net:OnCommReceived("SoulDex", request, "WHISPER", "Bob")
+			local count = #sent
+			clock = clock + 9
+			ns.Net:OnCommReceived("SoulDex", request, "WHISPER", "Ann")
+			assert.equal(count, #sent)
+			clock = clock + 1
+			ns.Net:OnCommReceived("SoulDex", request, "WHISPER", "Ann")
+			assert.equal(count + 2, #sent)
+		end)
+
+		describe("version notice", function()
+			local function versions(dist)
+				local out = {}
+				for _, m in ipairs(sent) do
+					if m.text:sub(1, 1) == "V" and (not dist or m.dist == dist) then
+						out[#out + 1] = m
+					end
+				end
+				return out
+			end
+
+			it("tells the guild its version once at login, not with every summary", function()
+				ns.version = "v1.4.0"
+				start()
+				onEvent(nil, "PLAYER_ENTERING_WORLD")
+				timers[1].fn()
+				assert.equal(1, #versions("GUILD"))
+				assert.equal("V\t1\tv1.4.0", versions()[1].text)
+				clock = clock + 300
+				ns.onCatch[1]()
+				assert.equal(1, #versions())
+			end)
+
+			it("tells it again when a newcomer is first heard", function()
+				ns.version = "v1.4.0"
+				start()
+				ns.Net:OnCommReceived("SoulDex", summary(1), "GUILD", "Bob")
+				assert.equal(1, #versions("GUILD"))
+				clock = clock + 31
+				ns.Net:OnCommReceived("SoulDex", summary(1), "GUILD", "Bob") -- heard a moment ago: no newcomer
+				ns.onCatch[1]()
+				assert.equal(1, #versions())
+				clock = clock + 31
+				ns.Net:OnCommReceived("SoulDex", summary(1), "GUILD", "Cid")
+				assert.equal(2, #versions("GUILD"))
+			end)
+
+			it("whispers it once to someone who asks for your summary", function()
+				ns.version = "v1.4.0"
+				start()
+				ns.Net:OnCommReceived("SoulDex", ns.Comm.encodeRequest("Q"), "WHISPER", "Bob")
+				clock = clock + 60
+				ns.Net:OnCommReceived("SoulDex", ns.Comm.encodeRequest("Q"), "WHISPER", "Bob")
+				assert.equal(1, #versions("WHISPER"))
+				assert.equal("Bob", versions()[1].target)
+			end)
+
+			it("an unbuilt checkout tells nobody", function()
+				ns.version = "dev"
+				start()
+				onEvent(nil, "PLAYER_ENTERING_WORLD")
+				timers[1].fn()
+				ns.Net:OnCommReceived("SoulDex", ns.Comm.encodeRequest("Q"), "WHISPER", "Bob")
+				assert.equal(0, #versions())
+			end)
+
+			it("prints one line for a newer version, once per session", function()
+				ns.version = "v1.4.0"
+				start()
+				ns.Net:OnCommReceived("SoulDex", "V\t1\tv1.4.0", "GUILD", "Bob")
+				ns.Net:OnCommReceived("SoulDex", "V\t1\tv1.3.9", "GUILD", "Bob")
+				ns.Net:OnCommReceived("SoulDex", "V\t1\tv9.9.9", "WHISPER", "Zed") -- a stranger's whisper
+				ns.Net:OnCommReceived("SoulDex", "V\t1\tnonsense", "GUILD", "Bob")
+				assert.equal(0, #printed)
+				ns.Net:OnCommReceived("SoulDex", "V\t1\tv1.5.0", "GUILD", "Bob")
+				assert.equal("A newer SoulDex is out: v1.5.0. You have v1.4.0.", printed[#printed])
+				ns.Net:OnCommReceived("SoulDex", "V\t1\tv1.6.0", "RAID", "Cid")
+				ns.Net:OnCommReceived("SoulDex", "V\t1\tv1.5.0", "GUILD", "Bob")
+				assert.equal(1, #printed)
+			end)
+
+			it("takes a whispered version from an added friend", function()
+				ns.version = "v1.4.0"
+				start()
+				ns.Net.addFriend("Ann")
+				local lines = #printed
+				ns.Net:OnCommReceived("SoulDex", "V\t1\tv1.5.0", "WHISPER", "Ann")
+				assert.equal(lines + 1, #printed)
+			end)
+
+			it("a dev build is never told", function()
+				ns.version = "dev"
+				start()
+				ns.Net:OnCommReceived("SoulDex", "V\t1\tv1.5.0", "GUILD", "Bob")
+				assert.equal(0, #printed)
+			end)
 		end)
 
 		it("opens a dex it asked for and compares it with yours", function()
@@ -468,6 +842,32 @@ describe("Net", function()
 			assert.is_false(filter(nil, "CHAT_MSG_SYSTEM", "No player named 'Zed' is currently playing."))
 			clock = clock + 60
 			assert.is_false(filter(nil, "CHAT_MSG_SYSTEM", "No player named 'Ann' is currently playing."))
+		end)
+
+		it("leaves a system line it can't read alone", function()
+			local secret = setmetatable({}, { __index = function() error("touched a secret value") end })
+			_G.issecretvalue = function(v) return rawequal(v, secret) end
+			start()
+			ns.Net.addFriend("Ann")
+			assert.is_false(filter(nil, "CHAT_MSG_SYSTEM", secret))
+			assert.is_false(filter(nil, "CHAT_MSG_SYSTEM", nil))
+			assert.is_false(filter(nil, "CHAT_MSG_SYSTEM", ""))
+		end)
+
+		it("forgets people it never added and hasn't seen for 30 days when it loads", function()
+			local db = { settings = ns.Settings.normalise(nil), friends = {
+				Old = { added = false, seen = wall - 31 * 86400 },
+				New = { added = false, seen = wall - 86400 },
+				Pal = { added = true, seen = wall - 99 * 86400 },
+			} }
+			ns.db = db
+			ns.dex = ns.Dex.new(db)
+			for _, fn in ipairs(ns.onLoaded) do
+				fn(db)
+			end
+			assert.is_nil(db.friends.Old)
+			assert.is_not_nil(db.friends.New)
+			assert.is_not_nil(db.friends.Pal)
 		end)
 
 		it("disables itself with one note without AceComm", function()

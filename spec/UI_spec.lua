@@ -4,7 +4,8 @@ describe("UI", function()
 	local STUBBED = {
 		"CreateFrame", "UIParent", "UISpecialFrames", "GameFontNormal", "GameFontHighlightSmall",
 		"RAID_CLASS_COLORS", "SoulDexFrame", "SoulDexOptionsFrame", "date", "UnitName", "time", "LibStub",
-		"StaticPopupDialogs", "StaticPopup_Show",
+		"Settings", "SoulDexSettingsPanel",
+		"StaticPopupDialogs", "StaticPopup_Show", "IsInGuild",
 	}
 	local saved, created, ns
 
@@ -15,6 +16,7 @@ describe("UI", function()
 		IsShown = function(self) return self.shown end,
 		SetScript = function(self, name, fn) self.scripts[name] = fn end,
 		SetText = function(self, text) self.text = text end,
+		SetScale = function(self, scale) self.scale = scale end,
 		SetChecked = function(self, value) self.checked = value end,
 		GetChecked = function(self) return self.checked end,
 		GetStringWidth = function() return 30 end,
@@ -114,7 +116,7 @@ describe("UI", function()
 		assert.equal(1, ns.UIList.barWidth(0.001, 100))
 		assert.equal(50, ns.UIList.barWidth(0.5, 100))
 		assert.equal(100, ns.UIList.barWidth(3, 100))
-		assert.equal(1, #ns.onLoaded)
+		assert.equal(2, #ns.onLoaded) -- the window's and the options page's
 		assert.equal(1, #ns.onCatch)
 	end)
 
@@ -317,6 +319,7 @@ describe("UI", function()
 		local popup
 		_G.StaticPopupDialogs = {}
 		_G.StaticPopup_Show = function(name) popup = name end
+		_G.IsInGuild = function() return false end -- Clean up removes nobody unless it can tell
 		for _, file in ipairs({ "Comm", "Friends", "Shards", "Capture", "Net" }) do
 			LoadAddonFile("src/" .. file .. ".lua", ns)
 		end
@@ -360,6 +363,11 @@ describe("UI", function()
 				remove = f
 			end
 		end
+		-- a redraw while the mouse is still over the row keeps its ×
+		row.IsMouseOver = function() return true end
+		ns.UI.refresh()
+		assert.is_true(remove.shown)
+		row.IsMouseOver = nil
 		remove.scripts.OnClick(remove)
 		assert.is_false(db.friends.Ann.added) -- seen recently: kept, but no longer added
 
@@ -384,5 +392,75 @@ describe("UI", function()
 		check.scripts.OnClick(check)
 		assert.is_false(db.settings.popup)
 		assert.is_true(db.settings.sound)
+	end)
+
+	it("scales the window within its limits and saves the scale", function()
+		local db = loadDb()
+		assert.equal(1, ns.UI.scale())
+		assert.equal(1.2, ns.UI.setScale("120"))
+		assert.equal(1.2, db.window.scale)
+		ns.UI.toggle()
+		assert.equal(1.2, _G.SoulDexFrame.scale)
+		assert.equal(1.6, ns.UI.setScale(9))
+		assert.equal(1.6, _G.SoulDexFrame.scale)
+		assert.equal(1.6, ns.UI.setScale("big")) -- junk changes nothing
+		db.window.scale = "broken"
+		assert.equal(1, ns.UI.scale())
+	end)
+
+	it("resets the window to the middle at normal size", function()
+		local db = loadDb()
+		db.window.point, db.window.x, db.window.y, db.window.scale = "TOPLEFT", 4000, -4000, 1.5
+		ns.UI.toggle()
+		ns.UI.resetWindow()
+		assert.is_nil(db.window.point)
+		assert.is_nil(db.window.scale)
+		assert.equal(1, _G.SoulDexFrame.scale)
+		assert.equal("Players", db.window.tab) -- the tab is kept
+	end)
+
+	it("the options' - and + buttons step the window size", function()
+		local db = loadDb()
+		ns.Options.toggle()
+		local function button(text)
+			return find("Button", function(f) return f.label and f.label.text == text end)
+		end
+		button("+").scripts.OnClick()
+		assert.equal(1.1, db.window.scale)
+		button("-").scripts.OnClick()
+		button("-").scripts.OnClick()
+		assert.equal(0.9, db.window.scale)
+		button("Reset window").scripts.OnClick()
+		assert.is_nil(db.window.scale)
+	end)
+
+	it("shows a sample popup without recording anything", function()
+		local db = loadDb()
+		local shown
+		ns.Toast = { show = function(result, info) shown = { result, info } end }
+		local souls = ns.dex:uniqueSouls()
+		ns.Options.testPopup()
+		assert.equal("Hogger", shown[2].name)
+		assert.equal(souls + 1, shown[1].total)
+		assert.equal(souls, ns.dex:uniqueSouls())
+		assert.is_true(db.settings.sound) -- no ns.Capture here: the sound is skipped, no error
+	end)
+
+	it("registers a page with the game's Settings window when it has one", function()
+		assert.is_false(ns.Options.register()) -- no Settings API in this client
+		local registered
+		_G.Settings = {
+			RegisterCanvasLayoutCategory = function(page, name) return { page = page, name = name } end,
+			RegisterAddOnCategory = function(category) registered = category end,
+		}
+		loadDb()
+		assert.is_true(ns.Options.register())
+		assert.equal("SoulDex", registered.name)
+		-- both sets of switches follow one setting
+		ns.Options.toggle()
+		registered.page.scripts.OnShow()
+		_G.Settings = { RegisterCanvasLayoutCategory = function() error("refused") end, RegisterAddOnCategory = error }
+		assert.is_false(ns.Options.register())
+		_G.Settings = nil
 	end)
 end)

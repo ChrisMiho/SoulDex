@@ -57,7 +57,10 @@ this document are marked **[call]**, and the user should check them.
   The nine new 5-player dungeons are still out and get their own plan; their
   catches stay under Mobs > Dungeons.
 - No points for repeat catches. **[user]**
-- No minimap button. **[call]** Opened with `/souldex`.
+- No minimap button of its own. **[call]** Opened with `/souldex`.
+  (changed after 1.3.0: review of standard addon comforts.) SoulDex is listed
+  in the game's own addon list by the minimap (the addon compartment), and has
+  a key binding; neither adds anything to the screen (7).
 - No other WoW clients (Retail, other Classic versions). **[call]**
 
 ### Anti-goals (would be a failure even if it works)
@@ -137,11 +140,22 @@ death detection is used; the capture window below replaces the death queue.)
   after it stops, belongs to that target. A capture lives at most 20 s. A
   successful Shadowburn opens a capture for 5 s + 3 s. An unreadable channel
   start clears the capture (it may be a new channel on an unknown target);
-  any other unreadable spell event ends it 3 s later.
+  any other unreadable spell event ends it 3 s later. A new Drain Soul ends an
+  older Drain Soul capture 3 s later (only one channel runs at a time); it
+  never shortens a Shadowburn capture, whose target keeps its 5 s to die.
+  (changed after 1.3.0: a Drain Soul started on another mob used to cut the
+  Shadowburn capture short, so a Shadowburned mob dying late in its 5 s gave
+  its shard the drained mob's name.)
 - One capture names **one** shard (one channel kills one target); further new
   shards in the same window are soulless. If two unused captures on different
   targets are live at once (a new Drain Soul within 3 s of the last one
-  ending), neither names a shard. Two new shards in the same bag scan can't be
+  ending), neither names a shard. (changed after 1.3.0.) Two exceptions, both
+  for hidden names, where the GUID can't tell targets apart: a capture taken
+  with no target change since the previous one (`PLAYER_TARGET_CHANGED` is
+  counted) is the same target, so a recast on the same mob replaces the older
+  capture instead of making both ambiguous; and captures that can all only
+  become an Unknown soul (hidden name, no whisper out) give the same result
+  whichever is picked, so the newest is used and all are spent. Two new shards in the same bag scan can't be
   told apart: neither is named, and the capture is spent. A new shard stored
   as soulless by a quiet scan (below) also spends the capture, so it can't
   name a later shard from a trade or the mailbox instead.
@@ -165,6 +179,10 @@ death detection is used; the capture window below replaces the death queue.)
   - a target exists, and `mouseover` and `focus` are not a different unit
     (`UnitIsUnit`; anything unreadable means no);
   - the cast's SENT event did not name a readable unit;
+  - the target did not change between the cast's SENT event and the send
+    (changed after 1.3.0: the spell's target is fixed at SENT but `%t` names
+    the target at the send, so a Tab during the latency named the wrong soul;
+    a target change before SENT, as a targeting macro makes, is fine);
   - chat is not locked down (`InChatMessagingLockdown`; unreadable counts as
     locked), because sending then shows a red "Interface action failed" error;
   - the player is not AFK or DND (their auto-reply would show a line).
@@ -174,8 +192,9 @@ death detection is used; the capture window below replaces the death queue.)
   re-read from chat history when restrictions lift. `SDX1:` whispers to and
   from the player are hidden by a chat filter (a reply whose text arrives
   secret can't be checked, so it may show), and `/r` is put back after
-  sending, and again when the reply arrives or the wait ends if it then
-  points at the player. A shard whose name is pending is held: its tooltip
+  sending if the send moved it (it is not written otherwise: every write into
+  the chat box's state from addon code is a chance to taint it), and again
+  when the reply arrives or the wait ends if it then points at the player. A shard whose name is pending is held: its tooltip
   shows the grey
   "Unknown soul" with "<zone> · name pending", and nothing is recorded. When
   the name arrives it is recorded like an open-world catch (popup, sound,
@@ -205,11 +224,20 @@ death detection is used; the capture window below replaces the death queue.)
   leaves its shard soulless without losing the others. The same applies while any bag slot
   can't be read (secret item ID, or a shard with a secret or missing GUID),
   in this scan or the one before: an old shard turning readable must never
-  look new. Only the login scan forgets long-unseen shards.
+  look new. Only the login scan forgets long-unseen shards. (changed after
+  1.3.0.) The shard map is changed in place: a scan touches only the shards in
+  the bags and never copies the map, which holds every shard seen and used to
+  be rebuilt after every spell cast.
 - Shards that were already in the bags when the addon started, or that can't
   be matched, are remembered as "seen, no soul" (soulless), so they never get
   a name later. Shards that leave the bags are kept (bank, mailbox); a login
-  baseline forgets shards not seen for 30 days.
+  baseline forgets shards not seen for 30 days. (changed after 1.3.0: a spent
+  shard never comes back, and the saved map grew by every shard farmed in a
+  month.) The login baseline also forgets soulless shards that have been out
+  of the bags for a day, and keeps at most the 400 most recently seen shards
+  that are out of the bags; a banked shard beyond that loses its tooltip name
+  (the dex entry is untouched). A shard still waiting for its name is never
+  forgotten.
 - Login baseline: the first bag scan runs about 1 s after login and records
   every shard then in the bags as soulless. A shard obtained in that first
   second is part of the baseline, not a catch. (changed during build: avoids
@@ -302,6 +330,11 @@ The look was settled through mockups; the final versions are in
     edge; the active tab has a fel-green underline.
   - Rows of souls have a 2 px stripe on their left edge in the soul's rarity
     colour (dull purple for ordinary mobs).
+  - (changed after 1.3.0.) The window's size can be set from 60% to 160% in
+    steps of 10% in the options (or to any 5% with `/souldex scale <percent>`);
+    the scale is saved with the position. `/souldex reset` and the options'
+    "Reset window" put it back in the middle of the screen at 100%. The gear
+    has a tooltip ("Options"). **[call]**
   - (changed after 1.2.4: rank emblems.) The emblems ship in `art/` as
     64 × 64, 32-bit, uncompressed TGA: original art, one per rank (6.6); no
     game art stands in for them. **[user]**
@@ -462,11 +495,21 @@ Not mocked up. Same two columns. **[user for what; call for layout]**
   (changed after 1.0.0: the user asked to be able to remove people found in the
   guild or group.) A **Clean up** button next to the add box asks first, then
   removes everyone not added who isn't in your guild or group right now.
+  (changed after 1.3.0.) When it can't tell who is there (in a guild whose
+  roster hasn't loaded, or a name that can't be read) it removes nobody and
+  says "Can't read your guild and group right now, so nobody was removed. Try
+  Clean up again in a moment." It used to take a member's guild rank for part
+  of their name, and an unloaded roster for an empty guild. People never added
+  and not heard from for 30 days are also dropped at login, so the list and
+  "Among friends" don't fill with everyone you once grouped with.
 - Each shows score, unique mobs, unique players, and raids completed. Sorted
   by score, as a leaderboard. You appear in your ranked place (highlighted,
   "(you)", not selectable) once at least one friend with a summary is listed; your numbers are on
   the Me tab (5.8). (changed during build: user asked for their own stats on a Me tab instead of a row in Friends) With nobody else
   yet your row is hidden: the left side shows the help text ("Guild and group members with SoulDex appear here." and "/souldex add <name>") and the right side is empty.
+  (changed after 1.3.0.) Only your own row is hidden then: a friend you added
+  who hasn't answered yet stays listed, so they can be selected and removed;
+  the help text shows only when nobody is listed.
 - Clicking someone shows their summary; a **Browse dex** button opens
   **their dex** read-only in the same window, with a visible "Viewing <name>"
   marker and a "« My dex" button back to yours. Entries they have and you
@@ -495,6 +538,27 @@ Not mocked up. Same two columns. **[user for what; call for layout]**
     arriving later is ignored. (changed after 1.0.0, user's call: was a silent
     5-minute wait.) A friend's dex is accepted only while we are asking that
     person; browsing someone else drops the earlier request.
+  - (changed after 1.3.0: a dex goes out at a few hundred bytes a second, so
+    a large one could never arrive within 90 s, and the second ask made the
+    sender send it twice.) Before the dex the sender whispers its size ("W").
+    From then on the asker waits as long as that size needs (300 bytes a
+    second assumed, plus 30 s, at most 10 minutes), does not ask again, and
+    the tab reads "Receiving X's dex... ~N min". If it still doesn't come:
+    "X's dex didn't arrive in time." An older SoulDex on the other side sends
+    no size, and the 60 s / 90 s rule above applies unchanged.
+  - The sender sends one dex at a time: while one is going out, further
+    requests from anyone are ignored (they time out on the asker's side), and
+    10 s must pass between dexes to different people (30 s to the same one).
+    Anyone who whispers a request still gets the dex; that is not limited to
+    friends. **[call; see Known limitations]**
+  - A dex that arrives after the window was closed doesn't reopen it: one
+    chat line says it arrived and to press Browse dex again.
+  - An entry that can't be put on the wire (no name, a negative number) is
+    left out of the dex sent, so one damaged entry no longer makes the whole
+    dex unreadable for every friend.
+  - The version is sent ("V") to the guild and group once per login and when
+    someone new is heard, and once by whisper to each person who asks for a
+    summary; see 7 for the notice.
   - Every incoming message is checked against the wire format and version
     before it is acted on; summary numbers must be whole, non-negative and at
     most 9 digits.
@@ -524,7 +588,8 @@ Three parts (`View.meCard`, numbers from `View.me`):
   most, in class colour), Hunting ground (the zone with most catches),
   Rarest trophy (a boss before a rare before an elite; the earliest of
   equals), Latest (the last soul claimed, with "today", "yesterday" or the
-  date), Best day ("41 souls · 9 Nov 26"), Zones hunted (not while browsing)
+  date, by your local calendar days; changed after 1.3.0: they went by UTC
+  days, so an afternoon claim read "yesterday" by evening in the Americas), Best day ("41 souls · 9 Nov 26"), Zones hunted (not while browsing)
   and Unknown souls (only above 0). A record with nothing to show is a dash.
   **[user: highlight the fun data; call on which records]**
 - Best day needs data the dex never kept: from this version every catch is
@@ -739,6 +804,37 @@ each week can earn over 1,000 points a week. **[call]**)
 `/souldex` opens the window. `/souldex options` (and a small gear in the
 window) opens settings. `/souldex add <name>` and `/souldex remove <name>`
 manage the Friends list by name; any other word prints the command list.
+
+(changed after 1.3.0: a review of the comforts players expect from an addon.
+**[user: "QOL things that most modern and well developed addons have"]**; the
+choice of which is the builder's. **[call]**)
+
+- `/souldex find <text>` looks a soul up by name: every mob, player and raid
+  creature in your dex whose name contains the text (any case, at least 2
+  letters), names starting with it first, up to 8 lines in your own chat:
+  "Hogger ×12 · Elwynn Forest" (the zone it was claimed in most, "+N" for its
+  other zones; a player's class; a raid creature's raid), then "...and N
+  more."
+- `/souldex scale <60-160>` sets the window's size in percent; `/souldex
+  reset` puts the window back in the middle at 100% (5.1).
+- `/souldex test` (and "Test popup" in the options) shows a sample new-soul
+  popup, with the sound when that is on. Nothing is recorded.
+- `/souldex version` prints the running version.
+- A **key binding**, "Open or close SoulDex", under Options > Keybindings >
+  AddOns > SoulDex (`Bindings.xml`). Unbound by default.
+- SoulDex is in the game's **addon list by the minimap** (the addon
+  compartment, through `## AddonCompartmentFunc` in the `.toc`), with the top
+  rank's emblem as its icon: a click opens or closes the window, a right-click
+  the options. Its tooltip shows the version, your rank and score.
+- The settings are also a page of the game's own Settings window (Options >
+  AddOns > SoulDex), with the same controls as the small panel; both stay in
+  step. A client without that API keeps only the small panel.
+- When another SoulDex user in your guild or group (or an added friend) runs
+  a newer version, one chat line per session says so: "A newer SoulDex is
+  out: v1.5.0. You have v1.4.0." A release player is never told about a beta;
+  a beta player is told about newer betas and releases. An unbuilt copy
+  ("dev") neither tells nor is told.
+
 After each login or `/reload`, one chat line shows the addon is on:
 "SoulDex v<version> loaded. <Rank>, <score> pts. Type /souldex or /dex to
 open." **[user]** (the rank and score were added with the rebrand; they are
@@ -750,6 +846,9 @@ left out if the dex isn't loaded yet). The settings:
   frame for every claim, in the warlock's voice ("Hogger's soul is yours.
   That's 12.", with "(+N pts)" when it scored). `Flavour.chatter`. **[user]**
 - Guild announcements on/off
+- Login message in chat on/off, **on** by default (changed after 1.3.0): the
+  "loaded" line above.
+- Window size, a sample popup and a window reset (above; not switches).
 
 All saved.
 
@@ -906,6 +1005,56 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
 - `/souldex help` (or any unknown word) prints the commands.
 - `/dex`, `/dex options`, `/dex add <name>` do the same as their `/souldex`
   forms.
+
+**Comforts and fixes (after 1.3.0)** None of this has been seen in game.
+- Fully restart the game (new files). No Lua errors at login.
+- The addon list by the minimap has a SoulDex entry with the purple-and-green
+  emblem. Hover: version, rank and score. Click: the window opens and closes.
+  Right-click: the options panel. If there is no entry, report it.
+- Options > Keybindings > AddOns has "SoulDex" with "Open or close SoulDex".
+  Bind a key: it opens and closes the window. If the header reads
+  `BINDING_HEADER_SOULDEX` or the entry is missing, report it.
+- The game's Settings window (Esc > Options > AddOns) has a SoulDex page with
+  five switches, "Window size" and two buttons. Tick one there: the small
+  panel (`/souldex options`) shows the same, and the other way round. If the
+  page is blank, misplaced or missing, report it (the small panel still works).
+- Options: "+" and "-" grow and shrink the window by 10% between 60% and
+  160%, the number between them follows, and the size survives `/reload`.
+  `/souldex scale 130` does the same; `/souldex scale huge` explains itself.
+- Drag the window to a corner, then "Reset window" (or `/souldex reset`): it
+  is back in the middle at 100%.
+- "Test popup" and `/souldex test`: the popup shows "ELITE SOUL CLAIMED",
+  Hogger, "+5", with the sound when the sound switch is on. Nothing is added
+  to the dex.
+- Untick "Login message in chat", `/reload`: no "loaded" line. Tick it again.
+- `/souldex find <part of a name you have>`: a heading and one line per soul
+  with its count and zone. `/souldex find zzzz`: "No soul matching".
+- `/souldex version` prints the version; hovering the gear shows "Options".
+- Catching still works after the shard-map change: drain a mob, get the popup,
+  the shard's tooltip names it; `/reload`, the tooltip still names it; move the
+  shard to the bank and back, it still names it.
+- In a dungeon: drain a mob, let the channel end, drain the **same** mob again
+  and kill it. Its shard gets the name (before, it stayed unnamed).
+- In a dungeon: press Drain Soul and Tab to another mob at once, before the
+  channel bar appears. The soul should be an Unknown soul, never the second
+  mob's name.
+- Shadowburn one mob, start Drain Soul on another at once, let the first die:
+  its shard is unnamed, not named after the second mob.
+- With two characters on different versions in one guild or group: the older
+  one prints "A newer SoulDex is out: ..." once, and not again that session.
+- Friends, with a second player on this build: Browse dex on a large dex
+  reads "Receiving X's dex... ~N min" with no "asking again" line, and opens
+  when done. Close the window while it is on its way: it stays closed and one
+  chat line says the dex arrived. With the other player on 1.3.0: browsing
+  works as before, both ways.
+- `/souldex add <a name that isn't online>`: the name appears in the left
+  list at once ("Not heard from yet."), and its × removes it.
+- Hover a Friends row so its × shows and wait a minute: the × stays.
+- Clean up right after login in a guild: either it removes only people
+  outside the guild and group, or it says nobody was removed; pressed again a
+  moment later it works. No guild member disappears from the list.
+- Me tab, "Latest": a soul claimed this afternoon still reads "today" in the
+  evening.
 
 **Raid data**
 - In a raid, `/dump UnitGUID("target")` on a mob: the sixth dash-separated
@@ -1089,6 +1238,17 @@ that overlaps, is cut off, or shows as a solid green square (a missing icon).
   dungeons; an open-world catch of the same creature fills them in.
 - Shadowburn catches are untested in game.
 - WoW: Forever beta bug: SavedVariables can fail to load after a reload.
+- A Shadowburn and a Drain Soul on two different mobs within the Shadowburn's
+  8 s leave the next shard unnamed (both captures are live).
+- Changing target between pressing Drain Soul or Shadowburn and the cast
+  landing, on a mob whose name is hidden, makes that soul Unknown (the whisper
+  is not sent).
+- With more than 400 named shards out of the bags (banked or mailed), the
+  ones seen longest ago lose their tooltip name at the next login.
+- A whisper-named player whose `UnitIsPlayer` answer was unreadable is filed
+  as a mob, and a player claimed once with and once without a readable realm
+  is two entries. **[accepted for now: neither has been seen; a fix would turn
+  every dungeon soul Unknown if the answer were unreadable there]**
 - A shard refunded by a demon that despawns during a Drain Soul (or within
   3 s after it) would take the drain target's name, and the real shard from
   the kill then stays unnamed.
@@ -1096,6 +1256,11 @@ that overlaps, is cut off, or shows as a solid green square (a missing icon).
   item is on the cursor, or while any bag slot is unreadable (this scan or the
   previous one), is never named; nor is a kill shard that arrives in the same
   bag scan as another new shard.
+- Anyone, not only friends or guild members, can whisper a request for your
+  dex and get it (one at a time, 10 s apart), which includes the list of
+  players you have sharded. Limiting it to people you know would stop someone
+  who added you by name from browsing your dex unless you add them back.
+  **[open: the user's decision]**
 - Clean up uses the guild roster the game has cached; if it is stale, a guild
   member may be removed and comes back on their next score update.
 - A Drain Soul started within 3 s after another one ended on a different

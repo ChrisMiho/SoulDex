@@ -35,7 +35,8 @@ worktree the packager stops with "No Git, SVN, or Hg checkout found".
 
 ## Layout
 
-- **Pure modules** (no WoW API, busted-tested): `Settings`, `Raids`, `Points`, `Ranks`,
+- **Pure modules** (no WoW API, busted-tested): `Settings`, `Version` (parsing and
+  comparing version strings), `Raids`, `Points`, `Ranks`,
   `Rarity`, `Flavour`, `Dex`, `Milestones`, `View`, `Comm`, `Friends`, `Catch`,
   `Whisper` (soul-name whisper marker, reply parsing, ask decision, pending
   queue), `Shards`, `UIFormat`.
@@ -43,7 +44,10 @@ worktree the packager stops with "No Git, SVN, or Hg checkout found".
   spellcasts, bag scans, soul-name whispers), `Tooltip`, `Toast`, `UI`, `UIList`, `UIDetail`,
   `Options`, `Net` (AceComm), `Init` (version, `ns.Print`, slash command).
 - `SoulDex.toc` is the load order: every new `src/` file goes there, above
-  `src\Init.lua`.
+  `src\Init.lua`. It also names the addon-list button's functions
+  (`## AddonCompartmentFunc...`), which `Init.lua` defines as globals.
+- `Bindings.xml` is the key binding; the game loads it by its name, so it is not
+  in the `.toc`.
 - `art/` holds the rank emblems, generated from `scripts/art/emblem.html` by
   `scripts/art/render.sh` (needs Chrome and Python 3 with Pillow): never hand-edit.
 - `src/RaidData.lua` is generated from Questie (GPL-3): never hand-edit, run
@@ -91,7 +95,8 @@ list; keep it up to date.
 
 - Add a line under `## [Unreleased]` in `CHANGELOG.md` for each user-facing change.
 - Releases are made by pushing a `v*` tag. The `/release` skill then saves the
-  published zip to `releases/` (git-ignored); the release workflow uploads the same zip to CurseForge. Do not tag or push unless asked;
+  published zip to `releases/` (git-ignored); the release workflow uploads the same zip to CurseForge,
+  except for a tag with "alpha" or "beta" in its name, which is a GitHub pre-release only. Do not tag or push unless asked;
   the steps are in the `/release` skill (`.claude/skills/release/SKILL.md`).
 - Personal details stay out of the repo: commit with the GitHub no-reply
   address, and write no local paths or emails into docs.

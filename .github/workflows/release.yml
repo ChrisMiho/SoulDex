@@ -4,9 +4,11 @@ name: Release
 # libraries listed in .pkgmeta, stamps the version into the .toc, builds the
 # zip and attaches it to a GitHub release; then the intro goes on top.
 # With the CF_API_KEY secret set and X-Curse-Project-ID in SoulDex.toc, the
-# packager uploads the same zip to CurseForge too; a tag with "alpha" or "beta"
-# in its name goes up as an alpha or beta file. Without either, that upload is
-# skipped and the rest still runs.
+# packager uploads the same zip to CurseForge too. A tag with "alpha" or "beta"
+# in its name is a test build: it becomes a GitHub pre-release only and is NOT
+# sent to CurseForge (the key is withheld below), so an untested build never
+# reaches players' addon managers. Remove that condition to publish test
+# builds to CurseForge as alpha or beta files.
 on:
   push:
     tags:
@@ -30,7 +32,7 @@ jobs:
           args: -n "{package-name}-{project-version}-forever:{package-name}-{project-version}-forever.zip"
         env:
           GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
-          CF_API_KEY: ${{ secrets.CF_API_KEY }}
+          CF_API_KEY: ${{ (contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta')) && '' || secrets.CF_API_KEY }}
 
       # A short, readable intro on top of the changelog (.github/release-intro.md;
       # skipped with a warning if it names another version).

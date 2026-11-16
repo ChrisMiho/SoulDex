@@ -38,6 +38,32 @@ describe("Friends", function()
 		assert.is_true(store["Ann"].added)
 	end)
 
+	it("tidy forgets people you never added and haven't seen for 30 days", function()
+		local day = 86400
+		local now = 100 * day
+		local store = {
+			Old = { added = false, seen = now - 31 * day, summary = { score = 1 } },
+			Edge = { added = false, seen = now - 30 * day },
+			Recent = { added = false, seen = now - 5 * day },
+			Pal = { added = true, seen = now - 300 * day },
+			Waiting = { added = true },
+			Blank = { added = false },
+			["old jones"] = { added = false, seen = now - 40 * day },
+		}
+		Friends.tidy(store, "Fel", now)
+		assert.is_nil(store.Old)
+		assert.is_nil(store["Old Jones"])
+		assert.is_not_nil(store.Edge)
+		assert.is_not_nil(store.Recent)
+		assert.is_not_nil(store.Pal)
+		assert.is_not_nil(store.Waiting)
+		assert.is_not_nil(store.Blank) -- no last-seen time: left alone
+		-- without a clock nothing expires
+		local same = { Old = { added = false, seen = 1 } }
+		Friends.tidy(same, "Fel")
+		assert.is_not_nil(same.Old)
+	end)
+
 	it("normalises names", function()
 		assert.equal("Stabbyface", Friends.normalise("stabbyface"))
 		assert.equal("Stabbyface", Friends.normalise("Stabbyface-Forever"))

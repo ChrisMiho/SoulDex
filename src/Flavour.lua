@@ -167,8 +167,8 @@ local FAMILIES = {
 local GENERIC = {
 	"{name} of {zone}. Another soul for the pile.",
 	"{name} has been entered into the Dex. It did not consent.",
-	"Gotta collect 'em all. This one was {name}.",
-	"A wild {name} appeared, briefly.",
+	"One more for the collection. This one was {name}.",
+	"{name} turned up in {zone}, briefly.",
 	"{name} is now a very small part of you.",
 	"{name}: seen, smitten, shard-ed.",
 	"The Dex remembers {name}, even if {name} would rather not.",

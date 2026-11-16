@@ -2,6 +2,12 @@
 ## Title: SoulDex
 ## Notes: Their souls. Your collection. Turns every Soul Shard into a trophy.
 ## Author: ChrisMiho
+## IconTexture: Interface\AddOns\SoulDex\art\rank8.tga
+## AddonCompartmentFunc: SoulDex_OnAddonCompartmentClick
+## AddonCompartmentFuncOnEnter: SoulDex_OnAddonCompartmentEnter
+## AddonCompartmentFuncOnLeave: SoulDex_OnAddonCompartmentLeave
+## X-Website: https://github.com/ChrisMiho/SoulDex
+## X-License: GPL-3.0
 ## X-Curse-Project-ID: 1806215
 ## Version: @project-version@
 ## Category: Miscellaneous
@@ -10,6 +16,7 @@
 embeds.xml
 
 src\Settings.lua
+src\Version.lua
 src\RaidData.lua
 src\ForeverData.lua
 src\Raids.lua

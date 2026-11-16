@@ -1,15 +1,15 @@
-## 💜 SoulDex 1.3.0: Rank and Reaping
+## 💜 SoulDex 1.4.0-beta.1: Sharper Claws (test build)
 
-*Every shard a step up the ladder. Every soul, now with a name.*
+*A test build. Nothing in it has been seen in game yet: expect rough edges, and say what you find.*
 
 **What's new**
 
-- **Warlock ranks with emblems.** Your score earns a title, from Initiate to Lord of Souls, and each rank has its own emblem, from a dull sliver to a fel-crowned shard. Ranking up gets its own popup.
-- **Mastery stars.** Claim the same mob again and again to earn stars and points. Bosses, rares and players score on repeat claims too, and your existing dex already counts.
-- **A new window.** A rebuilt Me tab with your records, trophy-card details for every soul, grouped milestones with progress bars, and a livelier popup.
-- **Dungeon souls get their names.** WoW: Forever hides names inside dungeons; SoulDex now quietly whispers you to read them, so dungeon claims pop up like any other. Bosses killed mid-fight still show as Unknown.
-- **Forever's own raids.** The Barrow Deeps and Hyjal Summit are in the Raids list, rosters to come.
+- **Easier to reach.** SoulDex is in the game's addon list by the minimap (click to open, right-click for options), has a key binding, and its settings are a page of the game's own Settings window.
+- **Find a soul.** `/dex find <text>` looks any soul up by name. Also new: `/dex scale`, `/dex reset`, `/dex test` and `/dex version`.
+- **More options.** Window size, a sample popup, a window reset, and a switch for the login message.
+- **No more wrong names.** A Shadowburn followed by a Drain Soul on another mob, or a quick Tab as a cast went off in a dungeon, could name a shard after the wrong mob. Recasting Drain Soul on the same dungeon mob no longer leaves its shard unnamed.
+- **Friends that work at scale.** Browsing a large dex no longer times out, Clean up can't remove guild members, and a friend who hasn't answered yet can be removed.
 
-**Install:** download `SoulDex-v1.3.0-forever.zip` below and unzip it into `Interface\AddOns`, replacing your old `SoulDex` folder. This release adds new files, so **fully restart the game** (a `/reload` is not enough).
+**Install:** download `SoulDex-v1.4.0-beta.1-forever.zip` below and unzip it into `Interface\AddOns`, replacing your old `SoulDex` folder. This build adds new files, so **fully restart the game** (a `/reload` is not enough).
 
-*Go on, warlock. Climb.*
+*Test it hard, warlock.*

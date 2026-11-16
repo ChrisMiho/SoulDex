@@ -1056,6 +1056,7 @@ describe("Capture glue", function()
 			world.mouseover, world.focus = nil, nil
 			world.isUnit = nil -- set to force UnitIsUnit's answer
 			world.sendFails = nil
+			world.sendMovesTell = nil
 			world.lines = {}
 			_G.UnitExists = function(unit)
 				if unit == "target" then
@@ -1096,6 +1097,9 @@ describe("Capture glue", function()
 						error("refused")
 					end
 					sends[#sends + 1] = { text = text, chatType = chatType, target = target }
+					if world.sendMovesTell then
+						world.lastTell = { target, "WHISPER" }
+					end
 				end,
 				GetChatLineText = function(id) return world.lines[id] and world.lines[id].text end,
 				GetChatLineSenderGUID = function(id) return world.lines[id] and world.lines[id].guid end,
@@ -1227,12 +1231,53 @@ describe("Capture glue", function()
 			assert.is_true(db.shardSouls.NEW.soul.unknown)
 		end)
 
-		it("puts the last tell target back after sending", function()
+		it("leaves the last tell target alone when sending did not move it", function()
 			world.target = MONK
 			boot()
 			drain("cast1", SECRET)
 			assert.equal(1, #sends)
+			assert.same({}, tellsSet)
+		end)
+
+		it("puts the last tell target back when sending moved it", function()
+			world.target = MONK
+			world.sendMovesTell = true
+			boot()
+			drain("cast1", SECRET)
+			assert.equal(1, #sends)
 			assert.same({ { target = "Friend", chatType = "WHISPER" } }, tellsSet)
+		end)
+
+		it("does not ask when the target changed between the cast being sent and its channel start", function()
+			world.target = MONK
+			boot()
+			fire("UNIT_SPELLCAST_SENT", "player", SECRET, "cast1", 1120)
+			fire("PLAYER_TARGET_CHANGED")
+			fire("UNIT_SPELLCAST_CHANNEL_START", "player", "cast1", 1120)
+			assert.equal(0, #sends)
+		end)
+
+		it("asks when the target changed before the cast was sent (a targeting macro)", function()
+			world.target = MONK
+			boot()
+			fire("PLAYER_TARGET_CHANGED")
+			drain("cast1", SECRET)
+			assert.equal(1, #sends)
+		end)
+
+		it("a recast on the same hidden target names its shard (the first capture is replaced)", function()
+			world.target = MONK
+			local ns, db = boot()
+			drain("cast1", SECRET)
+			fire("UNIT_SPELLCAST_CHANNEL_STOP", "player", "cast1", 1120)
+			world.clock = world.clock + 1
+			drain("cast2", SECRET)
+			assert.equal(2, #sends)
+			putShard(1, "NEW")
+			fire("BAG_UPDATE_DELAYED")
+			flush()
+			-- held for the second whisper's name, not dropped as ambiguous
+			assert.is_not_nil(ns.Shards.pendingOf(db.shardSouls, "NEW"))
 		end)
 
 		it("never whispers when no chat filter could be installed", function()

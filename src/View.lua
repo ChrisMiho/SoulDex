@@ -612,3 +612,92 @@ function View.header(dex, tab)
 	end
 	return left, right
 end
+
+-- Search (/souldex find) -------------------------------------------------------------------
+
+View.FIND_MIN = 2 -- letters needed to search
+View.FIND_LIMIT = 8 -- lines printed; the rest are counted
+
+-- Every soul in the dex whose name contains `text` (any case, plain text), as
+-- { name, kind = "mob"|"player"|"raid", count, where }: where is the zone a mob was
+-- claimed in most (with "+N" for its other zones), a player's class token, or a raid
+-- creature's raid. Names that start with the text come first, then by name.
+function View.find(dex, text)
+	local needle = type(text) == "string" and text:lower():match("^%s*(.-)%s*$") or ""
+	if #needle < View.FIND_MIN then
+		return {}
+	end
+	local db, out = dex.db, {}
+	local function matches(name)
+		return type(name) == "string" and name:lower():find(needle, 1, true) ~= nil
+	end
+	for name, mob in pairs(db.mobs) do
+		if matches(name) then
+			local zones, best, bestCount, total = 0, nil, -1, 0
+			for zone, place in pairs(mob.places or {}) do
+				local count = place.count or 0
+				zones, total = zones + 1, total + count
+				if count > bestCount or (count == bestCount and zone < best) then
+					best, bestCount = zone, count
+				end
+			end
+			local where = best
+			if best and zones > 1 then
+				where = best .. " +" .. (zones - 1)
+			end
+			out[#out + 1] = { name = name, kind = "mob", count = total, where = where }
+		end
+	end
+	for _, entry in pairs(db.players) do
+		if matches(entry.name) then
+			out[#out + 1] = { name = entry.name, kind = "player", count = entry.count or 0, where = entry.class }
+		end
+	end
+	for _, entry in pairs(db.raids) do
+		if matches(entry.name) then
+			local raid = ns.Raids.byInstance(entry.instanceID)
+			out[#out + 1] = { name = entry.name, kind = "raid", count = entry.count or 0, where = raid and raid.name }
+		end
+	end
+	table.sort(out, function(a, b)
+		local aFirst, bFirst = a.name:lower():find(needle, 1, true) == 1, b.name:lower():find(needle, 1, true) == 1
+		if aFirst ~= bFirst then
+			return aFirst
+		end
+		if a.name ~= b.name then
+			return a.name < b.name
+		end
+		return a.kind < b.kind
+	end)
+	return out
+end
+
+-- The chat lines for a search: a heading, up to FIND_LIMIT souls ("Hogger ×12 · Elwynn
+-- Forest"), and a count of the rest. classNames: LOCALIZED_CLASS_NAMES_MALE (or nil).
+function View.findLines(dex, text, classNames)
+	local needle = type(text) == "string" and text:match("^%s*(.-)%s*$") or ""
+	if #needle < View.FIND_MIN then
+		return { "Give at least " .. View.FIND_MIN .. " letters to search for." }
+	end
+	local found = View.find(dex, needle)
+	if #found == 0 then
+		return { "No soul matching \"" .. needle .. "\" in your dex." }
+	end
+	local lines = { #found .. (#found == 1 and " soul" or " souls") .. " matching \"" .. needle .. "\":" }
+	for i = 1, math.min(#found, View.FIND_LIMIT) do
+		local row = found[i]
+		local where = row.where
+		if row.kind == "player" then
+			where = where and (classNames and classNames[where] or where) or "player"
+		end
+		local line = "  " .. row.name .. " " .. TIMES .. thousands(row.count)
+		if where then
+			line = line .. " \194\183 " .. where
+		end
+		lines[#lines + 1] = line
+	end
+	if #found > View.FIND_LIMIT then
+		lines[#lines + 1] = "  ...and " .. (#found - View.FIND_LIMIT) .. " more. Narrow it down."
+	end
+	return lines
+end

@@ -5,6 +5,16 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- SoulDex is now in the game's addon list by the minimap (click to open, right-click for options), has a key binding (Options > Keybindings > AddOns), and its settings are also a page of the game's own Settings window.
+- New commands: `/dex find <text>` looks a soul up by name, `/dex scale <60-160>` and `/dex reset` size and re-centre the window, `/dex test` shows a sample popup, `/dex version` prints the version.
+- New options: window size, "Test popup", "Reset window", and a switch for the login message.
+- One chat line when someone in your guild or group runs a newer SoulDex.
+- Fixed: a shard could be named after the wrong mob (a Shadowburn followed by a Drain Soul on another mob; changing target as a cast went off in a dungeon).
+- Fixed: recasting Drain Soul on the same dungeon mob left its shard unnamed.
+- Fixed: browsing a friend's large dex timed out ("No answer"); it now waits for as long as the dex needs and says "Receiving".
+- Fixed: Friends "Clean up" could remove guild members; an added friend who hadn't answered yet couldn't be selected or removed; the × on a row vanished while you were pointing at it; "today" and "yesterday" on the Me tab went by the wrong clock.
+- Lighter on memory and saved data for warlocks who farm many shards; people you only once grouped with drop off the Friends list after 30 days.
+
 ## [1.3.0] - 2026-11-15
 
 - Warlock ranks, from Initiate to Lord of Souls, each with its own emblem; ranking up gets its own popup, and from Reaper on your guild hears about it.

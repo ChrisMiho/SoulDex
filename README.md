@@ -79,9 +79,19 @@ optional and for big moments only.
 | `/souldex options` or `/dex options` | Open the settings (also the gear on the window) |
 | `/souldex add <name>` or `/dex add <name>` | Add a friend by name |
 | `/souldex remove <name>` or `/dex remove <name>` | Remove a friend |
+| `/souldex find <text>` or `/dex find <text>` | Look a soul up by name |
+| `/souldex scale <60-160>` or `/dex scale <60-160>` | Set the window's size in percent |
+| `/souldex reset` or `/dex reset` | Put the window back in the middle at normal size |
+| `/souldex test` or `/dex test` | Show a sample popup |
+| `/souldex version` or `/dex version` | Print the version you are running |
 
-The new-soul popup, the sound and guild announcements each have their own
-on/off switch in the settings.
+The new-soul popup, the sound, guild announcements, claim chatter and the login
+message each have their own on/off switch in the settings, which are also a page
+of the game's own Settings window (Options > AddOns > SoulDex).
+
+SoulDex is in the game's addon list by the minimap (click to open, right-click
+for the settings), and you can bind a key to it under Options > Keybindings >
+AddOns.
 
 ## Install
 

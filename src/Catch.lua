@@ -8,7 +8,9 @@ local _, ns = ...
 -- A capture: { kind = "drainsoul"|"shadowburn", info = <target info>, castGUID,
 --              started, expires, used }
 -- info is the target's details, or { unknown = true, isPlayer = bool|nil } when the
--- name was hidden. info.guid (the target's GUID, when readable) tells targets apart.
+-- name was hidden. info.guid (the target's GUID, when readable) tells targets apart;
+-- where the GUID is hidden, info.epoch does: the caller's count of target changes when
+-- the capture was read, set only when the spell is known to have gone to the target.
 
 local Catch = {}
 ns.Catch = Catch
@@ -45,7 +47,16 @@ local function capAt(c, t)
 end
 
 local function sameTarget(a, b)
-	return a.guid ~= nil and a.guid == b.guid
+	if a.guid ~= nil or b.guid ~= nil then
+		return a.guid == b.guid
+	end
+	return a.epoch ~= nil and a.epoch == b.epoch
+end
+
+-- A hidden-name capture with no whisper out for its name: it can only ever record an
+-- Unknown soul.
+local function plainUnknown(c)
+	return c.info.unknown == true and c.info.pend == nil
 end
 
 -- kind: "drainsoul" or "shadowburn"; info: the target (see above); castGUID may be nil.
@@ -55,7 +66,10 @@ function Window:startCapture(kind, info, castGUID, now)
 	for _, c in ipairs(self.captures) do
 		if not sameTarget(c.info, info) then
 			-- Only one channel runs at a time: an older one whose stop we missed ends now.
-			capAt(c, now + Catch.STOP_GRACE)
+			-- A Shadowburn is no channel: its target keeps its own time to die.
+			if c.kind == "drainsoul" then
+				capAt(c, now + Catch.STOP_GRACE)
+			end
 			kept[#kept + 1] = c
 		end
 	end
@@ -90,25 +104,35 @@ function Window:restricted(isChannelStart, now)
 end
 
 -- The one live, unused capture, or nil. Two live unused captures on different targets
--- are ambiguous, so neither is returned (never a wrong name).
+-- are ambiguous, so neither is returned (never a wrong name). The exception: captures
+-- that can all only record an Unknown soul give the same result whichever is picked, so
+-- the newest is returned.
 function Window:current(now)
 	prune(self, now)
-	local found
+	local found, several, allUnknown = nil, false, true
 	for _, c in ipairs(self.captures) do
 		if not c.used then
-			if found then
-				return nil
-			end
+			several = found ~= nil
 			found = c
+			allUnknown = allUnknown and plainUnknown(c)
 		end
+	end
+	if several and not allUnknown then
+		return nil
 	end
 	return found
 end
 
--- Like current, but hands the capture out once: one channel kills one target.
+-- Like current, but hands the capture out once: one channel kills one target. Unknown
+-- captures picked from several are all spent: together they stood for one kill.
 function Window:take(now)
 	local c = self:current(now)
 	if c then
+		for _, other in ipairs(self.captures) do
+			if not other.used and plainUnknown(other) and plainUnknown(c) then
+				other.used = true
+			end
+		end
 		c.used = true
 	end
 	return c

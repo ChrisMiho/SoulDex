@@ -7,6 +7,7 @@ ns.Comm = Comm
 
 Comm.PREFIX = "SoulDex"
 Comm.VERSION = 1
+Comm.MAX_DEX_BYTES = 2000000 -- the largest dex size a "W" may announce
 
 local TAB = "\t"
 
@@ -31,8 +32,17 @@ local function clean(value)
 	return (tostring(value):gsub("[\t\n\r|]", ""))
 end
 
+local MAX_INT = 999999999 -- parseInt takes at most 9 digits
+
+-- A number as the decoder reads it: a whole number from 0 to MAX_INT (junk gives 0).
 local function int(n)
-	return string.format("%d", math.floor(tonumber(n) or 0))
+	n = tonumber(n) or 0
+	if n ~= n or n < 0 then
+		n = 0
+	elseif n > MAX_INT then
+		n = MAX_INT
+	end
+	return string.format("%d", math.floor(n))
 end
 
 -- Strict non-negative decimal integer of at most 9 digits, or nil. Every number on the
@@ -87,6 +97,23 @@ function Comm.encodeRequest(kind)
 	return kind .. TAB .. int(Comm.VERSION)
 end
 
+-- "W": the dex you asked for is coming and is `bytes` long. nil for a size no reader takes.
+function Comm.encodeComing(bytes)
+	if type(bytes) ~= "number" or bytes ~= bytes or bytes < 0 or bytes > Comm.MAX_DEX_BYTES then
+		return nil
+	end
+	return table.concat({ "W", int(Comm.VERSION), int(bytes) }, TAB)
+end
+
+-- "V": the SoulDex version the sender runs. nil for a version Version.parse refuses
+-- ("dev" for an unbuilt checkout), so those builds announce nothing.
+function Comm.encodeVersion(version)
+	if not ns.Version or not ns.Version.parse(version) then
+		return nil
+	end
+	return table.concat({ "V", int(Comm.VERSION), version }, TAB)
+end
+
 local function sortedKeys(t)
 	local keys = {}
 	for k in pairs(t) do
@@ -101,47 +128,58 @@ local function sortedKeys(t)
 	return keys
 end
 
+-- Entries the strict decoder would refuse (no name or key) are left out, so one bad
+-- entry never makes the whole dex unreadable.
 function Comm.encodeDex(db)
 	local lines = { "D" .. TAB .. int(Comm.VERSION) }
 	local places = db.places or {}
 	local mobs = db.mobs or {}
 	for _, key in ipairs(sortedKeys(mobs)) do
 		local m = mobs[key]
-		local head = {
-			"M", clean(m.name or key), clean(m.classification), clean(m.creatureType), clean(m.family),
-			int(m.minLevel), int(m.maxLevel), int(ns.Points.mobWorth(m)),
-		}
-		local zones = sortedKeys(m.places or {})
-		if #zones == 0 then
-			zones = { false }
-		end
-		for _, zone in ipairs(zones) do
-			local line = { unpack(head) }
-			if zone then
-				line[#line + 1] = clean(zone)
-				line[#line + 1] = clean((places[zone] or {}).group)
-				line[#line + 1] = int(m.places[zone].count)
-			else
-				line[#line + 1] = ""
-				line[#line + 1] = ""
-				line[#line + 1] = "0"
+		local name = type(m) == "table" and clean(m.name or key) or ""
+		if name ~= "" then
+			local head = {
+				"M", name, clean(m.classification), clean(m.creatureType), clean(m.family),
+				int(m.minLevel), int(m.maxLevel), int(ns.Points.mobWorth(m)),
+			}
+			local zones = sortedKeys(m.places or {})
+			if #zones == 0 then
+				zones = { false }
 			end
-			lines[#lines + 1] = table.concat(line, TAB)
+			for _, zone in ipairs(zones) do
+				local line = { unpack(head) }
+				if zone then
+					line[#line + 1] = clean(zone)
+					line[#line + 1] = clean((places[zone] or {}).group)
+					line[#line + 1] = int(m.places[zone].count)
+				else
+					line[#line + 1] = ""
+					line[#line + 1] = ""
+					line[#line + 1] = "0"
+				end
+				lines[#lines + 1] = table.concat(line, TAB)
+			end
 		end
 	end
 	local players = db.players or {}
 	for _, key in ipairs(sortedKeys(players)) do
 		local p = players[key]
-		lines[#lines + 1] = table.concat({
-			"P", clean(key), clean(p.name), clean(p.class), clean(p.race), int(p.count), int(ns.Points.playerWorth(p)),
-		}, TAB)
+		local id, name = clean(key), type(p) == "table" and clean(p.name) or ""
+		if id ~= "" and name ~= "" then
+			lines[#lines + 1] = table.concat({
+				"P", id, name, clean(p.class), clean(p.race), int(p.count), int(ns.Points.playerWorth(p)),
+			}, TAB)
+		end
 	end
 	local raids = db.raids or {}
 	for _, id in ipairs(sortedKeys(raids)) do
 		local r = raids[id]
-		lines[#lines + 1] = table.concat({
-			"X", int(id), int(r.instanceID), clean(r.name), int(r.count), int(ns.Points.mobWorth(r)), r.known and "1" or "0",
-		}, TAB)
+		local name = type(r) == "table" and clean(r.name) or ""
+		if name ~= "" and tonumber(id) then
+			lines[#lines + 1] = table.concat({
+				"X", int(id), int(r.instanceID), name, int(r.count), int(ns.Points.mobWorth(r)), r.known and "1" or "0",
+			}, TAB)
+		end
 	end
 	return table.concat(lines, "\n")
 end
@@ -242,7 +280,8 @@ function Comm.decodeDex(str)
 end
 
 -- Returns the message type and its payload, or nil for anything unrecognised.
--- "S" -> summary table, "Q"/"R" -> true, "D" -> decoded dex.
+-- "S" -> summary table, "Q"/"R" -> true, "D" -> decoded dex, "W" -> the announced dex
+-- size in bytes, "V" -> the sender's version string.
 function Comm.decode(str)
 	if type(str) ~= "string" then
 		return nil
@@ -262,6 +301,17 @@ function Comm.decode(str)
 		local db = Comm.decodeDex(str)
 		if db then
 			return "D", db
+		end
+	elseif kind == "W" then
+		local f = split(str, TAB)
+		local bytes = #f == 3 and f[1] == "W" and versionOk(f[2]) and parseInt(f[3])
+		if bytes and bytes <= Comm.MAX_DEX_BYTES then
+			return "W", bytes
+		end
+	elseif kind == "V" then
+		local f = split(str, TAB)
+		if #f == 3 and f[1] == "V" and versionOk(f[2]) and ns.Version and ns.Version.parse(f[3]) then
+			return "V", f[3]
 		end
 	end
 	return nil

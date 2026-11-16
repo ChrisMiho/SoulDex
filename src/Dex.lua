@@ -14,6 +14,31 @@ function Dex.new(db)
 			db[key] = {} -- missing, or damaged saved data
 		end
 	end
+	-- Entries a damaged file left unusable are dropped, so one bad row can't break the
+	-- score (and with it the greeting, the window and every later claim).
+	for _, key in ipairs({ "mobs", "players", "raids", "unknown" }) do
+		for id, entry in pairs(db[key]) do
+			if type(entry) ~= "table" then
+				db[key][id] = nil
+			elseif key == "mobs" or key == "players" then
+				if type(entry.places) ~= "table" then
+					entry.places = {}
+				end
+				for zone, place in pairs(entry.places) do
+					if type(place) ~= "table" then
+						entry.places[zone] = nil
+					elseif type(place.count) ~= "number" then
+						place.count = 0
+					end
+				end
+				if key == "players" and type(entry.count) ~= "number" then
+					entry.count = 0
+				end
+			elseif type(entry.count) ~= "number" then
+				entry.count = 0
+			end
+		end
+	end
 	-- Instance ids learned in game for raids the data lists without one (raidFor).
 	-- Raids.learn refuses anything damaged or out of date.
 	for key, instanceID in pairs(db.instances) do
@@ -37,7 +62,12 @@ local function noteDay(db, now)
 	end
 	local day = ns.Points.day(now)
 	local today = db.today
-	if type(today) ~= "table" or today.day ~= day then
+	-- A claim dated before today (a held shard settled late) counts toward no day: it
+	-- must not wind today's count back.
+	if type(today) == "table" and type(today.day) == "number" and day < today.day then
+		return
+	end
+	if type(today) ~= "table" or today.day ~= day or type(today.count) ~= "number" then
 		today = { day = day, count = 0, time = now }
 		db.today = today
 	end
@@ -89,9 +119,15 @@ function methods:recordMob(info, ctx)
 		-- fill the gaps, never overwrite, never lower points.
 		for _, field in ipairs({ "classification", "creatureType", "family" }) do
 			if entry[field] == nil and type(info[field]) == "string" then
+				local worth, had = self:worth(entry), entry.points
 				entry[field] = info[field]
 				if field == "classification" then
 					entry.points = math.max(entry.points or 0, ns.Points.forMob(info.classification))
+					-- A new classification changes how repeats score (stars or a daily
+					-- bonus): where that would lower the soul's worth, it is left unfilled.
+					if self:worth(entry) < worth then
+						entry.classification, entry.points = nil, had
+					end
 				end
 			end
 		end

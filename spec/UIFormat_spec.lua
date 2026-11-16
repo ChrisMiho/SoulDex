@@ -328,6 +328,31 @@ describe("UIFormat", function()
 	end)
 
 	describe("records", function()
+		it("says today and yesterday by the local calendar day, like the dates beside them", function()
+			-- a clock 8 hours behind UTC
+			local function west(f, t)
+				return os.date("!" .. f, t - 8 * 3600)
+			end
+			local day = 86400
+			local now = 100 * day + 2 * 3600 -- 18:00 on local day 99
+			assert.equal("today", F.whenText(100 * day + 1800, now, west)) -- 16:30 the same local day
+			assert.equal("today", F.whenText(99 * day + 23 * 3600, now, west)) -- 15:00: the UTC day before
+			assert.equal("today", F.whenText(99 * day + 8 * 3600, now, west)) -- local midnight
+			assert.equal("yesterday", F.whenText(99 * day + 8 * 3600 - 1, now, west))
+			assert.equal("yesterday", F.whenText(98 * day + 8 * 3600, now, west))
+			assert.equal(F.dateText(98 * day + 8 * 3600 - 1, west), F.whenText(98 * day + 8 * 3600 - 1, now, west))
+			-- just after local midnight, yesterday is still only one calendar day back
+			local early = 99 * day + 8 * 3600 + 60
+			assert.equal("yesterday", F.whenText(early - 120, early, west))
+			assert.equal("yesterday", F.whenText(early - 60 - day, early, west))
+			assert.equal(F.dateText(early - 61 - day, west), F.whenText(early - 61 - day, early, west))
+			-- across a new year
+			local newYear = os.time({ year = 2026, month = 1, day = 1, hour = 9 })
+			assert.equal("yesterday", F.whenText(newYear - 12 * 3600, newYear, os.date))
+			assert.is_nil(F.whenText(nil, now, west))
+			assert.equal(F.dateText(now, west), F.whenText(now, nil, west))
+		end)
+
 		it("words each record", function()
 			local now = 86400 * 100 + 50
 			local lines = F.recordLines({

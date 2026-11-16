@@ -5,7 +5,9 @@
 -- for throttles.
 --
 -- Messages (src/Comm.lua): "S" summary, "Q" ask for a summary, "R" ask for the dex,
--- "D" the dex. Summaries go to the guild and group; everything else is a whisper.
+-- "W" the dex is coming (with its size), "D" the dex, "V" the sender's SoulDex version.
+-- Summaries and versions go to the guild and group; everything else is a whisper (a
+-- version is also whispered once to whoever asks for a summary).
 local _, ns = ...
 
 local Net = {}
@@ -15,11 +17,15 @@ local SUMMARY_GAP = 30 -- seconds between summary broadcasts
 local HEARTBEAT = 300 -- re-broadcast while quiet, so you stay "online" (Friends: seen < 600 s ago)
 local NEWCOMER_AFTER = HEARTBEAT + 60 -- not heard from this long: answer their summary with ours
 local DEX_REPLY_GAP = 30 -- at most one "R" reply per sender
+local DEX_ANY_GAP = 10 -- between dexes to different people (and only one is sent at a time)
 local SUMMARY_REPLY_GAP = 10 -- at most one "Q" reply per sender
 local POLL_EVERY = 60 -- ask added friends for a summary
 local LOGIN_DELAY = 5
 local ANSWER_WAIT = 60 -- no dex yet: say so in chat and ask once more
 local REQUEST_TTL = 90 -- still nothing: "No answer from <name>." and a late "D" is ignored
+local TRANSFER_RATE = 300 -- bytes a second an announced dex is assumed to arrive at (on the slow side)
+local TRANSFER_MARGIN = 30 -- seconds added to that estimate
+local TRANSFER_MAX = 600 -- never wait longer than this for an announced dex
 local NOT_FOUND_WINDOW = 5 -- hide "No player named ..." this long after whispering them
 
 local GROUP_CHANNELS = { GUILD = true, PARTY = true, RAID = true }
@@ -59,8 +65,10 @@ function Net.accepts(kind, distribution, added, requested)
 		return GROUP_CHANNELS[distribution] == true or (distribution == "WHISPER" and added == true)
 	elseif kind == "Q" or kind == "R" then
 		return distribution == "WHISPER"
-	elseif kind == "D" then
+	elseif kind == "D" or kind == "W" then
 		return distribution == "WHISPER" and requested == true
+	elseif kind == "V" then
+		return GROUP_CHANNELS[distribution] == true or (distribution == "WHISPER" and added == true)
 	end
 	return false
 end
@@ -118,15 +126,90 @@ function Net.notFoundName(msg, fmt)
 end
 
 -- Where a browse request stands: "asking" until ANSWER_WAIT, "retrying" (asked a second
--- time) until REQUEST_TTL, then "expired" (a late "D" is ignored).
-function Net.browseStage(asked, now)
-	local age = asked and now - asked
-	if not age or age > REQUEST_TTL then
+-- time) until the deadline, then "expired" (a late "D" is ignored). Once the dex is
+-- announced ("W") it is "receiving" until the deadline. deadline nil: asked + REQUEST_TTL.
+function Net.browseStage(asked, now, deadline, receiving)
+	if not asked or now > (deadline or asked + REQUEST_TTL) then
 		return "expired"
-	elseif age > ANSWER_WAIT then
+	elseif receiving then
+		return "receiving"
+	elseif now - asked > ANSWER_WAIT then
 		return "retrying"
 	end
 	return "asking"
+end
+
+-- Seconds to allow for a dex of this many bytes to arrive.
+function Net.transferTime(bytes)
+	if type(bytes) ~= "number" or bytes < 0 then
+		bytes = 0
+	end
+	return math.min(TRANSFER_MAX, math.ceil(bytes / TRANSFER_RATE) + TRANSFER_MARGIN)
+end
+
+-- A request's deadline once its dex is announced at `now`: later, never sooner.
+function Net.extendDeadline(deadline, now, bytes)
+	return math.max(deadline or 0, now + Net.transferTime(bytes))
+end
+
+-- Seconds an announced dex is still expected to take (the estimate without its margin).
+function Net.receiveLeft(comingAt, bytes, now)
+	return math.max(0, comingAt + Net.transferTime(bytes) - TRANSFER_MARGIN - now)
+end
+
+-- The Friends tab's status line for the person being asked. left: Net.receiveLeft.
+function Net.browseStatus(name, stage, left)
+	if stage == "receiving" then
+		local text = "Receiving " .. name .. "'s dex..."
+		if type(left) ~= "number" then
+			return text
+		elseif left <= 60 then
+			return text .. " <1 min"
+		end
+		return text .. " ~" .. math.ceil(left / 60) .. " min"
+	elseif stage == "asking" then
+		return "Asking " .. name .. "..."
+	end
+	return "Asking " .. name .. " again..."
+end
+
+-- How long a dex send may stay "in flight" when its finished-callback never comes.
+function Net.sendCeiling(bytes)
+	return 2 * Net.transferTime(bytes)
+end
+
+-- Whether to answer an "R" now. lastToThem / lastToAnyone: GetTime() of the last dex
+-- sent to this person / to anyone. flight: the dex being sent right now, if any
+-- ({ started, ceiling }): while it is going out nobody gets another one.
+function Net.maySendDex(now, lastToThem, lastToAnyone, flight)
+	if flight and now - flight.started < flight.ceiling then
+		return false
+	end
+	return Net.allowed(lastToThem, now, DEX_REPLY_GAP) and Net.allowed(lastToAnyone, now, DEX_ANY_GAP)
+end
+
+-- Whether Clean up can tell who is absent. inGuild: IsInGuild() (nil when unreadable);
+-- guildSize: GetNumGuildMembers() (nil when unreadable); namesOk: every group and guild
+-- name could be read. In a guild whose roster isn't loaded, nobody is provably absent.
+function Net.cleanUpSafe(inGuild, guildSize, namesOk)
+	if not namesOk then
+		return false
+	elseif inGuild == false then
+		return true
+	elseif inGuild ~= true then
+		return false
+	end
+	return type(guildSize) == "number" and guildSize > 0
+end
+
+-- The chat line for someone else's version, or nil when there is nothing to say: it is
+-- not newer than yours (Version.isNewer), or the player was already told this session.
+function Net.versionNotice(theirs, mine, told)
+	local Version = ns.Version
+	if told or not Version or not Version.isNewer(theirs, mine) then
+		return nil
+	end
+	return "A newer SoulDex is out: " .. Version.display(theirs) .. ". You have " .. Version.display(mine) .. "."
 end
 
 -- Drops entries of t (key -> GetTime()) older than age seconds.
@@ -150,13 +233,20 @@ function Net.showSelf(rows)
 end
 
 -- Leaderboard rows (Friends.leaderboard) as UIFormat line descriptors. Your own row keeps
--- its ranked place (highlighted, not selectable) when Net.showSelf, otherwise it is left out
--- and the help text shows.
+-- its ranked place (highlighted, not selectable) when Net.showSelf, otherwise it is left
+-- out: people you added but haven't heard from stay listed (so they can be selected and
+-- removed), and the help text shows only when nobody is left.
 function Net.leaderRows(rows, selected)
 	local C = ns.UIFormat.COLORS
 	local out = {}
 	if not Net.showSelf(rows) then
-		rows = {}
+		local others = {}
+		for _, r in ipairs(rows) do
+			if not r.isMe then
+				others[#others + 1] = r
+			end
+		end
+		rows = others
 	end
 	for i, r in ipairs(rows) do
 		local color = C.TEXT
@@ -226,10 +316,16 @@ local state = {
 	queued = false, -- a throttled broadcast is waiting
 	summaryReplies = {}, -- name -> GetTime() of the last "Q" answer
 	dexReplies = {}, -- name -> GetTime() of the last "R" answer
-	requests = {}, -- name -> GetTime() we asked them for their dex
+	lastDexSend = nil, -- GetTime() of the last "R" answer to anyone
+	dexFlight = nil, -- the dex being sent right now: { name, started, ceiling }
+	request = nil, -- the dex we asked for: { name, asked, deadline, comingAt, bytes } (GetTime())
 	whispered = {}, -- name -> GetTime() we last whispered them
-	asking = nil, -- name shown as "Asking <name>..."
-	noAnswer = nil, -- name shown as "No answer from <name>."
+	asking = nil, -- name shown as "Asking <name>..." / "Receiving <name>'s dex..."
+	noAnswer = nil, -- name whose request ran out
+	noAnswerText = nil, -- the line shown for them
+	versionDue = true, -- send "V" with the next summary broadcast (login, a newcomer)
+	versionWhispered = {}, -- name -> true once "V" was whispered to them
+	versionTold = false, -- the newer-version line was printed this session
 	selected = nil, -- leaderboard selection
 }
 
@@ -261,18 +357,28 @@ local function refreshFriends()
 	end
 end
 
-local function send(msg, distribution, target, prio)
+-- Our live request to name, or nil.
+local function requestTo(name)
+	local req = state.request
+	return req and req.name == name and req or nil
+end
+
+-- callback(arg, bytesSent, bytesTotal): AceComm calls it as each piece goes out.
+local function send(msg, distribution, target, prio, callback, arg)
 	if state.enabled and msg then
-		Net:SendCommMessage(Comm.PREFIX, msg, distribution, target, prio)
+		Net:SendCommMessage(Comm.PREFIX, msg, distribution, target, prio, callback, arg)
 	end
 end
 
-local function whisper(msg, target, prio)
+local function whisper(msg, target, prio, callback, arg)
+	if not msg then
+		return
+	end
 	local key = Friends.normalise(target)
 	if key then
 		state.whispered[key] = GetTime()
 	end
-	send(msg, "WHISPER", target, prio)
+	send(msg, "WHISPER", target, prio, callback, arg)
 end
 
 local function summaryMessage()
@@ -282,8 +388,17 @@ end
 local function broadcastNow()
 	state.lastBroadcast = GetTime()
 	local msg = summaryMessage()
-	for _, channel in ipairs(Net.channels(yes(IsInGuild), yes(IsInRaid), yes(IsInGroup))) do
+	local channels = Net.channels(yes(IsInGuild), yes(IsInRaid), yes(IsInGroup))
+	for _, channel in ipairs(channels) do
 		send(msg, channel)
+	end
+	-- The version rides along once per login and when a newcomer is heard, not every time.
+	if state.versionDue and #channels > 0 then
+		state.versionDue = false
+		local version = Comm.encodeVersion(ns.version)
+		for _, channel in ipairs(channels) do
+			send(version, channel)
+		end
 	end
 end
 
@@ -319,7 +434,6 @@ local function tick()
 	Net.forgetOlder(state.summaryReplies, now, SUMMARY_REPLY_GAP)
 	Net.forgetOlder(state.dexReplies, now, DEX_REPLY_GAP)
 	Net.forgetOlder(state.whispered, now, NOT_FOUND_WINDOW)
-	Net.forgetOlder(state.requests, now, REQUEST_TTL)
 	askForSummaries()
 	if state.enabled and Net.allowed(state.lastBroadcast, GetTime(), HEARTBEAT) then
 		requestBroadcast()
@@ -338,7 +452,8 @@ function handlers.S(name, _, summary, distribution)
 	-- accepts() only lets through group/guild channels and added friends' whispers.
 	if Friends.merge(store, name, summary, now, true) then
 		if newcomer and GROUP_CHANNELS[distribution] then
-			requestBroadcast() -- so they learn about you too
+			state.versionDue = true
+			requestBroadcast() -- so they learn about you (and your version) too
 		end
 		refreshFriends()
 	end
@@ -349,20 +464,61 @@ function handlers.Q(name, target)
 	if Net.allowed(state.summaryReplies[name], now, SUMMARY_REPLY_GAP) then
 		state.summaryReplies[name] = now
 		whisper(summaryMessage(), target)
+		if not state.versionWhispered[name] then
+			state.versionWhispered[name] = true
+			whisper(Comm.encodeVersion(ns.version), target)
+		end
 	end
 end
 
+-- AceComm's progress callback for a dex: the send is over once every byte went out.
+local function dexSent(flight, sent, total)
+	if state.dexFlight == flight and type(sent) == "number" and type(total) == "number" and sent >= total then
+		state.dexFlight = nil
+	end
+end
+
+-- One dex goes out at a time: while it does, further requests (the asker's own 60 s
+-- retry, or anyone else's) are ignored and simply time out on their side.
 function handlers.R(name, target)
 	local now = GetTime()
-	if Net.allowed(state.dexReplies[name], now, DEX_REPLY_GAP) then
-		state.dexReplies[name] = now
-		whisper(Comm.encodeDex(ns.db), target, "BULK")
+	if not Net.maySendDex(now, state.dexReplies[name], state.lastDexSend, state.dexFlight) then
+		return
+	end
+	local msg = Comm.encodeDex(ns.db)
+	local flight = { name = name, started = now, ceiling = Net.sendCeiling(#msg) }
+	state.dexReplies[name] = now
+	state.lastDexSend = now
+	state.dexFlight = flight -- before sending: the callback can fire inside SendCommMessage
+	whisper(Comm.encodeComing(#msg), target) -- normal priority, so it lands ahead of the dex
+	whisper(msg, target, "BULK", dexSent, flight)
+end
+
+-- The dex we asked for is on its way: wait for it as long as its size needs.
+function handlers.W(name, _, bytes)
+	local req = requestTo(name)
+	if not req or req.comingAt then
+		return
+	end
+	local now = GetTime()
+	req.comingAt, req.bytes = now, bytes
+	req.deadline = Net.extendDeadline(req.deadline, now, bytes)
+	refreshFriends()
+end
+
+function handlers.V(_, _, version)
+	local text = Net.versionNotice(version, ns.version, state.versionTold)
+	if text then
+		state.versionTold = true
+		ns.Print(text)
 	end
 end
 
 -- db is nil when the dex couldn't be read.
 function handlers.D(name, _, db)
-	state.requests[name] = nil
+	if requestTo(name) then
+		state.request = nil
+	end
 	if state.asking == name then
 		state.asking = nil
 	end
@@ -372,6 +528,11 @@ function handlers.D(name, _, db)
 		return
 	end
 	local UI = ns.UI
+	if UI and not UI.isShown() then
+		-- A dex can take minutes: don't reopen a window the player has closed since.
+		ns.Print(name .. "'s dex arrived while SoulDex was closed. Open it and press Browse dex again to see it.")
+		return
+	end
 	if UI then
 		UI.showDex(ns.Dex.new(db), name)
 		UI.setCompare(ns.dex)
@@ -396,8 +557,8 @@ function Net.OnCommReceived(_, prefix, message, distribution, sender)
 	end
 	local kind = message:sub(1, 1)
 	local entry = ns.db.friends[name]
-	local asked = state.requests[name]
-	local requested = asked ~= nil and GetTime() - asked <= REQUEST_TTL
+	local req = requestTo(name)
+	local requested = req ~= nil and GetTime() <= req.deadline
 	if not handlers[kind] or not Net.accepts(kind, distribution, entry ~= nil and entry.added, requested) then
 		return
 	end
@@ -460,71 +621,111 @@ function Net.removeFriend(text)
 	refreshFriends()
 end
 
--- Names of everyone in your group and guild right now (store keys), as a set.
+-- Names of everyone in your group and guild right now (store keys), as a set. Also
+-- returns whether every name could be read, and the guild roster's size (nil when unreadable).
 local function presentNames()
 	local plain = Capture.plainString
-	local keep = {}
+	local keep, namesOk = {}, true
+	-- True when the name went into the set.
 	local function note(name, second)
+		if not Capture.readable(name) then
+			namesOk = false
+			return false
+		end
 		local key = plain(name) and Friends.normalise(Friends.fullName(name, plain(second) and second or nil))
 		if key then
 			keep[key] = true
 		end
+		return key ~= nil
 	end
 	local members = Capture.call(GetNumGroupMembers)
 	local prefix = yes(IsInRaid) and "raid" or "party"
 	for i = 1, Capture.plainNumber(members) and members or 0 do
-		note(Capture.call(UnitName, prefix .. i))
+		note(Capture.call(UnitName, prefix .. i)) -- a slot past the party's end has no name: fine
 	end
 	local guildSize = Capture.call(GetNumGuildMembers)
-	for i = 1, Capture.plainNumber(guildSize) and guildSize or 0 do
-		note(Capture.call(GetGuildRosterInfo, i))
+	guildSize = Capture.plainNumber(guildSize) and guildSize or nil
+	for i = 1, guildSize or 0 do
+		-- Only the first value: the next one is the member's guild rank, not a second name part.
+		local name = Capture.call(GetGuildRosterInfo, i)
+		if not note(name) then
+			namesOk = false
+		end
 	end
-	return keep
+	return keep, namesOk, guildSize
 end
 
--- Drops everyone you haven't added who isn't in your guild or group right now.
+-- Drops everyone you haven't added who isn't in your guild or group right now. Removes
+-- nobody when it can't tell who is there (Net.cleanUpSafe).
 function Net.cleanUp()
 	if not loaded() then
 		return
 	end
-	local removed = Friends.purge(ns.db.friends, presentNames())
+	local inGuild = Capture.call(IsInGuild)
+	if not Capture.readable(inGuild) or type(inGuild) ~= "boolean" then
+		inGuild = nil
+	end
+	local keep, namesOk, guildSize = presentNames()
+	if not Net.cleanUpSafe(inGuild, guildSize, namesOk) then
+		if C_GuildInfo and C_GuildInfo.GuildRoster then
+			Capture.call(C_GuildInfo.GuildRoster) -- ask for the roster, for the next try
+		end
+		ns.Print("Can't read your guild and group right now, so nobody was removed. Try Clean up again in a moment.")
+		return
+	end
+	local removed = Friends.purge(ns.db.friends, keep)
 	ns.Print(removed == 1 and "Removed 1 person." or ("Removed " .. removed .. " people."))
 	refreshFriends()
 end
 
 -- Asks someone for their dex; "D" opens it (handlers.D). No answer after ANSWER_WAIT:
--- one more ask; none by REQUEST_TTL: give up.
+-- one more ask; none by REQUEST_TTL: give up. Once they announce it ("W") there is no
+-- second ask, and the wait lasts as long as the dex's size needs (handlers.W).
 function Net.browse(name)
 	if not state.enabled then
 		ns.Print("Friends need AceComm-3.0 (a packaged build).")
 		return
 	end
 	local asked = GetTime()
-	state.requests = { [name] = asked } -- a late dex from someone asked earlier is not wanted now
+	local current = requestTo(name)
+	if current and current.comingAt and asked <= current.deadline then
+		refreshFriends() -- already on its way: asking again would only be ignored
+		return
+	end
+	local req = { name = name, asked = asked, deadline = asked + REQUEST_TTL }
+	state.request = req -- a late dex from someone asked earlier is not wanted now
 	state.asking = name
 	state.noAnswer = nil
 	local request = Comm.encodeRequest("R")
 	whisper(request, name)
 	refreshFriends()
 	local function stillAsking()
-		return state.asking == name and state.requests[name] == asked
+		return state.asking == name and state.request == req
 	end
 	C_Timer.After(ANSWER_WAIT, function()
-		if stillAsking() then
+		if stillAsking() and not req.comingAt then
 			ns.Print("No answer from " .. name .. " yet, asking again...")
 			whisper(request, name)
 			refreshFriends()
 		end
 	end)
-	C_Timer.After(REQUEST_TTL, function()
-		if stillAsking() then
-			ns.Print("No answer from " .. name .. ".")
-			state.requests[name] = nil
-			state.asking = nil
-			state.noAnswer = name
-			refreshFriends()
+	local function giveUp()
+		if not stillAsking() then
+			return
 		end
-	end)
+		local left = req.deadline - GetTime()
+		if left > 0 then
+			C_Timer.After(left, giveUp) -- the deadline moved: the dex was announced
+			return
+		end
+		local text = req.comingAt and (name .. "'s dex didn't arrive in time.") or ("No answer from " .. name .. ".")
+		ns.Print(text)
+		state.request = nil
+		state.asking = nil
+		state.noAnswer, state.noAnswerText = name, text
+		refreshFriends()
+	end
+	C_Timer.After(REQUEST_TTL, giveUp)
 end
 
 -- Friends tab ------------------------------------------------------------------------------
@@ -574,6 +775,10 @@ local function decorateRows()
 		end
 		removable[row] = row.value ~= nil
 		remove:Hide()
+		-- A redraw under the mouse: keep the "×" of the row it is still over.
+		if removable[row] and row.IsMouseOver and row:IsShown() and row:IsMouseOver() then
+			onRowEnter(row)
+		end
 	end
 end
 
@@ -661,12 +866,11 @@ end
 
 local function statusText(name)
 	if state.asking == name then
-		if Net.browseStage(state.requests[name], GetTime()) == "asking" then
-			return "Asking " .. name .. "..."
-		end
-		return "Asking " .. name .. " again..."
+		local req, now = requestTo(name) or {}, GetTime()
+		local stage = Net.browseStage(req.asked, now, req.deadline, req.comingAt ~= nil)
+		return Net.browseStatus(name, stage, req.comingAt and Net.receiveLeft(req.comingAt, req.bytes, now))
 	elseif state.noAnswer == name then
-		return "No answer from " .. name .. "."
+		return state.noAnswerText or ("No answer from " .. name .. ".")
 	end
 	return ""
 end
@@ -702,7 +906,7 @@ end
 
 local function start(db)
 	db.friends = type(db.friends) == "table" and db.friends or {}
-	Friends.tidy(db.friends, myName())
+	Friends.tidy(db.friends, myName(), time())
 	if ns.UI then
 		ns.UI.setFriendsTab(drawTab)
 	end
@@ -739,6 +943,9 @@ local function start(db)
 	-- that line for names SoulDex itself whispered a moment ago.
 	if ChatFrame_AddMessageEventFilter then
 		ChatFrame_AddMessageEventFilter("CHAT_MSG_SYSTEM", function(_, _, msg)
+			if not Capture.plainString(msg) then
+				return false -- unreadable (a secret value): no string work on it
+			end
 			local name = Friends.normalise(Net.notFoundName(msg, ERR_CHAT_PLAYER_NOT_FOUND_S))
 			local at = name and state.whispered[name]
 			return at ~= nil and GetTime() - at <= NOT_FOUND_WINDOW

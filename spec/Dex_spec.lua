@@ -451,4 +451,67 @@ describe("Dex", function()
 			assert.equal("MC", ns.Raids.byInstance(409).key)
 		end)
 	end)
+
+	describe("review fixes", function()
+		it("a claim dated before today does not wind today's count back", function()
+			local DAY = 86400
+			for _ = 1, 5 do
+				dex:recordMob(mob("Wolf"), ctx(nil, { time = 10 * DAY + 100 }))
+			end
+			assert.equal(5, db.today.count)
+			dex:recordUnknown(ctx(nil, { time = 10 * DAY - 50 })) -- a held shard settled late
+			assert.equal(10, db.today.day)
+			assert.equal(5, db.today.count)
+			dex:recordMob(mob("Wolf"), ctx(nil, { time = 10 * DAY + 200 }))
+			assert.equal(6, db.today.count)
+		end)
+
+		it("filling in a classification never lowers a soul's worth", function()
+			local hidden = mob("Stalker", { classification = false })
+			hidden.classification = nil
+			for _ = 1, 250 do
+				dex:recordMob(hidden, ctx())
+			end
+			local before = dex:score()
+			local r = dex:recordMob(mob("Stalker", { classification = "rare" }), ctx())
+			assert.is_true(dex:score() >= before)
+			assert.is_true(r.gained >= 0)
+			assert.is_nil(db.mobs.Stalker.classification)
+		end)
+
+		it("still fills in a classification that raises the worth", function()
+			local hidden = mob("Brute")
+			hidden.classification = nil
+			dex:recordMob(hidden, ctx())
+			dex:recordMob(mob("Brute", { classification = "elite" }), ctx())
+			assert.equal("elite", db.mobs.Brute.classification)
+			assert.equal(5, db.mobs.Brute.points)
+		end)
+
+		it("drops and mends damaged saved entries on load", function()
+			local damaged = {
+				mobs = { Bad = true, NoPlaces = { name = "NoPlaces", points = 1 },
+					BadPlace = { name = "BadPlace", points = 1, places = { Zone = "x", Other = {} } } },
+				players = { ["Bob-"] = "junk", ["Ann-"] = { name = "Ann", points = 10 } },
+				raids = { [1] = 7, [2] = { name = "Thing", points = 1 } },
+				unknown = { Zone = false },
+				today = { day = 1 },
+			}
+			local d
+			assert.has_no.errors(function()
+				d = ns.Dex.new(damaged)
+				d:score()
+				d:uniqueSouls()
+				d:recordMob(mob("NoPlaces"), ctx())
+				d:recordMob(mob("BadPlace"), ctx("Other"))
+				d:recordPlayer({ name = "Ann" }, ctx())
+				d:recordUnknown(ctx("Zone"))
+			end)
+			assert.is_nil(damaged.mobs.Bad)
+			assert.is_nil(damaged.players["Bob-"])
+			assert.is_nil(damaged.raids[1])
+			assert.equal(1, damaged.mobs.BadPlace.places.Other.count)
+			assert.equal(1, damaged.players["Ann-"].count)
+		end)
+	end)
 end)

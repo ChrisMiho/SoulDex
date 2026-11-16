@@ -475,8 +475,13 @@ local function whisperSelf(text)
 		lastTarget, lastType = call(ChatEdit_GetLastTellTarget)
 	end
 	local ok = pcall(fn, text, "WHISPER", nil, me)
+	-- Written back only when the send moved it: every write from addon code into the
+	-- chat box's state is a chance to taint it.
 	if hasLast then
-		call(ChatEdit_SetLastTellTarget, lastTarget, lastType)
+		local nowTarget = call(ChatEdit_GetLastTellTarget)
+		if not readable(nowTarget) or not readable(lastTarget) or nowTarget ~= lastTarget then
+			call(ChatEdit_SetLastTellTarget, lastTarget, lastType)
+		end
 	end
 	return ok, hasLast and { lastTarget, lastType } or nil
 end
@@ -774,6 +779,7 @@ local UNIT_EVENTS = {
 local EVENTS = {
 	"PLAYER_ENTERING_WORLD",
 	"BAG_UPDATE_DELAYED",
+	"PLAYER_TARGET_CHANGED",
 	"PLAYER_REGEN_ENABLED",
 	"CHAT_MSG_WHISPER",
 	"BANKFRAME_OPENED",
@@ -835,7 +841,10 @@ function Capture.start(db, dex)
 	local window = ns.Catch.new()
 	local scanned, baselineQueued, scanQueued = false, false, false
 	local sourcesOpen = {} -- open SHARD_SOURCES windows, by open event
-	local sent -- { castGUID, kind, info, targetName, targetHidden, time } from the last UNIT_SPELLCAST_SENT
+	-- { castGUID, kind, info, targetName, targetHidden, time, epoch } from the last UNIT_SPELLCAST_SENT
+	local sent
+	-- Counts PLAYER_TARGET_CHANGED: two readings with the same count saw the same target.
+	local targetEpoch = 0
 	local lastUnreadable = 0 -- unreadable shard slots in the previous scan
 	local names = {
 		drainsoul = C_Spell and str(call(C_Spell.GetSpellName, DRAIN_SOUL_ID)),
@@ -1057,8 +1066,16 @@ function Capture.start(db, dex)
 
 	-- A capture whose target name is hidden: whispers the player for the name when the
 	-- guard allows. Returns the capture's info, carrying the pend when the whisper went out.
-	local function askName(info)
+	local function askName(info, castGUID, kind, now)
 		if blocked or not filtered or not Whisper.shouldAsk(Capture.askState()) then
+			return info
+		end
+		-- The spell's target was fixed when the cast was sent; %t names the target now. A
+		-- target change in between (Tab during the latency) would name the wrong soul.
+		-- Checked against this cast's own SENT only (the same match targetInfo makes).
+		local age = sent and sent.kind == kind and now - sent.time
+		local thisCast = age and ((castGUID and sent.castGUID == castGUID and age <= SENT_TTL) or age <= SENT_CHECK)
+		if thisCast and sent.epoch ~= targetEpoch then
 			return info
 		end
 		local details = Capture.readDetails("target")
@@ -1071,7 +1088,8 @@ function Capture.start(db, dex)
 		end
 		pend.lastTell = lastTell
 		startTicker()
-		return { unknown = true, pend = pend, isPlayer = details.isPlayer }
+		-- epoch: a recast on this same target replaces this capture (its GUID is hidden).
+		return { unknown = true, pend = pend, isPlayer = details.isPlayer, guid = info.guid, epoch = targetEpoch }
 	end
 
 	-- Called from the CHANNEL_START / SUCCEEDED handler itself: the guard is read in the
@@ -1079,7 +1097,7 @@ function Capture.start(db, dex)
 	local function captureInfo(castGUID, kind, now)
 		local info, sentNamedUnit = targetInfo(castGUID, kind, now)
 		if info.unknown and not sentNamedUnit then
-			info = askName(info)
+			info = askName(info, castGUID, kind, now)
 		end
 		return info
 	end
@@ -1112,6 +1130,7 @@ function Capture.start(db, dex)
 				targetName = readable(targetName) and str(targetName) or nil,
 				targetHidden = not readable(targetName),
 				time = GetTime(),
+				epoch = targetEpoch,
 			}
 		end
 	end
@@ -1153,6 +1172,9 @@ function Capture.start(db, dex)
 		flushAnnouncements()
 	end
 	handlers.BAG_UPDATE_DELAYED = queueScan
+	handlers.PLAYER_TARGET_CHANGED = function()
+		targetEpoch = targetEpoch + 1
+	end
 	local function reread()
 		Capture.protect(errorHandler(), rereadLines)
 	end

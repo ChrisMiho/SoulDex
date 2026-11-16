@@ -20,47 +20,78 @@ local function valid(entry)
 	return pending == nil or (type(pending) == "table" and type(pending.token) == "string")
 end
 
--- map: the saved map; present: readable shard GUIDs now in the bags; baseline (quiet):
--- every new GUID is stored as soulless instead of gained (login, bank open, item on the
--- cursor, unreadable shard slots); now: epoch seconds; prune: drop shards not seen for
--- FORGET_AFTER (the login scan only). Shards not present are otherwise kept (bank,
--- mailbox, cursor).
--- Returns a new map, the sorted list of new GUIDs, which are left out of the new map
--- (the caller fills each with Shards.assign, a soul or false), and how many new GUIDs a
--- baseline stored as soulless.
-function Shards.update(map, present, baseline, now, prune)
-	local newMap, gained, seenNow, quietNew = {}, {}, {}, 0
+-- Absent shards (spent, banked, mailed) are kept so a banked shard still has its soul
+-- when it comes back, but a spent one never returns: the login scan drops absent
+-- soulless shards after a day, and keeps at most MAX_ABSENT absent ones in all.
+Shards.FORGET_SOULLESS_AFTER = 86400
+Shards.MAX_ABSENT = 400
+
+-- The login clean-up: drops damaged entries, shards not seen for FORGET_AFTER, absent
+-- soulless ones not seen for FORGET_SOULLESS_AFTER, and the oldest absent ones past
+-- MAX_ABSENT. A shard still waiting for its name is always kept.
+local function tidy(map, isPresent, now)
+	local absent = {}
 	for guid, entry in pairs(map) do
-		if valid(entry) and not (prune and now - (entry.seen or 0) > Shards.FORGET_AFTER) then
-			newMap[guid] = entry
-		end
-	end
-	for _, guid in ipairs(present) do
-		if not seenNow[guid] then
-			seenNow[guid] = true
-			local entry = newMap[guid]
-			if entry then
-				newMap[guid] = { soul = entry.soul, pending = entry.pending, seen = now }
-			elseif baseline then
-				newMap[guid] = { soul = false, seen = now }
-				quietNew = quietNew + 1
+		local age = valid(entry) and now - (entry.seen or 0)
+		if not age or age > Shards.FORGET_AFTER then
+			map[guid] = nil
+		elseif not isPresent[guid] and not entry.pending then
+			if entry.soul == false and age > Shards.FORGET_SOULLESS_AFTER then
+				map[guid] = nil
 			else
-				gained[#gained + 1] = guid
+				absent[#absent + 1] = { guid = guid, seen = entry.seen or 0 }
 			end
 		end
 	end
-	table.sort(gained)
-	return newMap, gained, quietNew
+	if #absent > Shards.MAX_ABSENT then
+		table.sort(absent, function(a, b)
+			if a.seen ~= b.seen then
+				return a.seen > b.seen
+			end
+			return tostring(a.guid) < tostring(b.guid)
+		end)
+		for i = Shards.MAX_ABSENT + 1, #absent do
+			map[absent[i].guid] = nil
+		end
+	end
 end
 
--- Returns a copy of map with guid set to soulOrFalse, seen now.
-function Shards.assign(map, guid, soulOrFalse, now)
-	local out = {}
-	for k, v in pairs(map) do
-		out[k] = v
+-- map: the saved map, changed in place (it holds every shard ever seen, so a bag scan
+-- must not copy it); present: readable shard GUIDs now in the bags; baseline (quiet):
+-- every new GUID is stored as soulless instead of gained (login, bank open, item on the
+-- cursor, unreadable shard slots); now: epoch seconds; prune: run the login clean-up
+-- (tidy, above). Shards not present are otherwise kept (bank, mailbox, cursor).
+-- Returns the map, the sorted list of new GUIDs, which are not yet in the map (the
+-- caller fills each with Shards.assign, a soul or false), and how many new GUIDs a
+-- baseline stored as soulless.
+function Shards.update(map, present, baseline, now, prune)
+	local gained, seenNow, quietNew = {}, {}, 0
+	for _, guid in ipairs(present) do
+		seenNow[guid] = true
 	end
-	out[guid] = { soul = soulOrFalse, seen = now }
-	return out
+	if prune then
+		tidy(map, seenNow, now)
+	end
+	for guid in pairs(seenNow) do
+		local entry = map[guid]
+		if valid(entry) then
+			entry.seen = now
+		elseif baseline then
+			map[guid] = { soul = false, seen = now }
+			quietNew = quietNew + 1
+		else
+			map[guid] = nil -- a damaged entry: the shard counts as new
+			gained[#gained + 1] = guid
+		end
+	end
+	table.sort(gained)
+	return map, gained, quietNew
+end
+
+-- Sets guid to soulOrFalse, seen now, in map itself; returns map.
+function Shards.assign(map, guid, soulOrFalse, now)
+	map[guid] = { soul = soulOrFalse, seen = now }
+	return map
 end
 
 -- The soul table remembered for a shard, or nil (unknown or soulless).
@@ -75,14 +106,11 @@ function Shards.soulOf(map, guid)
 	return nil
 end
 
--- Returns a copy of map with guid waiting for a soul's name: pending = { token, ctx }.
+-- Marks guid, in map itself, as waiting for a soul's name: pending = { token, ctx }.
+-- Returns map.
 function Shards.assignPending(map, guid, token, ctx, now)
-	local out = {}
-	for k, v in pairs(map) do
-		out[k] = v
-	end
-	out[guid] = { soul = false, pending = { token = token, ctx = ctx }, seen = now }
-	return out
+	map[guid] = { soul = false, pending = { token = token, ctx = ctx }, seen = now }
+	return map
 end
 
 -- The pending { token, ctx } of a shard, or nil.

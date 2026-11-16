@@ -301,8 +301,15 @@ local function savePosition()
 	end
 end
 
+-- The saved window scale, or the default for a missing or damaged one.
+local function savedScale()
+	local w = ns.db and ns.db.window
+	return ns.Settings.scale(w and w.scale) or ns.Settings.SCALE_DEFAULT
+end
+
 local function placeWindow()
 	local w = ns.db and ns.db.window or {}
+	frame:SetScale(savedScale())
 	frame:ClearAllPoints()
 	if w.point then
 		frame:SetPoint(w.point, UIParent, w.relPoint or w.point, w.x or 0, w.y or 0)
@@ -368,6 +375,14 @@ local function buildTitle()
 		if ns.Options then
 			ns.Options.toggle()
 		end
+	end)
+	gear:SetScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+		GameTooltip:SetText("Options")
+		GameTooltip:Show()
+	end)
+	gear:SetScript("OnLeave", function()
+		GameTooltip:Hide()
 	end)
 
 	titleRight = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -608,6 +623,40 @@ function UI.refresh()
 	if frame and frame:IsShown() then
 		draw("refresh")
 	end
+end
+
+-- The window's scale (Settings.scale: 0.6 to 1.6), saved; returns the scale now in use.
+-- nil or junk leaves it as it is.
+function UI.setScale(value)
+	local scale = ns.Settings.scale(value)
+	if scale and ns.db and ns.db.window then
+		ns.db.window.scale = scale
+		if frame then
+			frame:SetScale(scale)
+		end
+	end
+	return savedScale()
+end
+
+function UI.scale()
+	return savedScale()
+end
+
+-- Back to the middle of the screen at the default scale (/souldex reset): the way out
+-- when the window ended up somewhere it can't be reached.
+function UI.resetWindow()
+	local w = ns.db and ns.db.window
+	if not w then
+		return
+	end
+	w.point, w.relPoint, w.x, w.y, w.scale = nil, nil, nil, nil, nil
+	if frame then
+		placeWindow()
+	end
+end
+
+function UI.isShown()
+	return frame ~= nil and frame:IsShown() and true or false
 end
 
 function UI.currentTab()

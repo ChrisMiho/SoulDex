@@ -504,4 +504,62 @@ describe("View", function()
 			end
 		end)
 	end)
+
+	describe("find", function()
+		before_each(function()
+			dex:recordMob(mob("Defias Pillager"), ctx("Westfall"))
+			dex:recordMob(mob("Defias Pillager"), ctx("Westfall"))
+			dex:recordMob(mob("Defias Pillager"), ctx("The Deadmines", "Dungeons"))
+			dex:recordMob(mob("Young Wolf"), ctx("Elwynn Forest"))
+			dex:recordPlayer(player("Wolfbane", "ROGUE"), ctx("Westfall"))
+			dex:recordRaid(mob("Core Hound"), ctx("Molten Core", "Raids"), 409, 11671)
+		end)
+
+		it("matches any case anywhere in the name, names starting with the text first", function()
+			local found = View.find(dex, "WOLF")
+			assert.equal(2, #found)
+			assert.equal("Wolfbane", found[1].name)
+			assert.equal("player", found[1].kind)
+			assert.equal("ROGUE", found[1].where)
+			assert.equal("Young Wolf", found[2].name)
+		end)
+
+		it("gives a mob's total and the zone it was claimed in most", function()
+			local row = View.find(dex, "pillager")[1]
+			assert.equal(3, row.count)
+			assert.equal("Westfall +1", row.where)
+		end)
+
+		it("names a raid creature's raid", function()
+			local row = View.find(dex, "core h")[1]
+			assert.equal("raid", row.kind)
+			assert.equal("Molten Core", row.where)
+		end)
+
+		it("treats the text as plain text and needs two letters", function()
+			assert.same({}, View.find(dex, "w"))
+			assert.same({}, View.find(dex, "%a+"))
+			assert.same({}, View.find(dex, nil))
+			assert.has_no.errors(function() View.find(dex, "[(") end)
+		end)
+
+		it("writes the chat lines", function()
+			assert.same({
+				"2 souls matching \"wolf\":",
+				"  Wolfbane \195\1511 \194\183 Rogue",
+				"  Young Wolf \195\1511 \194\183 Elwynn Forest",
+			}, View.findLines(dex, " wolf ", { ROGUE = "Rogue" }))
+			assert.same({ "No soul matching \"murloc\" in your dex." }, View.findLines(dex, "murloc"))
+			assert.same({ "Give at least 2 letters to search for." }, View.findLines(dex, "x"))
+		end)
+
+		it("counts what it leaves out", function()
+			for i = 1, 11 do
+				dex:recordMob(mob("Kobold " .. i), ctx("Elwynn Forest"))
+			end
+			local lines = View.findLines(dex, "kobold")
+			assert.equal(1 + View.FIND_LIMIT + 1, #lines)
+			assert.equal("  ...and 3 more. Narrow it down.", lines[#lines])
+		end)
+	end)
 end)

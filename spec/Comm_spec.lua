@@ -36,8 +36,75 @@ describe("Comm", function()
 		LoadAddonFile("src/Raids.lua", ns)
 		LoadAddonFile("src/Points.lua", ns)
 		LoadAddonFile("src/Dex.lua", ns)
+		LoadAddonFile("src/Version.lua", ns)
 		LoadAddonFile("src/Comm.lua", ns)
 		Comm = ns.Comm
+	end)
+
+	it("leaves out entries the decoder would refuse, so the rest stays readable", function()
+		local db = fakeDb()
+		db.mobs[""] = { points = 1, places = {} }
+		db.mobs.Pipe = { name = "|", points = 1, places = {} }
+		db.mobs.Broken = false
+		db.players[""] = { name = "Nobody", count = 1, points = 1 }
+		db.players["Zed-Forever"] = { name = "", count = 1, points = 1 }
+		db.raids[7] = { instanceID = 409, count = 1, points = 1 }
+		db.raids.junk = { name = "Junk", instanceID = 409, count = 1, points = 1 }
+		local back = Comm.decodeDex(Comm.encodeDex(db))
+		assert.is_not_nil(back)
+		assert.is_not_nil(back.mobs.Wolf)
+		assert.is_not_nil(back.mobs.Hogger)
+		assert.is_nil(back.mobs.Pipe)
+		assert.is_not_nil(back.players["Bob-Forever"])
+		assert.is_nil(back.players["Zed-Forever"])
+		assert.is_not_nil(back.raids[12118])
+		assert.is_nil(back.raids[7])
+		assert.is_nil(back.raids[0])
+	end)
+
+	it("never writes a number the decoder would refuse", function()
+		local db = fakeDb()
+		db.mobs.Wolf.minLevel = -1
+		db.mobs.Wolf.places["Westfall"].count = -3
+		db.mobs.Hogger.points = 5e12
+		db.players["Bob-Forever"].count = 0 / 0
+		db.raids[12118].instanceID = -409
+		local str = Comm.encodeDex(db)
+		assert.is_nil(str:find("\t-", 1, true))
+		local back = Comm.decodeDex(str)
+		assert.is_not_nil(back)
+		assert.is_nil(back.mobs.Wolf.minLevel)
+		assert.equal(0, back.mobs.Wolf.places["Westfall"].count)
+		assert.equal(999999999, back.mobs.Hogger.points)
+		assert.equal(0, back.players["Bob-Forever"].count)
+		assert.equal(0, back.raids[12118].instanceID)
+		assert.equal("S\t1\t0\t0\t0\t0", Comm.encodeSummary({ score = -5, mobs = 0, players = 0, raids = 0 }))
+	end)
+
+	it("announces a coming dex with its size", function()
+		assert.equal("W\t1\t48000", Comm.encodeComing(48000))
+		assert.same({ "W", 48000 }, { Comm.decode("W\t1\t48000") })
+		assert.same({ "W", 0 }, { Comm.decode("W\t1\t0") })
+		assert.is_nil(Comm.encodeComing(-1))
+		assert.is_nil(Comm.encodeComing(Comm.MAX_DEX_BYTES + 1))
+		assert.is_nil(Comm.encodeComing("big"))
+		for _, junk in ipairs({ "W", "W\t1", "W\t2\t10", "W\t1\t-1", "W\t1\t1.5", "W\t1\tx", "W\t1\t10\t1",
+			"W\t1\t" .. (Comm.MAX_DEX_BYTES + 1), "Wx\t1\t10" }) do
+			assert.is_nil(Comm.decode(junk), junk)
+		end
+	end)
+
+	it("tells its version, but only a real one", function()
+		assert.equal("V\t1\tv1.4.0", Comm.encodeVersion("v1.4.0"))
+		assert.equal("V\t1\tv1.4.0-beta.1", Comm.encodeVersion("v1.4.0-beta.1"))
+		assert.is_nil(Comm.encodeVersion("dev"))
+		assert.is_nil(Comm.encodeVersion(nil))
+		assert.same({ "V", "v1.4.0" }, { Comm.decode("V\t1\tv1.4.0") })
+		assert.same({ "V", "1.5.2" }, { Comm.decode("V\t1\t1.5.2") })
+		for _, junk in ipairs({ "V", "V\t1", "V\t2\tv1.4.0", "V\t1\tdev", "V\t1\t", "V\t1\tv1.4.0\tx",
+			"V\t1\tv1.4.0|cffff0000", "V\t1\t" .. string.rep("9", 40) }) do
+			assert.is_nil(Comm.decode(junk), junk)
+		end
 	end)
 
 	it("has the prefix and version", function()

@@ -1,6 +1,9 @@
 describe("Init", function()
 	local STUBBED = {
 		"C_AddOns", "CreateFrame", "SlashCmdList", "DEFAULT_CHAT_FRAME", "SLASH_SOULDEX1", "SLASH_SOULDEX2",
+		"BINDING_HEADER_SOULDEX", "BINDING_NAME_SOULDEX_TOGGLE", "SoulDex_Toggle", "GameTooltip",
+		"SoulDex_OnAddonCompartmentClick", "SoulDex_OnAddonCompartmentEnter", "SoulDex_OnAddonCompartmentLeave",
+		"LOCALIZED_CLASS_NAMES_MALE",
 	}
 	local saved, printed, events, onEvent
 
@@ -82,6 +85,16 @@ describe("Init", function()
 			assert.is_nil(source:find("@project" .. "-version@", 1, true))
 		end)
 
+		it("stays quiet when the login message is switched off", function()
+			local ns = load()
+			ns.db = { settings = { greeting = false } }
+			onEvent(nil, "PLAYER_LOGIN")
+			assert.same({}, printed)
+			ns.db.settings.greeting = true
+			onEvent(nil, "PLAYER_LOGIN")
+			assert.equal(1, #printed)
+		end)
+
 		it("prints nothing for ADDON_LOADED", function()
 			load()
 			onEvent(nil, "ADDON_LOADED", "SomeOtherAddon")
@@ -127,6 +140,101 @@ describe("Init", function()
 			for _, cmd in ipairs(commands) do
 				assert.truthy(all:find(cmd, 1, true), cmd)
 			end
+		end)
+	end)
+
+	describe("new commands", function()
+		local ns, calls
+
+		before_each(function()
+			ns = load()
+			calls = {}
+			ns.db = {}
+			ns.UI = {
+				toggle = function() calls[#calls + 1] = "toggle" end,
+				resetWindow = function() calls[#calls + 1] = "reset" end,
+				setScale = function(value)
+					calls[#calls + 1] = "scale " .. value
+					return ns.Settings.scale(value)
+				end,
+			}
+			ns.Options = {
+				toggle = function() calls[#calls + 1] = "options" end,
+				testPopup = function() calls[#calls + 1] = "test" end,
+			}
+		end)
+
+		it("prints the version", function()
+			ns.OnSlash("version")
+			assert.same({ "|cff9482c9SoulDex|r version dev." }, printed)
+		end)
+
+		it("resets and scales the window", function()
+			ns.OnSlash("reset")
+			ns.OnSlash("scale 120")
+			assert.same({ "reset", "scale 120" }, calls)
+			assert.truthy(printed[2]:find("Window scale: 120%.", 1, true))
+		end)
+
+		it("explains a scale that is no number, and changes nothing", function()
+			ns.OnSlash("scale huge")
+			assert.same({}, calls)
+			assert.truthy(printed[1]:find("60 to 160", 1, true))
+		end)
+
+		it("shows the sample popup", function()
+			ns.OnSlash("test")
+			assert.same({ "test" }, calls)
+		end)
+
+		it("prints what find gives", function()
+			ns.dex = {}
+			ns.View = { findLines = function(_, text) return { "one " .. text, "two" } end }
+			ns.OnSlash("find wolf")
+			assert.same({ "|cff9482c9SoulDex|r one wolf", "|cff9482c9SoulDex|r two" }, printed)
+		end)
+
+		it("says so when find comes before the dex is loaded", function()
+			ns.OnSlash("find wolf")
+			assert.truthy(printed[1]:find("still loading", 1, true))
+		end)
+
+		it("lists every command in the help", function()
+			ns.OnSlash("help")
+			local all = table.concat(printed, "\n")
+			for _, word in ipairs({ "find <text>", "scale", "reset", "test", "version" }) do
+				assert.truthy(all:find("/souldex " .. word, 1, true), word)
+			end
+		end)
+
+		it("the key binding and the addon button open the window; a right-click the options", function()
+			assert.equal("SoulDex", _G.BINDING_HEADER_SOULDEX)
+			assert.equal("string", type(_G.BINDING_NAME_SOULDEX_TOGGLE))
+			_G.SoulDex_Toggle()
+			_G.SoulDex_OnAddonCompartmentClick("SoulDex", "LeftButton")
+			_G.SoulDex_OnAddonCompartmentClick("SoulDex", "RightButton")
+			assert.same({ "toggle", "toggle", "options" }, calls)
+		end)
+
+		it("the addon button's tooltip names the rank once the dex is loaded", function()
+			assert.same({ "Click to open. Right-click for options." }, ns.CompartmentLines())
+			LoadAddonFile("src/Ranks.lua", ns)
+			ns.dex = { score = function() return 612 end }
+			assert.equal("Soul Thief \194\183 612 pts", ns.CompartmentLines()[1])
+			local lines = {}
+			_G.GameTooltip = {
+				SetOwner = function() end,
+				SetText = function(_, text) lines[#lines + 1] = text end,
+				AddLine = function(_, text) lines[#lines + 1] = text end,
+				Show = function() end,
+				Hide = function() lines.hidden = true end,
+			}
+			_G.SoulDex_OnAddonCompartmentEnter("SoulDex", {})
+			assert.equal("SoulDex dev", lines[1])
+			assert.equal(3, #lines)
+			_G.SoulDex_OnAddonCompartmentLeave()
+			assert.is_true(lines.hidden)
+			assert.has_no.errors(function() _G.SoulDex_OnAddonCompartmentEnter("SoulDex", nil) end)
 		end)
 	end)
 end)

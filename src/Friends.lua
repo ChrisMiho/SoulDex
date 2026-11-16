@@ -6,6 +6,7 @@ local Friends = {}
 ns.Friends = Friends
 
 local ONLINE_WINDOW = 600
+local STALE_AFTER = 30 * 86400 -- people you never added are forgotten this long after they were last seen
 
 -- string.lower/upper only handle ASCII in Lua 5.1, so the Latin-1 Supplement
 -- letters (UTF-8 "\195" + \128-\158 capitals, \160-\190 lowercase; \151 and \183
@@ -56,8 +57,10 @@ end
 
 -- Brings a saved store up to the current spelling rule: keys that normalise
 -- differently are merged into their normalised key (newest seen/summary wins, added
--- if either was), and the local player's own entry is dropped.
-function Friends.tidy(store, me)
+-- if either was), and the local player's own entry is dropped. With now (wall-clock
+-- seconds), people who were never added and were last seen more than 30 days ago are
+-- dropped too; an entry with no last-seen time is left alone.
+function Friends.tidy(store, me, now)
 	local myKey = Friends.normalise(me)
 	local oldKeys = {}
 	for key in pairs(store) do
@@ -82,6 +85,17 @@ function Friends.tidy(store, me)
 	end
 	if myKey then
 		store[myKey] = nil
+	end
+	if type(now) == "number" then
+		local stale = {}
+		for key, entry in pairs(store) do
+			if not entry.added and type(entry.seen) == "number" and now - entry.seen > STALE_AFTER then
+				stale[#stale + 1] = key
+			end
+		end
+		for _, key in ipairs(stale) do
+			store[key] = nil
+		end
 	end
 	return store
 end

@@ -1,0 +1,7 @@
+<!-- Key bindings (Options > Keybindings > AddOns). The game loads this file by its name;
+     it is not listed in SoulDex.toc. The labels are set in src/Init.lua. -->
+<Bindings>
+	<Binding name="SOULDEX_TOGGLE" header="SOULDEX" category="ADDONS">
+		if SoulDex_Toggle then SoulDex_Toggle() end
+	</Binding>
+</Bindings>

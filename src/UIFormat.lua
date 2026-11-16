@@ -460,16 +460,23 @@ end
 
 -- The Me tab (spec 5.8) ------------------------------------------------------------------
 
--- "today", "yesterday" or the date.
+-- "today", "yesterday" or the date. Days are the player's local calendar days, read
+-- through fmt (the game's date), so they agree with the dates shown beside them.
 function F.whenText(t, now, fmt)
 	if type(t) ~= "number" then
 		return nil
 	end
-	local days = type(now) == "number" and (math.floor(now / 86400) - math.floor(t / 86400)) or nil
-	if days == 0 then
-		return "today"
-	elseif days == 1 then
-		return "yesterday"
+	if type(now) == "number" then
+		fmt = fmt or date
+		local day = fmt("%Y%j", t)
+		if day == fmt("%Y%j", now) then
+			return "today"
+		end
+		-- Around noon of the day before `now`: an hour either way (clock changes) is still that day.
+		local hour = tonumber(fmt("%H", now)) or 0
+		if day == fmt("%Y%j", now - (hour + 12) * 3600) then
+			return "yesterday"
+		end
 	end
 	return F.dateText(t, fmt)
 end

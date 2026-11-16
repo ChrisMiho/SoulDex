@@ -27,5 +27,6 @@ Argument: the new version, e.g. `1.3.0` (SemVer). Ask for it if it is missing.
    (`gh run watch <id> --exit-status`).
 8. Save the published zip locally: `gh release download v<version> -p '*.zip' -D releases --clobber`.
    `releases/` is git-ignored; it holds the exact zip from the GitHub release. The
-   workflow uploads the same zip to CurseForge (needs the `CF_API_KEY` repo secret),
+   workflow uploads the same zip to CurseForge (needs the `CF_API_KEY` repo secret;
+   a tag with "alpha" or "beta" in its name is a GitHub pre-release only),
    so this copy is a backup. Report the release URL and the local zip path.
