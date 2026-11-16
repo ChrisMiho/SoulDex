@@ -1,17 +1,13 @@
-## 💜 SoulDex 1.4.0-beta.2: Sharper Claws (test build)
+## 💜 SoulDex 1.4.0-beta.3: Unsealed Letters (test build)
 
-*A test build. Nothing in it has been seen in game yet: expect rough edges, and say what you find.*
+*A test build, played in game before it went out: the shards answer to their souls again, wherever you last collected your mail.*
 
 **What's new**
 
-- **Easier to reach.** SoulDex is in the game's addon list by the minimap (click to open, right-click for options), has a key binding, and its settings are a page of the game's own Settings window.
-- **Find a soul.** `/dex find <text>` looks any soul up by name. Also new: `/dex scale`, `/dex reset`, `/dex test` and `/dex version`.
-- **More options.** Window size, a sample popup, a window reset, and a switch for the login message.
-- **No more wrong names.** A Shadowburn followed by a Drain Soul on another mob, or a quick Tab as a cast went off in a dungeon, could name a shard after the wrong mob. Recasting Drain Soul on the same dungeon mob no longer leaves its shard unnamed.
-- **Sizes.** A SIZE section in the options makes the window and the popups bigger or smaller, from 60% to 160%.
-- **Experimental, off by default:** "Boss names after the fight (test)". Tick it, drain a dungeon boss and keep it targeted until just after it dies.
-- **Friends that work at scale.** Browsing a large dex no longer times out, Clean up can't remove guild members, and a friend who hasn't answered yet can be removed.
+- **Mailbox fix.** After a visit to a mailbox, no Drain Soul shard was named and no popup showed until a reload. The game never says the mailbox closed; SoulDex now sees it anyway.
+- **Bank, vendor and trade checked.** A shard that lands while one of them is open still stays unnamed (it might not be a kill's), and each one now ends cleanly when you close it or walk away.
+- **Everything from beta.2.** The addon-list button, key binding, `/dex find`, window and popup sizes, fewer wrong names, and the Friends fixes.
 
-**Install:** download `SoulDex-v1.4.0-beta.2-forever.zip` below and unzip it into `Interface\AddOns`, replacing your old `SoulDex` folder. This build adds new files, so **fully restart the game** (a `/reload` is not enough).
+**Install:** download `SoulDex-v1.4.0-beta.3-forever.zip` below and unzip it into `Interface\AddOns`, replacing your old `SoulDex` folder. Coming from 1.4.0-beta.2, a `/reload` is enough; coming from 1.3.0 or older, **fully restart the game**.
 
-*Test it hard, warlock.*
+*Go and collect, warlock. The post can wait.*
