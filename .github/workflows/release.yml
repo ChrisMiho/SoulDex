@@ -6,11 +6,11 @@ name: Release
 # With the CF_API_KEY secret set and X-Curse-Project-ID in SoulDex.toc, the
 # packager uploads the same zip to CurseForge too. A tag with "alpha" or "beta"
 # in its name is a test build: it becomes a GitHub pre-release only and is NOT
-# sent to CurseForge ("-p 0" below unsets the project id), so an untested build
-# never reaches players' addon managers. Remove that condition to publish test
-# builds to CurseForge as alpha or beta files.
-# (v1.4.0-beta.1 did go to CurseForge: the first form of this condition,
-# "cond && '' || secret", always gave the secret, because '' counts as false.)
+# sent to CurseForge, so an untested build never reaches players' addon
+# managers. Two things keep it off, either one enough: the test-build step is
+# never given the CurseForge key, and "-p 0" unsets the project id.
+# (v1.4.0-beta.1 did go to CurseForge: a first attempt withheld the key with
+# "cond && '' || secret", which always gives the secret, because '' is false.)
 on:
   push:
     tags:
@@ -29,11 +29,21 @@ jobs:
 
       # The zip and its CurseForge display name are always
       # SoulDex-v<version>-forever.zip; scripts/build.sh uses the same name.
-      - uses: BigWigsMods/packager@v2.6.1
+      # Exactly one of the next two steps runs.
+      - name: Package a test build (GitHub pre-release only, no CurseForge)
+        if: contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta')
+        uses: BigWigsMods/packager@v2.6.1
         with:
-          args: >-
-            -n "{package-name}-{project-version}-forever:{package-name}-{project-version}-forever.zip"
-            ${{ (contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta')) && '-p 0' || '' }}
+          args: -p 0 -n "{package-name}-{project-version}-forever:{package-name}-{project-version}-forever.zip"
+        env:
+          GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
+          # No CF_API_KEY here, on purpose: without it the packager cannot upload.
+
+      - name: Package a release (GitHub and CurseForge)
+        if: ${{ !(contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta')) }}
+        uses: BigWigsMods/packager@v2.6.1
+        with:
+          args: -n "{package-name}-{project-version}-forever:{package-name}-{project-version}-forever.zip"
         env:
           GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
           CF_API_KEY: ${{ secrets.CF_API_KEY }}

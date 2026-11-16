@@ -1,4 +1,4 @@
-## 💜 SoulDex 1.4.0-beta.1: Sharper Claws (test build)
+## 💜 SoulDex 1.4.0-beta.2: Sharper Claws (test build)
 
 *A test build. Nothing in it has been seen in game yet: expect rough edges, and say what you find.*
 
@@ -8,8 +8,10 @@
 - **Find a soul.** `/dex find <text>` looks any soul up by name. Also new: `/dex scale`, `/dex reset`, `/dex test` and `/dex version`.
 - **More options.** Window size, a sample popup, a window reset, and a switch for the login message.
 - **No more wrong names.** A Shadowburn followed by a Drain Soul on another mob, or a quick Tab as a cast went off in a dungeon, could name a shard after the wrong mob. Recasting Drain Soul on the same dungeon mob no longer leaves its shard unnamed.
+- **Sizes.** A SIZE section in the options makes the window and the popups bigger or smaller, from 60% to 160%.
+- **Experimental, off by default:** "Boss names after the fight (test)". Tick it, drain a dungeon boss and keep it targeted until just after it dies.
 - **Friends that work at scale.** Browsing a large dex no longer times out, Clean up can't remove guild members, and a friend who hasn't answered yet can be removed.
 
-**Install:** download `SoulDex-v1.4.0-beta.1-forever.zip` below and unzip it into `Interface\AddOns`, replacing your old `SoulDex` folder. This build adds new files, so **fully restart the game** (a `/reload` is not enough).
+**Install:** download `SoulDex-v1.4.0-beta.2-forever.zip` below and unzip it into `Interface\AddOns`, replacing your old `SoulDex` folder. This build adds new files, so **fully restart the game** (a `/reload` is not enough).
 
 *Test it hard, warlock.*
