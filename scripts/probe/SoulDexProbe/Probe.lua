@@ -220,6 +220,15 @@ local OTHER_EVENTS = {
 	"ENCOUNTER_START", "ENCOUNTER_END", "BOSS_KILL", "PARTY_KILL", "ADDON_RESTRICTION_STATE_CHANGED",
 	"CHAT_MSG_MONSTER_YELL", "CHAT_MSG_MONSTER_EMOTE", "CHAT_MSG_MONSTER_SAY", "CHAT_MSG_RAID_BOSS_EMOTE",
 	"CHAT_MSG_WHISPER", "LOOT_OPENED", "INSTANCE_ENCOUNTER_ENGAGE_UNIT",
+	-- Shard-source windows SoulDex goes quiet for: does each close event fire on this client?
+	"BANKFRAME_OPENED", "BANKFRAME_CLOSED", "MAIL_SHOW", "MAIL_CLOSED", "TRADE_SHOW", "TRADE_CLOSED",
+	"MERCHANT_SHOW", "MERCHANT_CLOSED", "PLAYER_INTERACTION_MANAGER_FRAME_SHOW",
+	"PLAYER_INTERACTION_MANAGER_FRAME_HIDE",
+}
+local WINDOW_EVENTS = {
+	BANKFRAME_OPENED = true, BANKFRAME_CLOSED = true, MAIL_SHOW = true, MAIL_CLOSED = true,
+	TRADE_SHOW = true, TRADE_CLOSED = true, MERCHANT_SHOW = true, MERCHANT_CLOSED = true,
+	PLAYER_INTERACTION_MANAGER_FRAME_SHOW = true, PLAYER_INTERACTION_MANAGER_FRAME_HIDE = true,
 }
 
 local frame = CreateFrame("Frame")
@@ -252,6 +261,8 @@ frame:SetScript("OnEvent", function(_, event, ...)
 				.. " | " .. unitLine("target"))
 		elseif event == "PLAYER_TARGET_CHANGED" then
 			log(event .. " | " .. unitLine("target"))
+		elseif WINDOW_EVENTS[event] then
+			log(event .. " " .. argsLine(...), true)
 		elseif event == "CHAT_MSG_WHISPER" then
 			-- Only the probe's own replies: never log anyone's real whispers.
 			local text = ...
