@@ -97,17 +97,4 @@ in game.
 | `/dex test` | Show a sample popup |
 | `/dex version` | The version you are running |
 
-### How claiming works on WoW: Forever
-
-Forever hides the combat log from addons, so SoulDex reads your target when you start
-**Drain Soul** (or cast **Shadowburn**) and names the next new shard after it. When the
-game won't give up a name, the soul counts as an **Unknown soul** in that zone (no
-points, no popup). SoulDex never guesses: a shard it can't match is left unnamed rather
-than recorded under the wrong name. Shards from before you installed it stay unnamed.
-
-*Experimental, off by default:* "Boss names after the fight (test)" names a boss drained
-mid-fight once the fight ends, if you keep it targeted.
-
-Raid creature lists are based on Classic Era data and may differ slightly from Forever.
-
 *Images are illustrations of the in-game window.*

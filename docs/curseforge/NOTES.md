@@ -16,7 +16,8 @@ should replace them. Upload steps are in `SUBMISSION.md`.
   - New section, **The grimoire** (text only, no image): the switches in plain words,
     SIZE (60–160%), the Settings > AddOns page and the key binding.
   - Commands table: every command `/dex help` lists (`src/Init.lua`), and a pointer to `/dex help`.
-  - One line on the experimental "Boss names after the fight (test)" option.
+  - Removed the "How claiming works on WoW: Forever" section (and with it the
+    experimental option and the Classic Era raid-data note).
   - Image links 1–5 are now placeholders (`MOBS_IMAGE_URL` … `ME_IMAGE_URL`), since
     all five images are new uploads. The banner keeps its current URL (unchanged).
 - `README.md`: the same additions.
