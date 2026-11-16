@@ -76,7 +76,7 @@ optional and for big moments only.
 | Command | What it does |
 |---------|--------------|
 | `/souldex` or `/dex` | Open or close the SoulDex window |
-| `/souldex options` or `/dex options` | Open the settings (also the gear on the window) |
+| `/souldex options` or `/dex options` | Open the settings: the switches, and the size of the window and popups (also the gear on the window) |
 | `/souldex add <name>` or `/dex add <name>` | Add a friend by name |
 | `/souldex remove <name>` or `/dex remove <name>` | Remove a friend |
 | `/souldex find <text>` or `/dex find <text>` | Look a soul up by name |
@@ -86,8 +86,9 @@ optional and for big moments only.
 | `/souldex version` or `/dex version` | Print the version you are running |
 
 The new-soul popup, the sound, guild announcements, claim chatter and the login
-message each have their own on/off switch in the settings, which are also a page
-of the game's own Settings window (Options > AddOns > SoulDex).
+message each have their own on/off switch in the settings, with the size of the
+window and of the popups under them. The settings are also a page of the game's
+own Settings window (Options > AddOns > SoulDex).
 
 SoulDex is in the game's addon list by the minimap (click to open, right-click
 for the settings), and you can bind a key to it under Options > Keybindings >

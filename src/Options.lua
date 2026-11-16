@@ -1,6 +1,7 @@
--- The options: switches saved to db.settings the moment they are clicked, the window's
--- size, a sample popup and a window reset. Shown in a small panel (/souldex options or
--- the gear on the window) and as a page of the game's own Settings window. Game code.
+-- The options: switches saved to db.settings the moment they are clicked; under SIZE, the
+-- size of the window and of the popups; a sample popup and a window reset. Shown in a
+-- small panel (/souldex options or the gear on the window) and as a page of the game's
+-- own Settings window. Game code.
 local _, ns = ...
 
 local Options = {}
@@ -15,32 +16,106 @@ Options.ITEMS = {
 	{ key = "lateAsk", label = "Boss names after the fight (test)" },
 }
 
+-- The SIZE rows: each is a label, then - 100% +. get/set read and save a scale.
+Options.SIZES = {
+	{
+		key = "window",
+		label = "Window",
+		get = function()
+			return ns.UI.scale()
+		end,
+		set = function(scale)
+			ns.UI.setScale(scale)
+		end,
+	},
+	{
+		key = "popup",
+		label = "Popup",
+		get = function()
+			local settings = ns.db and ns.db.settings
+			return ns.Settings.scale(settings and settings.popupScale) or ns.Settings.SCALE_DEFAULT
+		end,
+		-- The popups take the new size at once, and a silent sample shows it.
+		set = function(scale, preview)
+			if not (ns.db and ns.db.settings) then
+				return
+			end
+			ns.db.settings.popupScale = scale
+			if ns.Toast then
+				ns.Toast.rescale()
+				if preview then
+					Options.testPopup(true)
+				end
+			end
+		end,
+	},
+}
+
 local WIDTH = 200
 local ROW_H = 24
 local TOP = 24 -- the floating panel's title strip
-local HEIGHT = TOP + #Options.ITEMS * ROW_H + 2 * 26 + 8
+local SIZE_GAP = 4 -- from the last switch to the rule above SIZE
+local SIZE_HEAD, SIZE_ROW = 20, 22
+local BUTTON_GAP, BUTTON_H = 4, 18
+-- What fill() draws, top to bottom: the switches, the SIZE section, the two buttons.
+local FILL_H = #Options.ITEMS * ROW_H + SIZE_GAP + SIZE_HEAD + #Options.SIZES * SIZE_ROW + BUTTON_GAP + BUTTON_H
+local HEIGHT = TOP + FILL_H + 8
+local DIM = 0.35 -- a - or + that can go no further
 local panel
 -- Every set of controls built (the floating panel's, the game Settings page's):
--- { checks = { CheckButton... }, scale = FontString }, kept in step by sync.
+-- { checks = { CheckButton... }, steppers = { { minus, plus, value }... }, reset = Button },
+-- kept in step by sync.
 local sets = {}
-
-local function percent(scale)
-	return math.floor(scale * 100 + 0.5) .. "%"
-end
 
 local function sync()
 	local settings = ns.db and ns.db.settings or {}
+	local S = ns.Settings
 	for _, set in ipairs(sets) do
 		for i, item in ipairs(Options.ITEMS) do
 			set.checks[i]:SetChecked(settings[item.key] == true)
 		end
-		set.scale:SetText(percent(ns.UI.scale()))
+		local changed = false
+		for i, size in ipairs(Options.SIZES) do
+			local scale = size.get()
+			local stepper = set.steppers[i]
+			stepper.value:SetText(S.percent(scale))
+			stepper.minus:SetAlpha(scale <= S.SCALE_MIN and DIM or 1)
+			stepper.plus:SetAlpha(scale >= S.SCALE_MAX and DIM or 1)
+			changed = changed or scale ~= S.SCALE_DEFAULT
+		end
+		-- "Reset" is there only while a size is not 100%.
+		if changed then
+			set.reset:Show()
+		else
+			set.reset:Hide()
+		end
 	end
 end
 
--- A sample of the new-soul popup (and its sound, when that is on), so the player can
--- see and hear what the switches do without draining anything. Nothing is recorded.
-function Options.testPopup()
+-- Brings every set of controls in step with what is saved: for a size changed from
+-- outside the options (/souldex scale, /souldex reset) while they are open.
+function Options.refresh()
+	if #sets > 0 then
+		sync()
+	end
+end
+
+-- One step of a SIZE row's - or + (by: -1 or 1), kept within the limits.
+local function step(size, by)
+	return function()
+		local S = ns.Settings
+		local scale = S.scale(size.get() + by * S.SCALE_STEP)
+		if scale ~= size.get() then
+			size.set(scale, true)
+			sync()
+		end
+	end
+end
+
+-- A sample of the new-soul popup, so the player can see (and, when the sound is on,
+-- hear) what the options do without draining anything, also while the popup itself is
+-- switched off. quiet: no sound (the Popup size row's preview). Nothing is recorded.
+function Options.testPopup(quiet)
 	local dex = ns.dex
 	if not (dex and ns.Toast and ns.Ranks and ns.Rarity) then
 		return
@@ -48,16 +123,16 @@ function Options.testPopup()
 	local info = { name = "Hogger", classification = "elite" }
 	local result = { isNew = true, points = 5, total = dex:uniqueSouls() + 1, kind = "mob" }
 	ns.Toast.show(result, info, { zone = "Elwynn Forest" }, ns.Rarity.color("elite"), ns.Ranks.of(dex:score()).emblem)
-	if ns.db and ns.db.settings.sound and ns.Capture then
+	if not quiet and ns.db and ns.db.settings.sound and ns.Capture then
 		pcall(PlaySound, ns.Capture.soundFor(result))
 	end
 end
 
--- Builds the switches, the window-size row and the two buttons into parent, from
--- (left, top) down. width: how far the rows reach (the labels are clickable).
+-- Builds the switches, the SIZE section and the two buttons into parent, from (left,
+-- top) down. width: how far the rows reach (the labels are clickable).
 local function fill(parent, left, top, width)
 	local UI, C = ns.UI, ns.UIFormat.COLORS
-	local set = { checks = {} }
+	local set = { checks = {}, steppers = {} }
 	for i, item in ipairs(Options.ITEMS) do
 		local check = CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")
 		check:SetSize(22, 22)
@@ -80,37 +155,72 @@ local function fill(parent, left, top, width)
 		set.checks[i] = check
 	end
 
-	-- Window size: a label, then - 100% +.
-	local y = top - #Options.ITEMS * ROW_H - 4
-	local sizeLabel = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-	sizeLabel:SetPoint("TOPLEFT", left + 4, y - 4)
-	sizeLabel:SetText("Window size")
-	UI.textColor(sizeLabel, C.TEXT)
-	local function step(by)
-		return function()
-			UI.setScale(UI.scale() + by)
-			sync()
-		end
-	end
-	local plus = UI.button(parent, "+", 18, 16, step(ns.Settings.SCALE_STEP))
-	plus:SetPoint("TOPLEFT", left + width - 30, y)
-	set.scale = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-	set.scale:SetPoint("RIGHT", plus, "LEFT", -4, 0)
-	set.scale:SetWidth(34)
-	set.scale:SetJustifyH("CENTER")
-	UI.textColor(set.scale, C.WHITE)
-	local minus = UI.button(parent, "-", 18, 16, step(-ns.Settings.SCALE_STEP))
-	minus:SetPoint("RIGHT", set.scale, "LEFT", -4, 0)
+	-- SIZE: a rule, the heading with "Reset" on its right, and one row per size.
+	local right = left + width - 2 -- the right edge the + buttons and "Reset" line up on
+	local y = top - #Options.ITEMS * ROW_H - SIZE_GAP
+	local rule = parent:CreateTexture(nil, "ARTWORK")
+	rule:SetSize(width, 1)
+	rule:SetPoint("TOPLEFT", left, y)
+	UI.fill(rule, "3d2d5c")
+	local head = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	head:SetPoint("TOPLEFT", left + 6, y - 7)
+	head:SetText("SIZE")
+	head:SetTextHeight(8)
+	UI.textColor(head, C.HEADER)
 
-	y = y - 24
+	local reset = CreateFrame("Button", nil, parent)
+	reset:SetSize(36, 14)
+	reset:SetPoint("TOPLEFT", right - 36, y - 4)
+	reset.label = reset:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	reset.label:SetPoint("RIGHT", 0, 0)
+	reset.label:SetText("Reset")
+	UI.textColor(reset.label, C.MUTED)
+	reset:SetScript("OnEnter", function(self)
+		UI.textColor(self.label, C.WHITE)
+	end)
+	reset:SetScript("OnLeave", function(self)
+		UI.textColor(self.label, C.MUTED)
+	end)
+	reset:SetScript("OnClick", function()
+		for _, size in ipairs(Options.SIZES) do
+			if size.get() ~= ns.Settings.SCALE_DEFAULT then
+				size.set(ns.Settings.SCALE_DEFAULT, false)
+			end
+		end
+		sync()
+	end)
+	set.reset = reset
+
+	for i, size in ipairs(Options.SIZES) do
+		local rowY = y - SIZE_HEAD - (i - 1) * SIZE_ROW
+		local label = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+		label:SetPoint("TOPLEFT", left + 6, rowY - 3)
+		label:SetText(size.label)
+		UI.textColor(label, C.TEXT)
+		local plus = UI.button(parent, "+", 18, 16, step(size, 1))
+		plus:SetPoint("TOPLEFT", right - 18, rowY)
+		local value = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+		value:SetPoint("RIGHT", plus, "LEFT", -4, 0)
+		value:SetWidth(36)
+		value:SetJustifyH("CENTER")
+		UI.textColor(value, C.WHITE)
+		local minus = UI.button(parent, "-", 18, 16, step(size, -1))
+		minus:SetPoint("RIGHT", value, "LEFT", -4, 0)
+		set.steppers[i] = { minus = minus, plus = plus, value = value }
+	end
+
+	-- Under SIZE: a sample popup (with its sound), and the window back to the middle.
+	y = y - SIZE_HEAD - #Options.SIZES * SIZE_ROW - BUTTON_GAP
 	local half = math.floor((width - 16) / 2)
-	local test = UI.button(parent, "Test popup", half, 18, Options.testPopup)
+	local test = UI.button(parent, "Test popup", half, BUTTON_H, function()
+		Options.testPopup()
+	end)
 	test:SetPoint("TOPLEFT", left + 4, y)
-	local reset = UI.button(parent, "Reset window", half, 18, function()
+	local resetWindow = UI.button(parent, "Reset window", half, BUTTON_H, function()
 		UI.resetWindow()
 		sync()
 	end)
-	reset:SetPoint("LEFT", test, "RIGHT", 4, 0)
+	resetWindow:SetPoint("LEFT", test, "RIGHT", 4, 0)
 
 	sets[#sets + 1] = set
 	return set

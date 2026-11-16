@@ -9,6 +9,7 @@ exclude_files = {
 	".luarocks/", -- LuaRocks installed by CI (leafo/gh-actions-luarocks)
 	".luacheckrc",
 	".worktrees/",   -- package worktrees
+	".claude/worktrees/", -- agent worktrees (whole checkouts; linted in their own tree)
 	".superpowers/", -- local tooling state
 	"scripts/probe/", -- throwaway in-game probes (not shipped)
 }

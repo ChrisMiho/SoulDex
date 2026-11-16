@@ -7,7 +7,8 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 - SoulDex is now in the game's addon list by the minimap (click to open, right-click for options), has a key binding (Options > Keybindings > AddOns), and its settings are also a page of the game's own Settings window.
 - New commands: `/dex find <text>` looks a soul up by name, `/dex scale <60-160>` and `/dex reset` size and re-centre the window, `/dex test` shows a sample popup, `/dex version` prints the version.
-- New options: window size, "Test popup", "Reset window", and a switch for the login message.
+- New in the options: a SIZE section to make the window and the popups bigger or smaller, from 60% to 160%.
+- New options: "Test popup", "Reset window", and a switch for the login message.
 - One chat line when someone in your guild or group runs a newer SoulDex.
 - Fixed: a shard could be named after the wrong mob (a Shadowburn followed by a Drain Soul on another mob; changing target as a cast went off in a dungeon).
 - Fixed: recasting Drain Soul on the same dungeon mob left its shard unnamed.

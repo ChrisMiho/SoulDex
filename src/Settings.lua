@@ -8,16 +8,19 @@ ns.Settings = Settings
 -- greeting: the "loaded" chat line after each login and /reload.
 -- lateAsk: experimental, off unless asked for: a boss drained during its encounter keeps
 -- its shard held, and its name is asked for when the fight ends (spec 4.2).
+-- popupScale: the size of the new-soul and rank-up popups (a scale, see Settings.scale).
 Settings.DEFAULTS = {
 	popup = true, sound = true, announce = true, chatter = false, greeting = true, lateAsk = false,
+	popupScale = 1,
 }
 
--- The window's scale: its limits, the step of the options' - and + buttons, the default.
+-- The sizes of the window and the popups: the limits, the step of the options' - and +
+-- buttons, the default.
 Settings.SCALE_MIN, Settings.SCALE_MAX, Settings.SCALE_STEP, Settings.SCALE_DEFAULT = 0.6, 1.6, 0.1, 1
 
--- A usable window scale from anything: a number or numeric text, in percent ("120") or
--- as a factor ("1.2"), rounded to the nearest 5% and kept within the limits. nil when it
--- is no number at all.
+-- A usable scale from anything: a number or numeric text, in percent ("120") or as a
+-- factor ("1.2"), rounded to the nearest 5% and kept within the limits. nil when it is
+-- no number at all.
 function Settings.scale(value)
 	local n = tonumber(type(value) == "string" and value:match("^%s*(.-)%s*%%?%s*$") or value)
 	if not n or n ~= n or n <= 0 then
@@ -30,7 +33,13 @@ function Settings.scale(value)
 	return math.max(Settings.SCALE_MIN, math.min(Settings.SCALE_MAX, n))
 end
 
--- Returns a new table with every default key present; non-booleans fall back to the default.
+-- A scale as the options show it: 1.1 -> "110%".
+function Settings.percent(scale)
+	return math.floor(scale * 100 + 0.5) .. "%"
+end
+
+-- Returns a new table with every default key present: switches that are no boolean and
+-- scales that are no usable number fall back to the default.
 function Settings.normalise(t)
 	local result = {}
 	for key, default in pairs(Settings.DEFAULTS) do
@@ -38,7 +47,9 @@ function Settings.normalise(t)
 		if type(t) == "table" then
 			value = t[key]
 		end
-		if type(value) == "boolean" then
+		if type(default) == "number" then
+			result[key] = Settings.scale(value) or default
+		elseif type(value) == "boolean" then
 			result[key] = value
 		else
 			result[key] = default

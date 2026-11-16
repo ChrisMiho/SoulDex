@@ -7,7 +7,7 @@ ns.Toast = Toast
 local WIDTH, HEIGHT = 330, 54
 local SLIDE_IN, HOLD, FADE_OUT = 0.3, 4, 0.5
 local TOP_OFFSET, SLIDE_DISTANCE = -140, 30
-local RANK_OFFSET = TOP_OFFSET - HEIGHT - 8 -- the rank-up popup sits under the soul's
+local RANK_GAP = 8 -- the rank-up popup sits this far under the soul's
 local SHINE_TIME, SHINE_W = 0.45, 26 -- one pass of light across the popup as it lands
 
 -- Second line: "<zone> · Soul #<total>", where total is how many different souls the dex
@@ -78,10 +78,18 @@ function Toast.rankSub(rank)
 	return place .. " \194\183 the highest rank"
 end
 
+-- Where the two popups rest below the top of the screen at a popup scale, in the popup's
+-- own (scaled) units: the soul's stays at the same place on screen at every size, and
+-- the rank-up popup sits just under it.
+function Toast.offsets(scale)
+	local soul = TOP_OFFSET / scale
+	return soul, soul - HEIGHT - RANK_GAP
+end
+
 local frames = {}
 
--- One popup frame resting at `offset` below the top of the screen.
-local function build(offset)
+-- One popup frame; frame.offset (set by applyScale) is where it rests.
+local function build()
 	local frame = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
 	frame:SetSize(WIDTH, HEIGHT)
 	frame:SetFrameStrata("FULLSCREEN_DIALOG")
@@ -138,6 +146,7 @@ local function build(offset)
 	frame:SetScript("OnUpdate", function(self, elapsed)
 		self.t = (self.t or 0) + elapsed
 		local t = self.t
+		local offset = self.offset
 		local y, alpha = offset, 1
 		if t < SLIDE_IN then
 			local p = t / SLIDE_IN
@@ -166,16 +175,33 @@ local function build(offset)
 	return frame
 end
 
+-- Sizes both popups to the saved popup size (the options' "Popup" row).
+local function applyScale()
+	local settings = ns.db and ns.db.settings
+	local scale = ns.Settings and ns.Settings.scale(settings and settings.popupScale) or 1
+	frames.soul.offset, frames.rank.offset = Toast.offsets(scale)
+	frames.soul:SetScale(scale)
+	frames.rank:SetScale(scale)
+end
+
 -- Builds the frames ahead of time, so the first catch of a session doesn't pay for them,
 -- their backdrops and the emblem texture file (loaded here by setting the first rank's;
 -- show/showRank set the real one) on top of the bag scan (a visible hitch). Run when the
 -- world first loads and when the popup is switched on (Capture.prepareFor).
 function Toast.prepare()
 	if not frames.soul then
-		frames.soul = build(TOP_OFFSET)
-		frames.rank = build(RANK_OFFSET)
+		frames.soul = build()
+		frames.rank = build()
 		frames.soul.icon:SetTexture(ns.Ranks.emblem(1))
 		frames.rank.icon:SetTexture(ns.Ranks.emblem(1))
+		applyScale()
+	end
+end
+
+-- The popup size changed in the options: popups already built take it at once.
+function Toast.rescale()
+	if frames.soul then
+		applyScale()
 	end
 end
 

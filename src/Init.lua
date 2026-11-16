@@ -43,10 +43,6 @@ local function shownVersion()
 	return version
 end
 
-local function percent(scale)
-	return math.floor(scale * 100 + 0.5) .. "%"
-end
-
 -- Actions that only need their module: action -> function(arg).
 local actions = {}
 
@@ -69,6 +65,9 @@ end
 function actions.reset()
 	if ns.UI and ns.db then
 		ns.UI.resetWindow()
+		if ns.Options and ns.Options.refresh then
+			ns.Options.refresh()
+		end
 		Print("The window is back in the middle of the screen, at normal size.")
 	end
 end
@@ -81,7 +80,10 @@ function actions.scale(arg)
 		Print("The scale is a number from 60 to 160 (percent), like /souldex scale 120.")
 		return
 	end
-	Print("Window scale: " .. percent(ns.UI.setScale(arg)) .. ".")
+	Print("Window scale: " .. ns.Settings.percent(ns.UI.setScale(arg)) .. ".")
+	if ns.Options and ns.Options.refresh then
+		ns.Options.refresh()
+	end
 end
 
 function actions.find(arg)

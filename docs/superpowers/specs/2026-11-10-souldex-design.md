@@ -335,9 +335,10 @@ The look was settled through mockups; the final versions are in
     edge; the active tab has a fel-green underline.
   - Rows of souls have a 2 px stripe on their left edge in the soul's rarity
     colour (dull purple for ordinary mobs).
-  - (changed after 1.3.0.) The window's size can be set from 60% to 160% in
-    steps of 10% in the options (or to any 5% with `/souldex scale <percent>`);
-    the scale is saved with the position. `/souldex reset` and the options'
+  - (changed after 1.3.0.) The window's size can be set from 60% to 160%:
+    the options' SIZE section (7) in steps of 10%, or `/souldex scale
+    <percent>` to any 5%; the scale is saved with the position, and a resize
+    keeps the window where it stands. `/souldex reset` and the options'
     "Reset window" put it back in the middle of the screen at 100%. The gear
     has a tooltip ("Options"). **[call]**
   - (changed after 1.2.4: rank emblems.) The emblems ship in `art/` as
@@ -856,7 +857,41 @@ left out if the dex isn't loaded yet). The settings:
 - Boss names after the fight (test) on/off, **off** by default (added after
   1.4.0-beta.1): the experiment described under "Naming souls in dungeons and
   raids".
-- Window size, a sample popup and a window reset (above; not switches).
+
+The same controls are drawn on both surfaces, the small panel and the game's
+Settings page, and each follows a change made on the other. Top to bottom:
+the switches, the SIZE section, then two buttons.
+
+Under the switches, a **SIZE** section **[user]** with one row per thing that can
+be made bigger or smaller, each a label, then `-  100%  +`:
+
+- **Window**: the dex window, text and all. Saved as `db.window.scale`.
+- **Popup**: the new-soul and rank-up popups. Saved as `db.settings.popupScale`.
+
+Each click is one 10 % step, from 60 % to 160 % (`Settings.scale` rounds to 5 %
+and keeps any saved value inside the limits; a damaged one falls back to 100 %).
+The change is applied at once: the window resizes where it stands (a window
+that was dragged keeps its anchored corner at the same place on screen, one
+that never was stays centred), and a popup step shows a silent sample popup
+("Hogger", recorded nowhere) at the new size, also while the popup switch is
+off; it replaces a real popup that is on screen. The popups stay the same distance from the top of the screen at every
+size (`Toast.offsets`). A `-` or `+` that can go no further is dimmed. A small
+"Reset" on the SIZE line, shown only while a size is not 100 %, puts both back.
+The options panel itself is never scaled, so its buttons stay under the cursor.
+`/souldex scale <percent>` sets the same Window size (to any 5 %), and open
+options show it at once.
+
+Under SIZE, two buttons (added after 1.3.0, **[call]**):
+- **Test popup** (also `/souldex test`): the same sample popup, with the
+  claim sound when the sound switch is on. Only the SIZE row's own preview is
+  silent.
+- **Reset window** (also `/souldex reset`): the window back in the middle of
+  the screen **and** at 100 %. It differs from SIZE's "Reset", which leaves the
+  window where it is and also resets the Popup size.
+
+There is no separate text-size setting: the window is a fixed layout drawn
+around the game's own fonts, so its text grows and shrinks with the Window
+size rather than on its own.
 
 All saved.
 
@@ -1007,9 +1042,26 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
   off: it still goes out once.
 
 **Settings and commands**
-- `/souldex options` or the gear opens three checkboxes (popup, sound, guild
-  announcements); clicking the label text toggles too. Untick each in turn,
+- `/souldex options` or the gear opens six checkboxes (popup, sound, guild
+  announcements, claim chatter, login message, boss names after the fight); clicking the label text toggles too. Untick each in turn,
   `/reload`: still unticked, and the matching behaviour stops.
+- The panel, top to bottom: six switches, a rule, "SIZE" with its two rows,
+  then "Test popup" and "Reset window" side by side. Nothing overlaps, nothing
+  is cut off at the panel's bottom edge, and clicking a SIZE row or a button
+  never ticks the last checkbox above it. (**Please check**: the panel grew
+  and was laid out blind.)
+- Options, SIZE: click `+` on Window twice with the dex open: the window and
+  its text grow each time, it reads "120%", and the window does not jump
+  (**please check** after dragging it to a screen corner first). Click `-` down
+  to "60%": the `-` dims and further clicks do nothing; everything in the
+  window is still readable and lined up at 60 % and at 160 %.
+- Click `+` on Popup: a sample popup ("ELITE SOUL CLAIMED", Hogger) appears at
+  the new size with no sound, the same distance from the top of the screen as
+  before, and nothing new is in the dex. At 160 % the next real claim that also
+  ranks you up shows the rank-up popup just under the soul's, not overlapping.
+- "Reset" appears on the SIZE line once a size is not 100 %; click it: both
+  read "100%", the window and popups are back to normal, and "Reset" is gone.
+  Change both sizes, `/reload`: both are kept.
 - `/souldex help` (or any unknown word) prints the commands.
 - `/dex`, `/dex options`, `/dex add <name>` do the same as their `/souldex`
   forms.
@@ -1023,14 +1075,15 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
   Bind a key: it opens and closes the window. If the header reads
   `BINDING_HEADER_SOULDEX` or the entry is missing, report it.
 - The game's Settings window (Esc > Options > AddOns) has a SoulDex page with
-  six switches, "Window size" and two buttons. Tick one there: the small
-  panel (`/souldex options`) shows the same, and the other way round. If the
-  page is blank, misplaced or missing, report it (the small panel still works).
-- Options: "+" and "-" grow and shrink the window by 10% between 60% and
-  160%, the number between them follows, and the size survives `/reload`.
-  `/souldex scale 130` does the same; `/souldex scale huge` explains itself.
+  six switches, the SIZE section and two buttons. Tick one there: the small
+  panel (`/souldex options`) shows the same, and the other way round. Step a
+  size there with the small panel open beside it: both show the new percent,
+  and "Reset" appears on both. If the page is blank, misplaced or missing,
+  report it (the small panel still works).
+- `/souldex scale 130` sizes the window to 130% and the SIZE row reads "130%",
+  also with the options already open; `/souldex scale huge` explains itself.
 - Drag the window to a corner, then "Reset window" (or `/souldex reset`): it
-  is back in the middle at 100%.
+  is back in the middle at 100%, and SIZE's Window row reads "100%".
 - "Test popup" and `/souldex test`: the popup shows "ELITE SOUL CLAIMED",
   Hogger, "+5", with the sound when the sound switch is on. Nothing is added
   to the dex.

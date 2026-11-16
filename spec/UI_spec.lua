@@ -17,6 +17,8 @@ describe("UI", function()
 		SetScript = function(self, name, fn) self.scripts[name] = fn end,
 		SetText = function(self, text) self.text = text end,
 		SetScale = function(self, scale) self.scale = scale end,
+		SetAlpha = function(self, alpha) self.alpha = alpha end,
+		SetPoint = function(self, ...) self.point = { ... } end,
 		SetChecked = function(self, value) self.checked = value end,
 		GetChecked = function(self) return self.checked end,
 		GetStringWidth = function() return 30 end,
@@ -394,6 +396,37 @@ describe("UI", function()
 		assert.is_true(db.settings.sound)
 	end)
 
+	local function button(text)
+		return find("Button", function(f) return f.label and f.label.text == text end)
+	end
+
+	-- The percent shown in the n-th SIZE row built: its - button is anchored to that text.
+	local function shownSize(n)
+		local minus
+		local seen = 0
+		for _, f in ipairs(created) do
+			if f.kind == "Button" and f.label and f.label.text == "-" then
+				seen = seen + 1
+				if seen == n then
+					minus = f
+				end
+			end
+		end
+		return minus and minus.point[2].text
+	end
+
+	-- The n-th button with this label (the SIZE rows each have a - and a +).
+	local function nth(text, n)
+		for _, f in ipairs(created) do
+			if f.kind == "Button" and f.label and f.label.text == text then
+				n = n - 1
+				if n == 0 then
+					return f
+				end
+			end
+		end
+	end
+
 	it("scales the window within its limits and saves the scale", function()
 		local db = loadDb()
 		assert.equal(1, ns.UI.scale())
@@ -419,19 +452,101 @@ describe("UI", function()
 		assert.equal("Players", db.window.tab) -- the tab is kept
 	end)
 
-	it("the options' - and + buttons step the window size", function()
+	it("keeps a dragged window's corner in place when its size changes", function()
+		local db = loadDb()
+		db.window.point, db.window.relPoint, db.window.x, db.window.y = "TOPLEFT", "BOTTOMLEFT", 100, 500
+		ns.UI.toggle()
+		ns.UI.setScale(1.25)
+		-- 100 and 500 screen units are 80 and 400 of a window drawn at 125%
+		assert.equal(80, db.window.x)
+		assert.equal(400, db.window.y)
+		assert.same({ "TOPLEFT", _G.UIParent, "BOTTOMLEFT", 80, 400 }, _G.SoulDexFrame.point)
+		ns.UI.setScale(1)
+		assert.equal(100, db.window.x)
+		assert.equal(500, db.window.y)
+	end)
+
+	it("the options' - and + step the window size and stop at the limits", function()
 		local db = loadDb()
 		ns.Options.toggle()
-		local function button(text)
-			return find("Button", function(f) return f.label and f.label.text == text end)
-		end
-		button("+").scripts.OnClick()
+		local minus, plus = nth("-", 1), nth("+", 1)
+		plus.scripts.OnClick()
 		assert.equal(1.1, db.window.scale)
-		button("-").scripts.OnClick()
-		button("-").scripts.OnClick()
+		minus.scripts.OnClick()
+		minus.scripts.OnClick()
 		assert.equal(0.9, db.window.scale)
+		for _ = 1, 10 do
+			minus.scripts.OnClick()
+		end
+		assert.equal(ns.Settings.SCALE_MIN, db.window.scale)
+		assert.is_true(minus.alpha < 1) -- dimmed: it can go no further
+		assert.equal(1, plus.alpha)
+	end)
+
+	it("open options follow a size set from outside them", function()
+		local db = loadDb()
+		ns.Options.refresh() -- nothing built yet: no error
+		ns.Options.toggle()
+		ns.UI.setScale(1.3)
+		assert.equal("100%", shownSize(1))
+		ns.Options.refresh()
+		assert.equal("130%", shownSize(1))
+		assert.equal(1.3, db.window.scale)
+	end)
+
+	it("Reset window puts the size back too", function()
+		local db = loadDb()
+		ns.Options.toggle()
+		nth("+", 1).scripts.OnClick()
+		assert.equal(1.1, db.window.scale)
 		button("Reset window").scripts.OnClick()
 		assert.is_nil(db.window.scale)
+		assert.equal("100%", shownSize(1))
+		assert.is_false(button("Reset").shown)
+	end)
+
+	it("the popup size steps, resizes the popups and shows a sample", function()
+		local db = loadDb()
+		LoadAddonFile("src/Toast.lua", ns)
+		db.settings.popup = false -- the sample shows the size even with the popup off
+		ns.Options.toggle()
+		local before = #created
+		local plus = nth("+", 2)
+		plus.scripts.OnClick()
+		assert.equal(1.1, db.settings.popupScale)
+		assert.is_nil(db.window.scale) -- the window's size is its own
+		local soul = created[before + 1] -- the sample built the popups
+		assert.equal(1.1, soul.scale)
+		assert.is_true(soul.shown)
+		assert.is_truthy(soul.name.text:find("Hogger", 1, true))
+		for _ = 1, 10 do
+			plus.scripts.OnClick()
+		end
+		assert.equal(ns.Settings.SCALE_MAX, db.settings.popupScale)
+		assert.equal(ns.Settings.SCALE_MAX, soul.scale)
+		assert.is_true(plus.alpha < 1)
+	end)
+
+	it("an undragged window stays 60 above the middle at every size", function()
+		loadDb()
+		ns.UI.toggle()
+		ns.UI.setScale(1.5)
+		assert.same({ "CENTER", _G.UIParent, "CENTER", 0, 40 }, _G.SoulDexFrame.point)
+	end)
+
+	it("Reset puts both sizes back to 100% and shows only when one is changed", function()
+		local db = loadDb()
+		ns.Toast = { rescale = function() end, show = function() end }
+		ns.Options.toggle()
+		local reset = button("Reset")
+		assert.is_false(reset.shown)
+		nth("+", 1).scripts.OnClick()
+		nth("-", 2).scripts.OnClick()
+		assert.is_true(reset.shown)
+		reset.scripts.OnClick()
+		assert.equal(1, db.window.scale)
+		assert.equal(1, db.settings.popupScale)
+		assert.is_false(reset.shown)
 	end)
 
 	it("shows a sample popup without recording anything", function()
@@ -462,5 +577,82 @@ describe("UI", function()
 		_G.Settings = { RegisterCanvasLayoutCategory = function() error("refused") end, RegisterAddOnCategory = error }
 		assert.is_false(ns.Options.register())
 		_G.Settings = nil
+	end)
+
+	it("the sample popup plays its sound, except as the Popup size row's preview", function()
+		loadDb()
+		local played = 0
+		local savedPlay = _G.PlaySound
+		_G.PlaySound = function() played = played + 1 end
+		ns.Toast = { show = function() end, rescale = function() end }
+		ns.Capture = { soundFor = function() return 1 end }
+		ns.Options.testPopup()
+		assert.equal(1, played)
+		ns.Options.testPopup(true)
+		assert.equal(1, played)
+		ns.Options.toggle()
+		button("Test popup").scripts.OnClick(button("Test popup"), "LeftButton")
+		assert.equal(2, played) -- the button's own arguments don't make it quiet
+		nth("+", 2).scripts.OnClick()
+		assert.equal(2, played) -- the size preview is silent
+		_G.PlaySound = savedPlay
+	end)
+
+	it("the floating panel and the game's Settings page show the same sizes after a step", function()
+		_G.Settings = {
+			RegisterCanvasLayoutCategory = function(page, name) return { page = page, name = name } end,
+			RegisterAddOnCategory = function() end,
+		}
+		local db = loadDb() -- registers the page: the first set of controls
+		ns.Toast = { show = function() end, rescale = function() end }
+		ns.Options.toggle() -- the floating panel: the second set
+		-- rows as built: the page's Window and Popup, then the panel's Window and Popup
+		local function sizes()
+			return { shownSize(1), shownSize(2), shownSize(3), shownSize(4) }
+		end
+		assert.same({ "100%", "100%", "100%", "100%" }, sizes())
+		nth("+", 1).scripts.OnClick() -- the page's Window +
+		assert.equal(1.1, db.window.scale)
+		assert.same({ "110%", "100%", "110%", "100%" }, sizes())
+		nth("-", 4).scripts.OnClick() -- the panel's Popup -
+		assert.equal(0.9, db.settings.popupScale)
+		assert.same({ "110%", "90%", "110%", "90%" }, sizes())
+		-- "Reset" shows on both, and either one puts both surfaces back
+		local resets = {}
+		for _, f in ipairs(created) do
+			if f.kind == "Button" and f.label and f.label.text == "Reset" then
+				resets[#resets + 1] = f
+			end
+		end
+		assert.equal(2, #resets)
+		assert.is_true(resets[1].shown and resets[2].shown)
+		resets[2].scripts.OnClick()
+		assert.same({ "100%", "100%", "100%", "100%" }, sizes())
+		assert.is_false(resets[1].shown or resets[2].shown)
+		_G.Settings = nil
+	end)
+
+	it("sizes the popups and keeps them at the same place on screen", function()
+		local db = loadDb()
+		LoadAddonFile("src/Toast.lua", ns)
+		local soul, rank = ns.Toast.offsets(1)
+		assert.equal(-140, soul)
+		assert.equal(-140 - 54 - 8, rank)
+		soul, rank = ns.Toast.offsets(1.4)
+		assert.equal(-100, soul) -- 100 units of a popup drawn at 140% are 140 on screen
+		assert.equal(-100 - 54 - 8, rank)
+
+		db.settings.popupScale = 1.4
+		ns.Toast.rescale() -- nothing built yet: no error
+		local before = #created
+		ns.Toast.prepare()
+		local a, b = created[before + 1], created[before + 2]
+		assert.equal(1.4, a.scale)
+		assert.equal(1.4, b.scale)
+		assert.equal(-100, a.offset)
+		db.settings.popupScale = 0.8
+		ns.Toast.rescale()
+		assert.equal(0.8, a.scale)
+		assert.equal(-175, a.offset)
 	end)
 end)
