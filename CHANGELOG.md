@@ -14,7 +14,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - Fixed: a shard could be named after the wrong mob (a Shadowburn followed by a Drain Soul on another mob; changing target as a cast went off in a dungeon).
 - Fixed: recasting Drain Soul on the same dungeon mob left its shard unnamed.
 - Experimental, off by default: "Boss names after the fight (test)" in the options. A boss drained during its fight keeps its shard waiting and gets its name when the fight ends, if you keep it targeted.
-- Raid souls named by whisper now fill their slot in the raid's list (they used to land under Mobs > Raids).
+- Raid souls whose names are read after the kill now fill their slot in the raid's list (they used to land under Mobs > Raids).
 - Fixed: browsing a friend's large dex timed out ("No answer"); it now waits for as long as the dex needs and says "Receiving".
 - Fixed: Friends "Clean up" could remove guild members; an added friend who hadn't answered yet couldn't be selected or removed; the × on a row vanished while you were pointing at it; "today" and "yesterday" on the Me tab went by the wrong clock.
 - Lighter on memory and saved data for warlocks who farm many shards; people you only once grouped with drop off the Friends list after 30 days.
@@ -24,7 +24,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - Warlock ranks, from Initiate to Lord of Souls, each with its own emblem; ranking up gets its own popup, and from Reaper on your guild hears about it.
 - Mastery stars and repeat claims: claiming the same mob again can earn stars and points, and bosses, rares and players score again too. Your existing dex counts.
 - A new window: a rebuilt Me tab with records, trophy-card soul details, grouped milestones with progress bars, and a livelier popup.
-- Souls drained in dungeons now get their real names (SoulDex quietly whispers you to read them); bosses killed mid-fight still show as Unknown.
+- Souls drained in dungeons now get their real names; bosses killed mid-fight still show as Unknown.
 - WoW: Forever's own raids, The Barrow Deeps and Hyjal Summit, are listed with their rosters to come.
 - New option, off by default: claim chatter in chat. Souls are now "claimed" rather than "caught".
 
