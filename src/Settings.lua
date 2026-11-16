@@ -6,7 +6,11 @@ ns.Settings = Settings
 
 -- chatter: a chat line in the warlock's voice for every claim; off unless asked for.
 -- greeting: the "loaded" chat line after each login and /reload.
-Settings.DEFAULTS = { popup = true, sound = true, announce = true, chatter = false, greeting = true }
+-- lateAsk: experimental, off unless asked for: a boss drained during its encounter keeps
+-- its shard held, and its name is asked for when the fight ends (spec 4.2).
+Settings.DEFAULTS = {
+	popup = true, sound = true, announce = true, chatter = false, greeting = true, lateAsk = false,
+}
 
 -- The window's scale: its limits, the step of the options' - and + buttons, the default.
 Settings.SCALE_MIN, Settings.SCALE_MAX, Settings.SCALE_STEP, Settings.SCALE_DEFAULT = 0.6, 1.6, 0.1, 1

@@ -113,6 +113,37 @@ local function tooltipLine(unit)
 	return "names(" .. unit .. "): " .. table.concat(parts, " ")
 end
 
+-- Context clues around the player: where they stand, and the encounter's boss units.
+-- Comparing units (UnitIsUnit) needs no names, so "the target is boss1" may be readable
+-- where the target's name is not.
+local function sceneLine()
+	local parts = {
+		try("subzone", GetSubZoneText),
+		try("minimapZone", GetMinimapZoneText),
+		try("zone", GetRealZoneText),
+		try("instance", GetInstanceInfo),
+	}
+	for i = 1, 5 do
+		local unit = "boss" .. i
+		local ok, exists = pcall(UnitExists, unit)
+		if ok and not isSecret(exists) and exists then
+			parts[#parts + 1] = unit .. "{" .. table.concat({
+				try("isTarget", UnitIsUnit, unit, "target"),
+				try("name", UnitName, unit),
+				try("class", UnitClassification, unit),
+				try("level", UnitLevel, unit),
+				try("dead", UnitIsDead, unit),
+			}, " ") .. "}"
+		elseif not ok or isSecret(exists) then
+			parts[#parts + 1] = unit .. "=" .. s(exists)
+		end
+	end
+	parts[#parts + 1] = try("nameplates", function()
+		return C_NamePlate and C_NamePlate.GetNamePlates and #C_NamePlate.GetNamePlates()
+	end)
+	return "scene: " .. table.concat(parts, " ")
+end
+
 -- Asks the game for the target's name the way SoulDex does (a whisper to yourself with
 -- %t), tagged so the reply can be told apart in the log. The line shows in chat: this is
 -- a probe. Never sent while chat is locked (that raises a red error).
@@ -154,8 +185,8 @@ local function bagCheck(reason)
 		return
 	end
 	if lastShards ~= n then
-		log(string.format("bags(%s): shards %s -> %d [%s] | %s", reason, s(lastShards), n,
-			table.concat(slots, " "), unitLine("target")), lastShards ~= nil)
+		log(string.format("bags(%s): shards %s -> %d [%s] | %s | %s", reason, s(lastShards), n,
+			table.concat(slots, " "), unitLine("target"), sceneLine()), lastShards ~= nil)
 		lastShards = n
 	end
 end
@@ -230,7 +261,7 @@ frame:SetScript("OnEvent", function(_, event, ...)
 				log("reply: " .. text, true)
 			end
 		elseif event == "ENCOUNTER_START" or event == "ENCOUNTER_END" or event == "BOSS_KILL" then
-			log(event .. " " .. argsLine(...) .. " | " .. unitLine("target") .. " | " .. unitLine("boss1")
+			log(event .. " " .. argsLine(...) .. " | " .. unitLine("target") .. " | " .. sceneLine()
 				.. " | " .. restrictionLine(), true)
 			if event ~= "ENCOUNTER_START" then
 				-- The boss is dead and probably still your target. Can its name be asked
@@ -259,6 +290,7 @@ SlashCmdList["SOULDEXPROBE"] = function(msg)
 		-- Everything known about the target right now (alive or dead), and one ask.
 		log(unitLine("target"), true)
 		log(tooltipLine("target"), true)
+		log(sceneLine(), true)
 		log(restrictionLine(), true)
 		askTarget("manual")
 	else

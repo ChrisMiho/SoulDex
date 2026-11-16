@@ -1008,7 +1008,9 @@ function Capture.start(db, dex)
 	-- Once a second while anything is pending: expired asks fail. The clock stops while the
 	-- reply couldn't be read (in combat, chat locked; an unreadable answer counts as both).
 	local ticker
+	local sendHeld -- set below: sends the asks held for a chat lock to lift
 	local function expire()
+		sendHeld()
 		local restricted = whisperLocked() or yes(InCombatLockdown, true)
 		for _, pend in ipairs(queue:tick(GetTime(), restricted)) do
 			pend.state = "failed"
@@ -1079,8 +1081,43 @@ function Capture.start(db, dex)
 
 	-- A capture whose target name is hidden: whispers the player for the name when the
 	-- guard allows. Returns the capture's info, carrying the pend when the whisper went out.
+	-- Experimental (settings.lateAsk): asks held because chat was locked at the cast (a
+	-- boss encounter). Each is sent the moment the lock lifts, if the target is still the
+	-- one the spell was cast at; any target change in between fails it (an Unknown soul).
+	local held = {}
+	sendHeld = function()
+		if #held == 0 then
+			return
+		end
+		local state, still = nil, {}
+		for _, pend in ipairs(held) do
+			if pend.state == "waiting" and queue:get(pend.token) == pend then
+				state = state or Capture.askState()
+				local step = blocked and "fail" or Whisper.lateStep(pend.epoch, targetEpoch, state)
+				if step == "send" then
+					local ok, lastTell = whisperSelf(Whisper.message(pend.token))
+					if ok then
+						pend.lastTell = lastTell
+					else
+						finish(pend.token, nil)
+					end
+				elseif step == "fail" then
+					finish(pend.token, nil)
+				else
+					still[#still + 1] = pend
+				end
+			end
+		end
+		held = still
+	end
+
 	local function askName(info, castGUID, kind, now)
-		if blocked or not filtered or not Whisper.shouldAsk(Capture.askState()) then
+		if blocked or not filtered then
+			return info
+		end
+		local state = Capture.askState()
+		local later = not Whisper.shouldAsk(state)
+		if later and not (db.settings.lateAsk and Whisper.shouldDefer(state)) then
 			return info
 		end
 		-- The spell's target was fixed when the cast was sent; %t names the target now. A
@@ -1094,12 +1131,25 @@ function Capture.start(db, dex)
 		local details = Capture.readDetails("target")
 		local pend = { details = details, state = "waiting" }
 		local token = queue:add(pend, GetTime())
-		local ok, lastTell = whisperSelf(Whisper.message(token))
-		if not ok then
-			queue:remove(token)
-			return info
+		if later then
+			-- Chat is locked: the shard is held like any other, the whisper goes out later.
+			-- An earlier held ask for this same target with no shard yet is replaced, so
+			-- recasting through a long fight ends in one whisper, not one per cast.
+			for _, older in ipairs(held) do
+				if older.epoch == targetEpoch and older.shard == nil and older.state == "waiting" then
+					finish(older.token, nil)
+				end
+			end
+			pend.epoch = targetEpoch
+			held[#held + 1] = pend
+		else
+			local ok, lastTell = whisperSelf(Whisper.message(token))
+			if not ok then
+				queue:remove(token)
+				return info
+			end
+			pend.lastTell = lastTell
 		end
-		pend.lastTell = lastTell
 		startTicker()
 		-- epoch: a recast on this same target replaces this capture (its GUID is hidden).
 		return { unknown = true, pend = pend, isPlayer = details.isPlayer, guid = info.guid, epoch = targetEpoch }
@@ -1194,6 +1244,7 @@ function Capture.start(db, dex)
 
 	local function restrictionsLifted()
 		flushAnnouncements()
+		Capture.protect(errorHandler(), sendHeld)
 		reread()
 	end
 

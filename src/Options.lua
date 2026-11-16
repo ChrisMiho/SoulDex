@@ -12,6 +12,7 @@ Options.ITEMS = {
 	{ key = "announce", label = "Guild announcements" },
 	{ key = "chatter", label = "Claim chatter in chat" },
 	{ key = "greeting", label = "Login message in chat" },
+	{ key = "lateAsk", label = "Boss names after the fight (test)" },
 }
 
 local WIDTH = 200

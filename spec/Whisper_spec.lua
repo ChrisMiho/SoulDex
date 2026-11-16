@@ -104,6 +104,49 @@ describe("Whisper", function()
 		end
 	end)
 
+	describe("holding an ask for later", function()
+		local function locked()
+			return {
+				nameHidden = true, hasTarget = true, mouseoverOther = false, focusOther = false,
+				chatLocked = true, afk = nil, dnd = nil, -- AFK and DND are unreadable in an encounter
+			}
+		end
+
+		it("holds only when the chat lock is the one thing in the way", function()
+			assert.is_true(W.shouldDefer(locked()))
+			for _, change in ipairs({
+				{ "chatLocked", false }, { "chatLocked", nil }, { "nameHidden", false }, { "hasTarget", false },
+				{ "mouseoverOther", true }, { "mouseoverOther", nil }, { "focusOther", true }, { "afk", true }, { "dnd", true },
+			}) do
+				local s = locked()
+				s[change[1]] = change[2]
+				assert.is_false(W.shouldDefer(s), change[1] .. "=" .. tostring(change[2]))
+			end
+		end)
+
+		it("sends once chat unlocks, if the target never changed", function()
+			local open = { hasTarget = true, chatLocked = false, afk = false, dnd = false }
+			assert.equal("send", W.lateStep(4, 4, open))
+			assert.equal("send", W.lateStep(4, 4, { hasTarget = true, chatLocked = false, afk = false, dnd = false,
+				mouseoverOther = true })) -- the mouse matters at the cast only
+		end)
+
+		it("waits while chat is locked or the player's state can't be read", function()
+			assert.equal("wait", W.lateStep(4, 4, { hasTarget = true, chatLocked = true, afk = false, dnd = false }))
+			assert.equal("wait", W.lateStep(4, 4, { hasTarget = true, chatLocked = nil, afk = false, dnd = false }))
+			assert.equal("wait", W.lateStep(4, 4, { hasTarget = true, chatLocked = false, afk = nil, dnd = false }))
+			assert.equal("wait", W.lateStep(4, 4, { hasTarget = true, chatLocked = false, afk = false, dnd = true }))
+		end)
+
+		it("fails after any target change, or with no target", function()
+			local open = { hasTarget = true, chatLocked = false, afk = false, dnd = false }
+			assert.equal("fail", W.lateStep(4, 5, open))
+			assert.equal("fail", W.lateStep(nil, 5, open))
+			assert.equal("fail", W.lateStep(4, 4, { hasTarget = false, chatLocked = false, afk = false, dnd = false }))
+			assert.equal("fail", W.lateStep(4, 5, { hasTarget = true, chatLocked = true })) -- even while locked
+		end)
+	end)
+
 	describe("queue", function()
 		local q
 

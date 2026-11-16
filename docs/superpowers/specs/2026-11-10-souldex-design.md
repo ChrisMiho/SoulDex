@@ -853,6 +853,9 @@ left out if the dex isn't loaded yet). The settings:
 - Guild announcements on/off
 - Login message in chat on/off, **on** by default (changed after 1.3.0): the
   "loaded" line above.
+- Boss names after the fight (test) on/off, **off** by default (added after
+  1.4.0-beta.1): the experiment described under "Naming souls in dungeons and
+  raids".
 - Window size, a sample popup and a window reset (above; not switches).
 
 All saved.
@@ -1020,7 +1023,7 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
   Bind a key: it opens and closes the window. If the header reads
   `BINDING_HEADER_SOULDEX` or the entry is missing, report it.
 - The game's Settings window (Esc > Options > AddOns) has a SoulDex page with
-  five switches, "Window size" and two buttons. Tick one there: the small
+  six switches, "Window size" and two buttons. Tick one there: the small
   panel (`/souldex options`) shows the same, and the other way round. If the
   page is blank, misplaced or missing, report it (the small panel still works).
 - Options: "+" and "-" grow and shrink the window by 10% between 60% and
@@ -1063,6 +1066,15 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
 - (after 1.4.0-beta.1) In a listed raid, drain a trash mob out of a boss
   fight: after the popup, the Raids tab shows it claimed in that raid's list,
   not under Mobs > Raids.
+- (after 1.4.0-beta.1) Experimental, in a dungeon with a boss that starts an
+  encounter (Arcanist Doan in the Scarlet Monastery Library did): tick "Boss
+  names after the fight (test)". Drain the boss so it dies during your
+  channel, and **keep it targeted** until a few seconds after it dies. Expected:
+  no red "Interface action failed" error, the shard's tooltip reads "name
+  pending" for a moment, then the popup names the boss. If instead the soul is
+  Unknown, or the chat line "Soul names in dungeons are off for this session"
+  appears, report which. Then once more, but press Tab right after the boss
+  dies: the soul should be Unknown, never another mob's name.
 - (after 1.4.0-beta.1) While a second player browses your dex, nothing shows
   in your chat; if they log off while it is still sending, still nothing (no
   "No player named ..." lines).
@@ -1246,13 +1258,38 @@ The rule stands: a lead that could give a wrong name is not used.
 
 | # | Lead | Would solve | What must be true (probe) |
 |---|---|---|---|
-| A | Ask late: keep the boss's shard held through the encounter and send the whisper when the chat lock lifts (`ENCOUNTER_END`, `ADDON_RESTRICTION_STATE_CHANGED`), if the target hasn't changed since the cast (the target-change count already exists). | 1 | `%t` still expands to a **dead** target's name, and the send is allowed right after the encounter ends. The probe sends `SDXP:ENCOUNTER_END+0/+1/+3:%t` and logs the replies. |
+| A | Ask late: keep the boss's shard held through the encounter and send the whisper when the chat lock lifts (`ENCOUNTER_END`, `ADDON_RESTRICTION_STATE_CHANGED`), if the target hasn't changed since the cast (the target-change count already exists). **Built as an experiment, off by default** (the "Boss names after the fight (test)" option; below). | 1 | `%t` still expands to a **dead** target's name, and the send is allowed right after the encounter ends. The probe sends `SDXP:ENCOUNTER_END+0/+1/+3:%t` and logs the replies. |
 | B | `BOSS_KILL` / `ENCOUNTER_END` carry `encounterID` and `encounterName`, and the docs do not mark them secret. A shard gained from a capture on a boss-classified target while that encounter runs could take the name the raid lists for that encounter. | 1 | The payload is readable inside the instance. Needs a table from encounter name to boss (the encounter is "The Four Horsemen", the soul is one horseman), so only encounters whose name is a listed boss can be used; dungeons have no list yet. |
 | C | `CHAT_MSG_COMBAT_XP_GAIN` ("<name> dies, you gain N experience") names what died at the moment of the kill. | 1, 4 (while levelling only) | The text is readable in an instance and during an encounter. No use at level cap, and with a group kill of two mobs in one moment the names can't be told apart. |
 | D | `C_Secrets.ShouldUnitIdentityBeSecret(unit)` says beforehand whether a unit's identity is hidden. | Cleaner guard, nothing new named | It answers readably. Would replace reading the name to find out. |
 | E | The target's tooltip (`C_TooltipInfo.GetUnit`, `GameTooltip` text) or nameplate text. | 1, 3 | Almost certainly secret too (text carries the same restriction); logged by `/sdprobe target` to be sure. |
 | F | Boss yells and emotes (`CHAT_MSG_MONSTER_YELL`, `CHAT_MSG_RAID_BOSS_EMOTE`) carry the speaker's name. | 1, weakly | Readable during the encounter. Only tells who spoke, not who died: could only confirm a name from B. |
 | G | Localised raid lists, or a list of names per NPC id per language. | 2 | No probe: a data job (Questie ships localised names). |
+| H | **Context clues [user: "find context clues from what's around the player, maybe via scanning"].** Comparing units needs no names: `UnitIsUnit("target", "boss1")` may say "the target is this encounter's boss" where the name is hidden. With B's encounter name, and only one boss unit present, that names the boss without the whisper and without keeping it targeted. | 1 | The boss units (`boss1`..`boss5`) exist in this client's dungeons and raids, the comparison is readable during the encounter, and the encounter's name is the boss's (table I). The probe's `scene:` line logs all of it at `ENCOUNTER_START`, at the kill and when a shard arrives. |
+| I | **A small boss table [user]**: per instance, each encounter's id and name, the boss (or bosses) it stands for, and where it is (subzone text). It turns B and H into names safely: an encounter is used only when the table says it has exactly one boss and gives that boss's name ("Ring of Law" and "The Four Horsemen" are in it as "no single boss": never named this way). The subzone is a second check, and a fallback clue where there are no encounter events. | 1, and dungeon bosses for a future Dungeons list | Filled from what the probe logs (encounter ids and names, subzones), not from memory: a wrong row would be a wrong name. For raids the boss names already ship in `RaidData`. |
+
+Order of work: probe a dungeon boss first (it decides A, B, C, H at once);
+A is already in the build to try; then the boss table (I) from the logged
+encounters, which unlocks B and H. Whatever names a soul, the rule holds: two
+clues that disagree, or one clue that could mean two creatures, give an
+Unknown soul.
+
+**Boss names after the fight (experimental; lead A).** A switch in the options,
+**off** by default, `settings.lateAsk`. With it on, a Drain Soul or Shadowburn
+on a hidden-name target while chat is locked (a boss encounter) no longer
+gives up on the name: when everything else about the ask is right
+(`Whisper.shouldDefer`), the ask is held, and its shard is held like any
+whisper-named shard ("name pending"). Every second, and when the encounter or
+a restriction ends, each held ask is looked at again (`Whisper.lateStep`): it
+is sent the moment chat is unlocked and the player is not AFK or DND, if the
+target has not changed since the cast; any target change, or no target,
+fails it at once (an Unknown soul, as today). A recast on the same target
+replaces the held ask, so a long fight ends in one whisper. A held ask never
+sends into a chat lock. The usual limits apply (60 s of unrestricted time, at
+most 600 s). It is off by default because it has never run in game: if the
+client refuses the send it shows a red error and turns soul names off for the
+session (4.2). What it cannot do: name a boss you stopped targeting before
+the fight ended.
 
 Probe run to do (adds to section 9): install `scripts/probe/SoulDexProbe` as its
 own addon, then in a dungeon:

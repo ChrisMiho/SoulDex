@@ -58,6 +58,33 @@ function Whisper.shouldAsk(s)
 		and s.dnd == false
 end
 
+-- Whether to hold the ask for later (the experimental "boss names after the fight"):
+-- everything is right for asking except that chat is locked, as it is for the whole of
+-- a boss encounter. The whisper then waits for the lock to lift (lateStep).
+function Whisper.shouldDefer(s)
+	return s.nameHidden == true
+		and s.hasTarget == true
+		and s.mouseoverOther == false
+		and s.focusOther == false
+		and s.chatLocked == true
+		and s.afk ~= true -- AFK and DND can't be read during an encounter: checked at the send
+		and s.dnd ~= true
+end
+
+-- What to do now with an ask that was held: "send", "wait" or "fail". heldEpoch and
+-- epochNow are the caller's target-change counts when the ask was held and now: %t names
+-- the target at the send, so after any target change the name can no longer be asked
+-- for. s: the same reads as shouldAsk (mouseover and focus mattered at the cast only).
+function Whisper.lateStep(heldEpoch, epochNow, s)
+	if heldEpoch == nil or heldEpoch ~= epochNow or s.hasTarget ~= true then
+		return "fail"
+	end
+	if s.chatLocked ~= false or s.afk ~= false or s.dnd ~= false then
+		return "wait"
+	end
+	return "send"
+end
+
 -- Pending whispers. The clock only runs while the client lets the reply through (out of
 -- combat, chat not locked): the caller passes restricted = true otherwise. Whatever the
 -- state, an entry is dropped CEILING seconds after it was sent.
