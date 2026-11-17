@@ -5,6 +5,8 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-11-17
+
 - New switch in the options: "Soul collected" on tooltips, on by default. Untick it to keep mob and player tooltips as they were.
 
 ## [1.5.0] - 2026-11-17
