@@ -5,6 +5,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- When one Drain Soul gives more than one Soul Shard, every shard now carries the soul's name (it still counts as one catch). Before, the extra shards were left unnamed.
 - Mobs and players whose soul you have say "Soul collected" at the bottom of their tooltip; ones you haven't caught show nothing extra.
 
 ## [1.4.0] - 2026-11-16

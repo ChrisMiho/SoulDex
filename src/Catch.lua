@@ -6,7 +6,9 @@ local _, ns = ...
 -- passed in as `now` (seconds).
 --
 -- A capture: { kind = "drainsoul"|"shadowburn", info = <target info>, castGUID,
---              started, expires, used }
+--              started, expires, used, claim }
+-- claim is set by the caller once the capture's first shard is recorded: what any further
+-- shard of the same capture gets (see owner).
 -- info is the target's details, or { unknown = true, isPlayer = bool|nil } when the
 -- name was hidden. info.guid (the target's GUID, when readable) tells targets apart;
 -- where the GUID is hidden, info.epoch does: the caller's count of target changes when
@@ -123,8 +125,9 @@ function Window:current(now)
 	return found
 end
 
--- Like current, but hands the capture out once: one channel kills one target. Unknown
--- captures picked from several are all spent: together they stood for one kill.
+-- Like current, but hands the capture out once: its first shard records the catch, and
+-- any further one goes through owner. Unknown captures picked from several are all spent:
+-- together they stood for one kill.
 function Window:take(now)
 	local c = self:current(now)
 	if c then
@@ -136,4 +139,17 @@ function Window:take(now)
 		c.used = true
 	end
 	return c
+end
+
+-- The capture a further shard belongs to: WoW: Forever's Drain Soul can drop a shard on a
+-- damage tick as well as at the kill, so a capture whose first shard was claimed owns any
+-- more that come while it is live. Only while it is the one live capture: beside another
+-- target's capture, an extra shard could be either's (never a wrong name).
+function Window:owner(now)
+	prune(self, now)
+	local c = self.captures[1]
+	if #self.captures == 1 and c.used and c.claim ~= nil then
+		return c
+	end
+	return nil
 end

@@ -313,9 +313,12 @@ describe("Capture glue", function()
 			assert.is_true(caught[1][1].isNew)
 		end)
 
-		it("a second new shard under the same capture stays soulless", function()
+		-- WoW: Forever's Drain Soul can drop a shard on a damage tick as well as at the kill.
+		it("a second shard under the same capture gets its soul; the catch counts once", function()
 			world.target = HOGGER
-			local _, db = boot()
+			local ns, db = boot()
+			local caught = 0
+			table.insert(ns.onCatch, function() caught = caught + 1 end)
 			drain("cast1", "Hogger")
 			putShard(1, "A")
 			fire("BAG_UPDATE_DELAYED")
@@ -325,11 +328,14 @@ describe("Capture glue", function()
 			fire("BAG_UPDATE_DELAYED")
 			flush()
 			assert.equal(1, db.mobs.Hogger.places["Elwynn Forest"].count)
+			assert.equal(1, caught)
 			assert.equal("Hogger", db.shardSouls.A.soul.name)
-			assert.is_false(db.shardSouls.B.soul)
+			assert.equal("Hogger", db.shardSouls.B.soul.name)
+			assert.equal("ffd25a", db.shardSouls.B.soul.color)
+			assert.are_not.equal(db.shardSouls.A.soul, db.shardSouls.B.soul) -- each its own copy
 		end)
 
-		it("two new shards in one scan: neither is named, and the capture is spent", function()
+		it("two new shards in one scan both get the soul, counted once", function()
 			world.target = HOGGER
 			local _, db = boot()
 			drain("cast1", "Hogger")
@@ -337,14 +343,48 @@ describe("Capture glue", function()
 			putShard(2, "B")
 			fire("BAG_UPDATE_DELAYED")
 			flush()
-			world.clock = 101
+			assert.equal(1, db.mobs.Hogger.places["Elwynn Forest"].count)
+			assert.equal(1, db.today.count)
+			assert.equal("Hogger", db.shardSouls.A.soul.name)
+			assert.equal("Hogger", db.shardSouls.B.soul.name)
+		end)
+
+		it("a shard more than 3 s after the channel stopped stays soulless, even after a named one", function()
+			world.target = HOGGER
+			local _, db = boot()
+			drain("cast1", "Hogger")
+			putShard(1, "A")
+			fire("BAG_UPDATE_DELAYED")
+			flush()
+			fire("UNIT_SPELLCAST_CHANNEL_STOP", "player", "cast1", 1120)
+			world.clock = world.clock + 3.5
+			putShard(2, "B")
+			fire("BAG_UPDATE_DELAYED")
+			flush()
+			assert.equal("Hogger", db.shardSouls.A.soul.name)
+			assert.is_false(db.shardSouls.B.soul)
+		end)
+
+		it("an extra shard while another mob's capture is live stays soulless", function()
+			world.target = HOGGER
+			local _, db = boot()
+			drain("cast1", "Hogger")
+			putShard(1, "A")
+			fire("BAG_UPDATE_DELAYED")
+			flush()
+			fire("UNIT_SPELLCAST_CHANNEL_STOP", "player", "cast1", 1120)
+			world.clock = world.clock + 1
+			world.target = { name = "Wolf", guid = "Creature-0-1-0-2-299-9", level = 5, classification = "normal" }
+			drain("cast2", "Wolf")
+			-- the Wolf dies at once with two shards, the Hogger's grace still running
+			putShard(2, "B")
 			putShard(3, "C")
 			fire("BAG_UPDATE_DELAYED")
 			flush()
-			assert.same({}, db.mobs)
-			assert.is_false(db.shardSouls.A.soul)
-			assert.is_false(db.shardSouls.B.soul)
+			assert.equal("Wolf", db.shardSouls.B.soul.name)
 			assert.is_false(db.shardSouls.C.soul)
+			assert.equal(1, db.mobs.Hogger.places["Elwynn Forest"].count)
+			assert.equal(1, db.mobs.Wolf.places["Elwynn Forest"].count)
 		end)
 
 		it("a new shard in a quiet scan spends the capture, so a later shard isn't named", function()
@@ -1911,6 +1951,58 @@ describe("Capture glue", function()
 				assert.equal("Scarlet Abbot", db.shardSouls.gB.soul.name)
 			end)
 
+			it("two shards from one held capture are both named by its reply, counted once", function()
+				world.target = MONK
+				local ns, db, caught = bootCaught()
+				drain("cast1", SECRET)
+				local token = tokenOf(sends[1])
+				putShard(1, "gA")
+				putShard(2, "gB")
+				fire("BAG_UPDATE_DELAYED")
+				flush()
+				assert.equal(token, ns.Shards.pendingOf(db.shardSouls, "gA").token)
+				assert.equal(token, ns.Shards.pendingOf(db.shardSouls, "gB").token)
+				world.clock = world.clock + 1
+				newShard(3, "gC") -- a third, a moment later: held too
+				assert.equal(token, ns.Shards.pendingOf(db.shardSouls, "gC").token)
+				whisper("SDX1:" .. token .. ":Scarlet Monk", ME_GUID)
+				for _, g in ipairs({ "gA", "gB", "gC" }) do
+					assert.equal("Scarlet Monk", db.shardSouls[g].soul.name)
+					assert.is_nil(ns.Shards.pendingOf(db.shardSouls, g))
+				end
+				assert.equal(1, db.mobs["Scarlet Monk"].places["Elwynn Forest"].count)
+				assert.equal(1, #caught)
+			end)
+
+			it("a shard after its capture's reply came takes the named soul at once", function()
+				world.target = MONK
+				local ns, db, caught = bootCaught()
+				drain("cast1", SECRET)
+				local token = tokenOf(sends[1])
+				newShard(1, "gA")
+				whisper("SDX1:" .. token .. ":Scarlet Monk", ME_GUID)
+				world.clock = world.clock + 1
+				newShard(2, "gB")
+				assert.equal("Scarlet Monk", db.shardSouls.gB.soul.name)
+				assert.is_nil(ns.Shards.pendingOf(db.shardSouls, "gB"))
+				assert.equal(1, db.mobs["Scarlet Monk"].places["Elwynn Forest"].count)
+				assert.equal(1, #caught)
+			end)
+
+			it("two held shards whose whisper fails are one Unknown soul", function()
+				world.target = MONK
+				local _, db = boot()
+				drain("cast1", SECRET)
+				putShard(1, "gA")
+				putShard(2, "gB")
+				fire("BAG_UPDATE_DELAYED")
+				flush()
+				whisper("SDX1:" .. tokenOf(sends[1]) .. ":%t", ME_GUID)
+				assert.equal(1, db.unknown["Elwynn Forest"].count)
+				assert.is_true(db.shardSouls.gA.soul.unknown)
+				assert.is_true(db.shardSouls.gB.soul.unknown)
+			end)
+
 			it("a player named by whisper is stored under Name-Realm", function()
 				world.target = { name = SECRET, guid = SECRET, level = 20, player = true }
 				local _, db = boot()
@@ -1964,6 +2056,21 @@ describe("Capture glue", function()
 				assert.is_nil(ns.Shards.pendingOf(db.shardSouls, "HELD"))
 				ns.OnLoaded(db)
 				assert.equal(1, db.unknown["Scarlet Monastery"].count)
+			end)
+
+			it("shards held together at login are one Unknown soul", function()
+				local ctx = { time = 5000, zone = "Scarlet Monastery", group = "Dungeons" }
+				local _, db = boot({
+					shardSouls = {
+						H1 = { soul = false, pending = { token = "1", ctx = ctx }, seen = 5000 },
+						H2 = { soul = false, pending = { token = "1", ctx = ctx }, seen = 5000 },
+						H3 = { soul = false, pending = { token = "2", ctx = ctx }, seen = 5000 },
+					},
+				})
+				assert.equal(2, db.unknown["Scarlet Monastery"].count)
+				assert.is_true(db.shardSouls.H1.soul.unknown)
+				assert.is_true(db.shardSouls.H2.soul.unknown)
+				assert.is_true(db.shardSouls.H3.soul.unknown)
 			end)
 		end)
 

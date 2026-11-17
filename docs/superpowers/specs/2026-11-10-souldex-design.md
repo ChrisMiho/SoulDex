@@ -114,6 +114,9 @@ Shadowburn catch is a shard that appears within 5 s + 3 s of a successful
 Shadowburn cast, named after the target it was cast at; untested in game.)
 Mobs only give shards if they give XP or honour, so the game already filters
 out grey mobs.
+(changed after 1.4.0: WoW: Forever.) Forever's Drain Soul can also drop a shard
+on a damage tick, on top of the one at the kill, so one channel can give two
+or more shards (see "One capture" in 4.2).
 
 ### 4.2 Linking a shard to its source
 
@@ -148,8 +151,16 @@ death detection is used; the capture window below replaces the death queue.)
   (changed after 1.3.0: a Drain Soul started on another mob used to cut the
   Shadowburn capture short, so a Shadowburned mob dying late in its 5 s gave
   its shard the drained mob's name.)
-- One capture names **one** shard (one channel kills one target); further new
-  shards in the same window are soulless. If two unused captures on different
+- One capture records **one** catch, from its first shard. (changed after
+  1.4.0: the user found two unnamed shards from one Forever Drain Soul.) Every
+  further shard of the same capture gets the same soul ("Soul of <name>", like
+  a single shard) and records nothing more: shards that land in the same bag
+  scan, and shards that come later while the capture is live, as long as no
+  other target's capture is live then (`Catch:owner`). Beside another target's
+  live capture a further shard stays soulless. A capture spent by a quiet scan
+  (below) names no further shard. A held capture (whisper out, below) holds its
+  further shards too; the reply names them all, and a shard that comes after
+  the reply takes the soul at once. If two unused captures on different
   targets are live at once (a new Drain Soul within 3 s of the last one
   ending), neither names a shard. (changed after 1.3.0.) Two exceptions, both
   for hidden names, where the GUID can't tell targets apart: a capture taken
@@ -157,8 +168,9 @@ death detection is used; the capture window below replaces the death queue.)
   counted) is the same target, so a recast on the same mob replaces the older
   capture instead of making both ambiguous; and captures that can all only
   become an Unknown soul (hidden name, no whisper out) give the same result
-  whichever is picked, so the newest is used and all are spent. Two new shards in the same bag scan can't be
-  told apart: neither is named, and the capture is spent. A new shard stored
+  whichever is picked, so the newest is used and all are spent. (changed after 1.4.0:
+  two new shards in the same bag scan used to be left soulless; now both take
+  the one live capture's soul, as above.) A new shard stored
   as soulless by a quiet scan (below) also spends the capture, so it can't
   name a later shard from a trade or the mailbox instead.
 - **Unknown soul [user].** When the target's name is hidden (secret, empty,
@@ -985,6 +997,9 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
   never A's name).
 - Kill a mob with Drain Soul cast through a mouseover macro while targeting a
   different mob -> recorded as Unknown soul, never the targeted mob's name.
+- A Drain Soul kill that gives two shards (a damage-tick shard landing with the
+  kill's, or a moment before it): both shards' tooltips read "Soul of <name>",
+  the popup shows once, and the mob's count goes up by one.
 - A Shadowburn kill that yields a shard counts (untested so far: please check).
   A kill whose shard came from elsewhere, or with no Drain Soul/Shadowburn:
   no catch, no name.

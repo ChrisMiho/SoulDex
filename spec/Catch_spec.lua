@@ -201,4 +201,35 @@ describe("Catch", function()
 		-- ...and once the Shadowburn's own time is up, the channel stands alone.
 		assert.equal("Boar", m:take(18.1).info.name)
 	end)
+
+	describe("owner (more than one shard from one capture)", function()
+		it("is the used capture once its first shard was claimed, while it is live", function()
+			m:startCapture("drainsoul", wolf("g1"), "cast1", 10)
+			local c = m:take(12)
+			assert.is_nil(m:owner(12)) -- nothing claimed yet
+			c.claim = { soul = { name = "Wolf" } }
+			assert.equal(c, m:owner(12.5))
+			m:channelStopped("cast1", 13)
+			assert.equal(c, m:owner(15.9))
+			assert.is_nil(m:owner(16.1))
+		end)
+
+		it("is nothing for an unused capture, or none", function()
+			assert.is_nil(m:owner(10))
+			m:startCapture("drainsoul", wolf("g1"), "cast1", 10)
+			assert.is_nil(m:owner(11))
+		end)
+
+		it("is nothing while another target's capture is live", function()
+			m:startCapture("drainsoul", wolf("g1"), "cast1", 10)
+			local c = m:take(11)
+			c.claim = { soul = { name = "Wolf" } }
+			m:startCapture("drainsoul", { name = "Boar", guid = "g2" }, "cast2", 12)
+			assert.is_nil(m:owner(12.5))
+			local boar = m:take(13)
+			boar.claim = { soul = { name = "Boar" } }
+			assert.is_nil(m:owner(14)) -- the Wolf's grace runs to 15
+			assert.equal(boar, m:owner(15.5))
+		end)
+	end)
 end)

@@ -710,6 +710,18 @@ function Capture.namedInfo(pend)
 	return info
 end
 
+-- A further shard's own copy of a soul table, or nil for none.
+local function copySoul(soul)
+	if type(soul) ~= "table" then
+		return nil
+	end
+	local copy = {}
+	for k, v in pairs(soul) do
+		copy[k] = v
+	end
+	return copy
+end
+
 -- Records an Unknown soul; returns its soul table and the afterCatch work.
 local function recordUnknown(dex, info, ctx)
 	local result = dex:recordUnknown(ctx)
@@ -764,18 +776,27 @@ function Capture.recordHeld(dex, pend, ctx)
 end
 
 -- Whisper tokens restart every session, so a shard still held from the last one can never
--- be named: each becomes one Unknown soul (the entry is then no longer held). Runs before
--- Capture.start, so before any whisper of this session can be sent.
+-- be named: each whisper's shards become one Unknown soul (the entries are then no longer
+-- held). Runs before Capture.start, so before any whisper of this session can be sent.
 function Capture.settleLeftovers(db, dex)
+	local byToken = {} -- token -> the soul (or false) its first shard got
 	for _, held in ipairs(ns.Shards.allPending(db.shardSouls)) do
-		local ctx, soul = held.pending.ctx, false
-		if type(ctx) == "table" and type(ctx.zone) == "string" and type(ctx.time) == "number" then
-			local ok, s = pcall(recordUnknown, dex, { unknown = true }, ctx)
-			if ok then
-				soul = s
-			else
-				pcall(errorHandler(), s)
+		local token = held.pending.token
+		local soul = byToken[token]
+		if soul ~= nil then
+			soul = copySoul(soul) or false -- a further shard of the same catch
+		else
+			soul = false
+			local ctx = held.pending.ctx
+			if type(ctx) == "table" and type(ctx.zone) == "string" and type(ctx.time) == "number" then
+				local ok, s = pcall(recordUnknown, dex, { unknown = true }, ctx)
+				if ok then
+					soul = s
+				else
+					pcall(errorHandler(), s)
+				end
 			end
+			byToken[token] = soul
 		end
 		db.shardSouls = ns.Shards.assign(db.shardSouls, held.guid, soul, time())
 	end
@@ -942,15 +963,14 @@ function Capture.start(db, dex)
 		local map, gained, quietNew = ns.Shards.update(db.shardSouls, present, quiet, now, firstScan)
 		db.shardSouls = map
 		-- A new shard we won't name may be the kill's own: the capture is spent on it, so it
-		-- can't name a later shard (a trade, a mail) instead. Two new shards at once can't
-		-- be told apart: neither is named.
-		if quietNew > 0 or #gained > 1 then
+		-- can't name a later shard (a trade, a mail) instead.
+		if quietNew > 0 then
 			window:take(GetTime())
 		end
 		local done = {}
 		for _, guid in ipairs(gained) do
 			local soul, after, park
-			local capture = #gained == 1 and window:take(GetTime())
+			local capture = window:take(GetTime())
 			if capture then
 				local ok, s, a, p = pcall(Capture.record, dex, capture)
 				if ok then
@@ -958,12 +978,34 @@ function Capture.start(db, dex)
 				else
 					pcall(errorHandler(), s)
 				end
+				if park then
+					capture.info.pend.shard = guid
+					capture.claim = { pend = capture.info.pend, park = park }
+				elseif soul then
+					capture.claim = { soul = soul }
+				end
+			else
+				-- A further shard of a capture that already claimed one (Forever's Drain Soul
+				-- can drop one on a damage tick as well as at the kill): the same soul, no
+				-- second catch. A shard held for a name waits with the first.
+				local owner = window:owner(GetTime())
+				local claim = owner and owner.claim
+				if claim and claim.pend then
+					if claim.pend.state == "waiting" then
+						park = claim.park
+						claim.pend.extra = claim.pend.extra or {}
+						table.insert(claim.pend.extra, guid)
+					else
+						soul = copySoul(claim.pend.soul)
+					end
+				elseif claim then
+					soul = copySoul(claim.soul)
+				end
 			end
 			-- Saved shard by shard, so an error later can't lose this one.
 			if park then
 				-- Held until its soul's name comes (or never will): see settle.
 				map = ns.Shards.assignPending(map, guid, park.token, park.ctx, now)
-				capture.info.pend.shard = guid
 			else
 				map = ns.Shards.assign(map, guid, soul or false, now)
 			end
@@ -1045,6 +1087,14 @@ function Capture.start(db, dex)
 			pcall(errorHandler(), s)
 		end
 		db.shardSouls = ns.Shards.assign(db.shardSouls, guid, soul or false, time())
+		pend.soul = soul -- for a further shard of this capture that comes later
+		-- Further shards held with the first take the same soul (one catch).
+		for _, extra in ipairs(pend.extra or {}) do
+			local other = ns.Shards.pendingOf(db.shardSouls, extra)
+			if other and other.token == pend.token then
+				db.shardSouls = ns.Shards.assign(db.shardSouls, extra, copySoul(soul) or false, time())
+			end
+		end
 		if after then
 			Capture.protect(errorHandler(), afterCatch, db, dex, after.result, after.entry)
 		end
