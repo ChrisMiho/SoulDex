@@ -1,9 +1,9 @@
 -- Names the soul on the Soul Shard tooltip (spec 6.3): the item name line becomes
 -- "Soul of <name>" and a "<zone> · <date>" line is added. Nothing else changes.
 -- Shards are looked up by item GUID in db.shardSouls. A creature or player whose soul
--- is in the dex gets one "Soul collected" line on its own tooltip (6.3a); one never
--- caught gets nothing. Every value read from a tooltip or unit is checked for secrets
--- first (ns.Capture's guards).
+-- is in the dex gets one "Soul collected" line on its own tooltip (6.3a), unless
+-- settings.unitTooltip is off; one never caught gets nothing. Every value read from a
+-- tooltip or unit is checked for secrets first (ns.Capture's guards).
 local _, ns = ...
 
 local Tooltip = {}
@@ -209,7 +209,12 @@ local function unitOf(tip)
 end
 
 -- TooltipDataProcessor post-call for unit tooltips (and OnTooltipSetUnit without it).
+-- Nothing while the "Soul collected on tooltips" switch is off.
 function Tooltip.onUnit(tip)
+	local settings = ns.db and ns.db.settings
+	if type(settings) == "table" and settings.unitTooltip == false then
+		return
+	end
 	if not changeable(tip) then
 		return
 	end

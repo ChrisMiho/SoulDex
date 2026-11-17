@@ -8,10 +8,12 @@ ns.Settings = Settings
 -- greeting: the "loaded" chat line after each login and /reload.
 -- lateAsk: experimental, off unless asked for: a boss drained during its encounter keeps
 -- its shard held, and its name is asked for when the fight ends (spec 4.2).
+-- unitTooltip: the "Soul collected" line on a caught creature's or player's tooltip
+-- (spec 6.3a).
 -- popupScale: the size of the new-soul and rank-up popups (a scale, see Settings.scale).
 Settings.DEFAULTS = {
 	popup = true, sound = true, announce = true, chatter = false, greeting = true, lateAsk = false,
-	popupScale = 1,
+	unitTooltip = true, popupScale = 1,
 }
 
 -- The sizes of the window and the popups: the limits, the step of the options' - and +

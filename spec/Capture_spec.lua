@@ -2544,6 +2544,21 @@ describe("Capture glue", function()
 				assert.same({ "Soul collected \195\1512" }, tip.lines)
 			end)
 
+			it("adds nothing when the switch is off", function()
+				local ns = load()
+				local dex = withDex(ns)
+				dex:recordMob({ name = "Hogger" }, CTX)
+				ns.db.settings = { unitTooltip = false }
+				world.target = HOGGER
+				local tip = unitTip()
+				ns.Tooltip.onUnit(tip)
+				assert.same({}, tip.lines)
+				ns.db.settings.unitTooltip = true
+				tip = unitTip()
+				ns.Tooltip.onUnit(tip)
+				assert.same({ "Soul collected" }, tip.lines)
+			end)
+
 			it("finds a raid creature by its NPC ID", function()
 				local ns = load()
 				local dex = withDex(ns)

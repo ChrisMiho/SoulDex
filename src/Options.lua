@@ -13,6 +13,7 @@ Options.ITEMS = {
 	{ key = "announce", label = "Guild announcements" },
 	{ key = "chatter", label = "Claim chatter in chat" },
 	{ key = "greeting", label = "Login message in chat" },
+	{ key = "unitTooltip", label = "\"Soul collected\" on tooltips" },
 	{ key = "lateAsk", label = "Boss names after the fight (test)" },
 }
 

@@ -776,8 +776,11 @@ earns double.
   collection, then by name across Mobs and Raids (a raid creature's name counts
   as one soul, 4.5). **[call]**
 - Only your own dex, never a friend's you are browsing. **[call]** The line is
-  in the soul palette's lavender. No switch of its own: it is one line and only
-  on souls you have. **[call]**
+  in the soul palette's lavender. **[call]**
+- (changed after 1.5.0: the user asked for it.) In the options,
+  the "Soul collected" on tooltips switch, **on** by default, `settings.unitTooltip`:
+  off, unit tooltips are left as the game draws them. The shard tooltip (6.3)
+  has no switch. **[user]**
 - Added through `TooltipDataProcessor` (unit tooltips), else the
   `OnTooltipSetUnit` script. Forbidden or protected tooltips are left alone. A
   name, unit token or player flag that is secret or unknown adds nothing.
@@ -900,6 +903,8 @@ left out if the dex isn't loaded yet). The settings:
 - Boss names after the fight (test) on/off, **off** by default (added after
   1.4.0-beta.1): the experiment described under "Naming souls in dungeons and
   raids".
+- "Soul collected" on tooltips on/off, **on** by default (added after 1.5.0):
+  the unit tooltip line (6.3a).
 
 The same controls are drawn on both surfaces, the small panel and the game's
 Settings page, and each follows a change made on the other. Top to bottom:
@@ -1069,6 +1074,9 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
 - In combat and in instances (where names may be hidden): no errors, no
   "Interface action failed", and at worst the line is missing.
 - The line appears once, even while the tooltip refreshes on a moving mob.
+- Untick the "Soul collected" on tooltips switch in the options: hovering a caught
+  mob or player adds no line, and the shard tooltip still names its soul. Tick
+  it again: the line is back on the next hover. The choice survives `/reload`.
 
 **Window**
 - Log in or `/reload`: one chat line "SoulDex v<version> loaded. <Rank>,
@@ -1137,7 +1145,7 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
   Bind a key: it opens and closes the window. If the header reads
   `BINDING_HEADER_SOULDEX` or the entry is missing, report it.
 - The game's Settings window (Esc > Options > AddOns) has a SoulDex page with
-  six switches, the SIZE section and two buttons. Tick one there: the small
+  seven switches, the SIZE section and two buttons. Tick one there: the small
   panel (`/souldex options`) shows the same, and the other way round. Step a
   size there with the small panel open beside it: both show the new percent,
   and "Reset" appears on both. If the page is blank, misplaced or missing,

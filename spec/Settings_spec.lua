@@ -60,6 +60,12 @@ describe("Settings", function()
 			assert.is_false(Settings.normalise({ lateAsk = 1 }).lateAsk) -- a number is no switch
 		end)
 
+		it("defaults the unit tooltip line on, and keeps it off once switched off", function()
+			assert.is_true(Settings.normalise({}).unitTooltip)
+			assert.is_true(Settings.normalise({ unitTooltip = "no" }).unitTooltip)
+			assert.is_false(Settings.normalise({ unitTooltip = false }).unitTooltip)
+		end)
+
 		it("keeps a saved popup size and repairs a damaged one", function()
 			assert.equal(1.3, Settings.normalise({ popupScale = 1.3 }).popupScale)
 			assert.equal(1, Settings.normalise({ popupScale = "huge" }).popupScale)
