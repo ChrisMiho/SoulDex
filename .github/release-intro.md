@@ -1,15 +1,13 @@
-## 💜 SoulDex 1.4.0: The Grimoire Opens
+## 💜 SoulDex 1.5.0: Marked Souls
 
-*Three betas, a mailbox and many a drained soul later: your dex is sharper, bigger when you want it, and one click away.*
+*Every soul you've taken now wears your mark, and no shard leaves a drain unnamed.*
 
 **What's new**
 
-- **Always at hand.** SoulDex is in the addon list by the minimap, has its own key binding, and its settings are a page of the game's Settings window.
-- **Your size.** Scale the window and the popups from 60% to 160%, or try `/souldex scale`.
-- **Truer names.** Fewer unnamed or wrongly named shards, after mailboxes, Shadowburn, target changes and recast Drain Souls.
-- **Friends that answer.** Large dexes browse without timing out, and Clean up leaves your guild alone.
-- **New commands.** `/souldex find`, `/souldex test`, `/souldex reset` and `/souldex version` (or `/dex` for short).
+- **Known on sight.** Hover a mob or player whose soul you hold: "Soul collected" sits at the bottom of their tooltip. Souls you haven't taken add nothing, so tooltips stay clean.
+- **Count at a glance.** A soul taken more than once shows how many times: "Soul collected ×3".
+- **No shard left nameless.** When one Drain Soul gives you more than one Soul Shard, every shard now carries the soul's name. It still counts as one catch.
 
-**Install:** download `SoulDex-v1.4.0-forever.zip` below and unzip it into `Interface\AddOns`, replacing your old `SoulDex` folder. Coming from a 1.4.0 beta, a `/reload` is enough; coming from 1.3.0 or older, **fully restart the game**.
+**Install:** download `SoulDex-v1.5.0-forever.zip` below and unzip it into `Interface\AddOns`, replacing your old `SoulDex` folder. Coming from 1.4.0, a `/reload` is enough.
 
-*The grimoire is open, warlock. Go and fill it.*
+*Mark them all, warlock. The dex remembers.*
