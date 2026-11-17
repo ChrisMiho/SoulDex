@@ -38,6 +38,8 @@ this document are marked **[call]**, and the user should check them.
   The user decided this because a complete list of every open-world mob is
   impossible to finish and the display gets swamped with blanks.
 - The shard in your bag says whose soul it is in its tooltip. **[user]**
+- (changed after 1.4.0.) A creature or player whose soul you have shows it on
+  their own tooltip (6.3a). **[user]**
 - A minigame layer: a popup and sound for new catches, points, milestones,
   and guild announcements of big moments. **[user]**
 - Social: see other SoulDex users in your party, raid or guild, plus anyone
@@ -749,6 +751,26 @@ earns double.
   name arrives.
 - Shards from before the addon was installed keep the plain "Soul Shard" tooltip.
 
+### 6.3a Unit tooltip
+
+(changed after 1.4.0: the user asked for it.)
+
+- Hovering a creature or player whose soul is in your dex adds one line at the
+  bottom of their tooltip: "Soul collected", or "Soul collected ×N" once caught
+  more than once. **[user]**
+- A soul never caught adds nothing, to keep tooltips uncluttered. **[user]**
+- Matched as the dex is keyed (4.3): a player by their joined name and your
+  realm; a creature first by the NPC ID in its GUID against the Raids
+  collection, then by name across Mobs and Raids (a raid creature's name counts
+  as one soul, 4.5). **[call]**
+- Only your own dex, never a friend's you are browsing. **[call]** The line is
+  in the soul palette's lavender. No switch of its own: it is one line and only
+  on souls you have. **[call]**
+- Added through `TooltipDataProcessor` (unit tooltips), else the
+  `OnTooltipSetUnit` script. Forbidden or protected tooltips are left alone. A
+  name, unit token or player flag that is secret or unknown adds nothing.
+  **[call]**
+
 ### 6.4 Guild announcements
 
 - **On by default** for big moments only: milestones and raid completions. **[user]**
@@ -1021,6 +1043,17 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
   "Unknown soul". Old or unmatched shards still say "Soul Shard" with no extra lines. Move the shard to another bag,
   sort the bags, put it in the bank and take it out, relog: the line stays on
   that exact shard.
+
+**Unit tooltip**
+- Hover a mob you have caught once: the last tooltip line is a lavender "Soul
+  collected"; one caught three times says "Soul collected ×3". Hover a mob you
+  have never caught: no extra line.
+- Hover a player you have sharded: "Soul collected" at the bottom; one you
+  haven't: nothing. A raid boss you have caught shows it too, in and out of the
+  raid.
+- In combat and in instances (where names may be hidden): no errors, no
+  "Interface action failed", and at worst the line is missing.
+- The line appears once, even while the tooltip refreshes on a moving mob.
 
 **Window**
 - Log in or `/reload`: one chat line "SoulDex v<version> loaded. <Rank>,

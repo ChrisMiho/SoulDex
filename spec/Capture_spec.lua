@@ -107,7 +107,7 @@ describe("Capture glue", function()
 		_G.TooltipDataProcessor = {
 			AddTooltipPostCall = function(kind, fn) postCalls[#postCalls + 1] = { kind = kind, fn = fn } end,
 		}
-		_G.Enum = { TooltipDataType = { Item = 0 } }
+		_G.Enum = { TooltipDataType = { Item = 0, Unit = 2 } }
 		_G.C_RestrictedActions = nil
 		_G.GetCursorInfo = function() return world.cursor end
 		local function t(field)
@@ -265,6 +265,14 @@ describe("Capture glue", function()
 		assert.equal("function", type(ns.OnLoaded))
 		assert.same({}, ns.onCatch)
 		assert.same({}, ns.onLoaded)
+		assert.equal(2, #postCalls)
+		assert.equal(0, postCalls[1].kind)
+		assert.equal(2, postCalls[2].kind)
+	end)
+
+	it("adds no unit post-call on a client without the Unit tooltip type", function()
+		_G.Enum = { TooltipDataType = { Item = 0 } }
+		load()
 		assert.equal(1, #postCalls)
 		assert.equal(0, postCalls[1].kind)
 	end)
@@ -2389,6 +2397,117 @@ describe("Capture glue", function()
 			ns.Tooltip.onSetBagItem(tip, 0, 2)
 			ns.Tooltip.onSetBagItem(tip, 0, 3)
 			assert.equal(0, #tip.lines)
+		end)
+
+		describe("unit tooltips", function()
+			local function unitTip(extra)
+				local tip = tipStub(extra)
+				tip.GetUnit = function() return "whoever", "target" end
+				return tip
+			end
+
+			local function withDex(ns)
+				ns.db = {}
+				ns.dex = ns.Dex.new(ns.db)
+				return ns.dex
+			end
+
+			local CTX = { time = 1, zone = "Elwynn Forest" }
+
+			it("says nothing for a soul never caught", function()
+				local ns = load()
+				withDex(ns)
+				world.target = HOGGER
+				local tip = unitTip()
+				ns.Tooltip.onUnit(tip)
+				assert.same({}, tip.lines)
+			end)
+
+			it("marks a caught creature, with a count past the first", function()
+				local ns = load()
+				local dex = withDex(ns)
+				dex:recordMob({ name = "Hogger" }, CTX)
+				world.target = HOGGER
+				local tip = unitTip()
+				ns.Tooltip.onUnit(tip)
+				assert.same({ "Soul collected" }, tip.lines)
+				dex:recordMob({ name = "Hogger" }, CTX)
+				tip = unitTip()
+				ns.Tooltip.onUnit(tip)
+				assert.same({ "Soul collected \195\1512" }, tip.lines)
+			end)
+
+			it("finds a raid creature by its NPC ID", function()
+				local ns = load()
+				local dex = withDex(ns)
+				dex:recordRaid({ name = "Lucifron" }, CTX, 409, 12118)
+				world.target = { name = "Lucifron", guid = "Creature-0-1-409-2-12118-3" }
+				local tip = unitTip()
+				ns.Tooltip.onUnit(tip)
+				assert.same({ "Soul collected" }, tip.lines)
+			end)
+
+			it("marks a caught player by joined name and home realm", function()
+				local ns = load()
+				local dex = withDex(ns)
+				dex:recordPlayer({ name = "Forgot Shards", realm = "Home" }, CTX)
+				world.target = { name = "Forgot", realm = "Shards", guid = "Player-1-2", player = true }
+				local tip = unitTip()
+				ns.Tooltip.onUnit(tip)
+				assert.same({ "Soul collected" }, tip.lines)
+				-- a creature of the same name is not that player
+				world.target = { name = "Forgot Shards", guid = "Creature-0-1-0-2-5-3" }
+				tip = unitTip()
+				ns.Tooltip.onUnit(tip)
+				assert.same({}, tip.lines)
+			end)
+
+			it("says nothing when the name, the unit or the player flag is secret or unknown", function()
+				local ns = load()
+				local dex = withDex(ns)
+				dex:recordMob({ name = "Hogger" }, CTX)
+				world.target = { name = SECRET, guid = HOGGER.guid }
+				local tip = unitTip()
+				ns.Tooltip.onUnit(tip)
+				world.target = { name = "Unknown", guid = HOGGER.guid }
+				ns.Tooltip.onUnit(tip)
+				world.target = HOGGER
+				tip.GetUnit = function() return "Hogger", SECRET end
+				ns.Tooltip.onUnit(tip)
+				tip.GetUnit = function() return "Hogger", nil end
+				ns.Tooltip.onUnit(tip)
+				tip.GetUnit = nil
+				ns.Tooltip.onUnit(tip)
+				tip = unitTip()
+				_G.UnitIsPlayer = function() return SECRET end
+				ns.Tooltip.onUnit(tip)
+				assert.same({}, tip.lines)
+			end)
+
+			it("leaves forbidden or protected tooltips alone, and waits for the dex", function()
+				local ns = load()
+				world.target = HOGGER
+				local tip = unitTip()
+				ns.Tooltip.onUnit(tip) -- no dex yet
+				withDex(ns):recordMob({ name = "Hogger" }, CTX)
+				tip = unitTip({ IsForbidden = function() return true end })
+				ns.Tooltip.onUnit(tip)
+				ns.Tooltip.onUnit(nil)
+				assert.same({}, tip.lines)
+				_G.C_RestrictedActions = { CheckAllowProtectedFunctions = function() return false end }
+				tip = unitTip()
+				ns.Tooltip.onUnit(tip)
+				assert.same({}, tip.lines)
+			end)
+
+			it("hooks OnTooltipSetUnit without TooltipDataProcessor", function()
+				_G.TooltipDataProcessor = nil
+				local script, handler
+				_G.GameTooltip = { HookScript = function(_, name, fn) script, handler = name, fn end }
+				local ns = load()
+				assert.equal("OnTooltipSetUnit", script)
+				assert.equal(ns.Tooltip.onUnit, handler)
+			end)
 		end)
 	end)
 end)

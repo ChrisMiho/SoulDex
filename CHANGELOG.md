@@ -5,6 +5,8 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Mobs and players whose soul you have say "Soul collected" at the bottom of their tooltip; ones you haven't caught show nothing extra.
+
 ## [1.4.0] - 2026-11-16
 
 - SoulDex is in the game's addon list by the minimap (click to open, right-click for options), has a key binding (Options > Keybindings > AddOns), and its settings are also a page of the game's own Settings window.

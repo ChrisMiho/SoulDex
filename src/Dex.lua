@@ -264,6 +264,38 @@ function methods:recordUnknown(ctx)
 	return { isNew = false, points = 0, kind = "unknown" }
 end
 
+-- How many times a creature's soul has been claimed, or nil if never (the unit tooltip,
+-- spec 6.3a): a raid creature by its NPC ID, else by name, raid creatures included (4.5).
+function methods:mobCaught(name, npcID)
+	local db = self.db
+	local raid = npcID and db.raids[npcID]
+	if raid then
+		return raid.count
+	end
+	if type(name) ~= "string" then
+		return nil
+	end
+	local entry = db.mobs[name]
+	if entry then
+		return ns.Points.count(entry)
+	end
+	for _, r in pairs(db.raids) do
+		if r.name == name then
+			return r.count
+		end
+	end
+	return nil
+end
+
+-- How many times a player's soul has been claimed (name-realm, 4.3), or nil if never.
+function methods:playerCaught(name, realm)
+	if type(name) ~= "string" then
+		return nil
+	end
+	local entry = self.db.players[name .. "-" .. (realm or "")]
+	return entry and entry.count or nil
+end
+
 -- Raid creatures count as mobs too, once per name (spec 4.5).
 function methods:uniqueMobs()
 	local seen, n = {}, 0

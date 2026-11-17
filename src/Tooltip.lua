@@ -1,7 +1,9 @@
 -- Names the soul on the Soul Shard tooltip (spec 6.3): the item name line becomes
 -- "Soul of <name>" and a "<zone> · <date>" line is added. Nothing else changes.
--- Shards are looked up by item GUID in db.shardSouls; every value read from the
--- tooltip is checked for secrets first (ns.Capture's guards).
+-- Shards are looked up by item GUID in db.shardSouls. A creature or player whose soul
+-- is in the dex gets one "Soul collected" line on its own tooltip (6.3a); one never
+-- caught gets nothing. Every value read from a tooltip or unit is checked for secrets
+-- first (ns.Capture's guards).
 local _, ns = ...
 
 local Tooltip = {}
@@ -98,25 +100,34 @@ local function guidOf(tip, data)
 	return nil
 end
 
--- TooltipDataProcessor post-call for item tooltips.
-function Tooltip.onItem(tip, data)
+-- True when the tooltip may be changed: not forbidden, not protected right now.
+local function changeable(tip)
 	local C = ns.Capture
 	if type(tip) ~= "table" then
-		return
+		return false
 	end
 	local forbidden = C.call(tip.IsForbidden, tip)
 	if not C.readable(forbidden) or forbidden then
-		return
-	end
-	if not C.readableTable(data) or not C.plainNumber(data.id) or data.id ~= ns.Shards.ITEM_ID then
-		return
+		return false
 	end
 	local R = C_RestrictedActions
 	if R and R.CheckAllowProtectedFunctions then
 		local allowed = C.call(R.CheckAllowProtectedFunctions, tip, true)
 		if not C.readable(allowed) or not allowed then
-			return
+			return false
 		end
+	end
+	return true
+end
+
+-- TooltipDataProcessor post-call for item tooltips.
+function Tooltip.onItem(tip, data)
+	local C = ns.Capture
+	if not C.readableTable(data) or not C.plainNumber(data.id) or data.id ~= ns.Shards.ITEM_ID then
+		return
+	end
+	if not changeable(tip) then
+		return
 	end
 	local soul = soulFor(guidOf(tip, data))
 	if soul then
@@ -140,8 +151,80 @@ function Tooltip.onSetBagItem(tip, bag, slot)
 	end
 end
 
+-- Unit tooltips ----------------------------------------------------------------------
+
+-- The line under a caught soul's unit tooltip, or nil for one never caught.
+function Tooltip.caughtLine(count)
+	if type(count) ~= "number" or count < 1 then
+		return nil
+	end
+	if count == 1 then
+		return "Soul collected"
+	end
+	return "Soul collected \195\151" .. count
+end
+
+-- How many times the unit's soul is in the dex, or nil (never, or its name is hidden).
+local function caughtCount(unit)
+	local C, dex = ns.Capture, ns.dex
+	if not dex then
+		return nil
+	end
+	local name, second = C.call(UnitName, unit)
+	if not C.plainString(name) or (UNKNOWNOBJECT ~= nil and name == UNKNOWNOBJECT)
+		or (UNKNOWN ~= nil and name == UNKNOWN) then
+		return nil
+	end
+	local guid = C.call(UnitGUID, unit)
+	guid = C.plainString(guid) and guid or nil
+	local isPlayer = C.call(UnitIsPlayer, unit)
+	if not C.readable(isPlayer) then
+		return nil
+	end
+	if isPlayer then
+		-- Joined and keyed as the dex keys players (spec 4.3).
+		local realm = C.call(GetRealmName)
+		local full = ns.Friends.fullName(name, C.plainString(second) and second or nil)
+		return dex:playerCaught(full, C.plainString(realm) and realm or nil)
+	end
+	return dex:mobCaught(name, C.npcIdFromGuid(guid))
+end
+
+local function addCaughtLine(tip, unit)
+	local line = Tooltip.caughtLine(caughtCount(unit))
+	if line then
+		tip:AddLine(line, 0.79, 0.66, 1)
+		tip:Show() -- re-fit the height to the new line
+	end
+end
+
+-- The tooltip's unit token, or nil.
+local function unitOf(tip)
+	local C = ns.Capture
+	local _, unit = C.call(tip.GetUnit, tip)
+	if C.plainString(unit) then
+		return unit
+	end
+	return nil
+end
+
+-- TooltipDataProcessor post-call for unit tooltips (and OnTooltipSetUnit without it).
+function Tooltip.onUnit(tip)
+	if not changeable(tip) then
+		return
+	end
+	local unit = unitOf(tip)
+	if unit then
+		addCaughtLine(tip, unit)
+	end
+end
+
 if TooltipDataProcessor and Enum and Enum.TooltipDataType then
 	pcall(TooltipDataProcessor.AddTooltipPostCall, Enum.TooltipDataType.Item, Tooltip.onItem)
+	if Enum.TooltipDataType.Unit ~= nil then
+		pcall(TooltipDataProcessor.AddTooltipPostCall, Enum.TooltipDataType.Unit, Tooltip.onUnit)
+	end
 elseif GameTooltip then
 	pcall(hooksecurefunc, GameTooltip, "SetBagItem", Tooltip.onSetBagItem)
+	pcall(GameTooltip.HookScript, GameTooltip, "OnTooltipSetUnit", Tooltip.onUnit)
 end
