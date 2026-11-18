@@ -44,6 +44,30 @@ describe("Whisper", function()
 			end
 		end)
 
+		it("drops a raid marker from the name", function()
+			-- What the game sends back for a marked target: "{rt8}Mana Phantom" (probe, City
+			-- of Dalaran); localised clients may spell the marker as a word.
+			for _, text in ipairs({
+				"SDX1:a1:{rt8}Mana Phantom",
+				"SDX1:a1:{rt7} Mana Phantom",
+				"SDX1:a1:{skull}Mana Phantom",
+				"SDX1:a1:Mana Phantom{rt1}",
+				"SDX1:a1:{RT2}{rt3}Mana Phantom",
+			}) do
+				local token, name = W.parse(text)
+				assert.equal("a1", token, text)
+				assert.equal("Mana Phantom", name, text)
+			end
+		end)
+
+		it("gives no name for a marker alone or a stray brace", function()
+			for _, text in ipairs({ "SDX1:a1:{rt8}", "SDX1:a1:{rt8} ", "SDX1:a1:Mana {Phantom", "SDX1:a1:Mana}" }) do
+				local token, name = W.parse(text)
+				assert.equal("a1", token, text)
+				assert.is_nil(name, text)
+			end
+		end)
+
 		it("accepts a 64 character name", function()
 			local long = string.rep("x", 64)
 			local _, name = W.parse("SDX1:a1:" .. long)
@@ -220,6 +244,70 @@ describe("Whisper", function()
 			local expired = q:tick(100, false)
 			assert.equal(a, expired[1])
 			assert.equal(b, expired[2])
+		end)
+	end)
+
+	describe("repairNames", function()
+		local function place(count, first, last)
+			return { count = count, first = first, last = last, myLevel = 30 }
+		end
+
+		it("renames a marked mob", function()
+			local entry = { name = "{rt7}Saturated Remnant", points = 5, first = 10, last = 10,
+				places = { Dalaran = place(1, 10, 10) } }
+			local db = { mobs = { ["{rt7}Saturated Remnant"] = entry }, raids = {}, shardSouls = {} }
+			assert.equal(1, W.repairNames(db))
+			assert.is_nil(db.mobs["{rt7}Saturated Remnant"])
+			assert.equal(entry, db.mobs["Saturated Remnant"])
+			assert.equal("Saturated Remnant", entry.name)
+		end)
+
+		it("merges a marked mob into the clean one", function()
+			local clean = { name = "Remnant", points = 2, first = 20, last = 30, minLevel = 29, maxLevel = 30,
+				classification = "normal", bonus = 1, places = { Dalaran = place(2, 20, 30) } }
+			local marked = { name = "{rt8}Remnant", points = 5, first = 5, last = 40, minLevel = 28, maxLevel = 31,
+				classification = "elite", creatureType = "Elemental", bonus = 2,
+				places = { Dalaran = place(1, 5, 5), Stormwind = place(3, 35, 40) } }
+			local db = { mobs = { Remnant = clean, ["{rt8}Remnant"] = marked }, raids = {}, shardSouls = {} }
+			W.repairNames(db)
+			assert.is_nil(db.mobs["{rt8}Remnant"])
+			local m = db.mobs.Remnant
+			assert.equal(clean, m)
+			assert.equal(5, m.points)
+			assert.equal(5, m.first)
+			assert.equal(40, m.last)
+			assert.equal(28, m.minLevel)
+			assert.equal(31, m.maxLevel)
+			assert.equal(3, m.bonus)
+			assert.equal("normal", m.classification) -- what was there stays
+			assert.equal("Elemental", m.creatureType) -- a gap is filled
+			assert.equal(3, m.places.Dalaran.count)
+			assert.equal(5, m.places.Dalaran.first)
+			assert.equal(30, m.places.Dalaran.last)
+			assert.equal(3, m.places.Stormwind.count)
+		end)
+
+		it("cleans raid entries and shard souls", function()
+			local db = {
+				mobs = {},
+				raids = { [123] = { name = "{rt1}Core Hound", count = 1 } },
+				shardSouls = {
+					a = { soul = { name = "{rt7}Saturated Remnant", zone = "Dalaran" }, seen = 1 },
+					b = { soul = { name = "Mountain Lion" }, seen = 1 },
+					c = { soul = false, seen = 1 },
+				},
+			}
+			assert.equal(2, W.repairNames(db))
+			assert.equal("Core Hound", db.raids[123].name)
+			assert.equal("Saturated Remnant", db.shardSouls.a.soul.name)
+			assert.equal("Mountain Lion", db.shardSouls.b.soul.name)
+		end)
+
+		it("leaves a name that would be empty, and damaged data", function()
+			local db = { mobs = { ["{rt8}"] = { name = "{rt8}", places = {} }, bad = 7 }, raids = 3 }
+			assert.equal(0, W.repairNames(db))
+			assert.is_table(db.mobs["{rt8}"])
+			assert.equal(0, W.repairNames({}))
 		end)
 	end)
 end)

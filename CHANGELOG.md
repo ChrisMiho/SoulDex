@@ -5,6 +5,8 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Souls of mobs with a raid marker (skull, star and so on) are saved under their plain name. Ones already saved with the marker in front, like "{rt7}Saturated Remnant", are fixed when you log in.
+
 ## [1.5.1] - 2026-11-17
 
 - New switch in the options: "Soul collected" on tooltips, on by default. Untick it to keep mob and player tooltips as they were.

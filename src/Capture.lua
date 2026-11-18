@@ -1457,6 +1457,8 @@ function ns.OnLoaded(db)
 		db.shardSouls = {}
 	end
 	ns.db = db
+	-- Souls named with a raid marker before it was stripped ("{rt7}Saturated Remnant").
+	Capture.protect(errorHandler(), ns.Whisper.repairNames, db)
 	ns.dex = ns.Dex.new(db)
 	-- Before Capture.start: no whisper of this session (tokens restart) can be sent yet.
 	Capture.protect(errorHandler(), Capture.settleLeftovers, db, ns.dex)

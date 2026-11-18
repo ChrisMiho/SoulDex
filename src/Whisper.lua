@@ -27,7 +27,14 @@ local function validName(name)
 	return name ~= ""
 		and #name <= Whisper.MAX_NAME
 		and name ~= "%t"
-		and not name:find("[:|%c]")
+		and not name:find("[:|%c{}]")
+end
+
+-- A marked target comes back with its raid marker as text: "{rt8}Mana Phantom", or a
+-- word such as "{skull}" on some clients. No creature name has braces, so every {...}
+-- goes, with the spaces around the name.
+function Whisper.stripMarkers(name)
+	return (name:gsub("{[^{}]*}", ""):match("^%s*(.-)%s*$"))
 end
 
 -- Returns token, name. token is set for any well-formed "SDX1:<token>:<rest>"; name is
@@ -40,10 +47,99 @@ function Whisper.parse(text)
 	if not token then
 		return nil, nil
 	end
+	rest = Whisper.stripMarkers(rest)
 	if validName(rest) then
 		return token, rest
 	end
 	return token, nil
+end
+
+-- Folds a mob entry saved under a marked name into the one under the clean name.
+local function mergeMob(into, from)
+	for _, field in ipairs({ "classification", "creatureType", "family" }) do
+		if into[field] == nil then
+			into[field] = from[field]
+		end
+	end
+	local function lower(a, b)
+		return (a and b) and math.min(a, b) or a or b
+	end
+	local function higher(a, b)
+		return (a and b) and math.max(a, b) or a or b
+	end
+	into.points = higher(into.points, from.points)
+	into.first, into.last = lower(into.first, from.first), higher(into.last, from.last)
+	into.minLevel, into.maxLevel = lower(into.minLevel, from.minLevel), higher(into.maxLevel, from.maxLevel)
+	if from.bonus then
+		into.bonus = (into.bonus or 0) + from.bonus
+	end
+	if type(into.places) ~= "table" then
+		into.places = {}
+	end
+	for zone, p in pairs(type(from.places) == "table" and from.places or {}) do
+		local q = into.places[zone]
+		if type(q) ~= "table" or type(p) ~= "table" then
+			into.places[zone] = q or p
+		else
+			q.count = (q.count or 0) + (p.count or 0)
+			q.first, q.last = lower(q.first, p.first), higher(q.last, p.last)
+		end
+	end
+end
+
+-- Names saved before markers were stripped (1.5.1 and earlier): the dex's mobs and raid
+-- entries and the souls on shards. A mob that is also under its clean name is merged
+-- into it. A name that would be empty is left as it is. Returns how many were repaired.
+function Whisper.repairNames(db)
+	local fixed = 0
+	local function clean(name)
+		if type(name) == "string" and name:find("{", 1, true) then
+			local stripped = Whisper.stripMarkers(name)
+			if stripped ~= name and validName(stripped) then
+				return stripped
+			end
+		end
+	end
+	if type(db.mobs) == "table" then
+		local renames = {}
+		for key, entry in pairs(db.mobs) do
+			local name = type(entry) == "table" and clean(key)
+			if name then
+				renames[key] = name
+			end
+		end
+		for key, name in pairs(renames) do
+			local entry = db.mobs[key]
+			db.mobs[key] = nil
+			entry.name = name
+			if type(db.mobs[name]) == "table" then
+				mergeMob(db.mobs[name], entry)
+			else
+				db.mobs[name] = entry
+			end
+			fixed = fixed + 1
+		end
+	end
+	if type(db.raids) == "table" then
+		for _, entry in pairs(db.raids) do
+			local name = type(entry) == "table" and clean(entry.name)
+			if name then
+				entry.name = name
+				fixed = fixed + 1
+			end
+		end
+	end
+	if type(db.shardSouls) == "table" then
+		for _, entry in pairs(db.shardSouls) do
+			local soul = type(entry) == "table" and entry.soul
+			local name = type(soul) == "table" and clean(soul.name)
+			if name then
+				soul.name = name
+				fixed = fixed + 1
+			end
+		end
+	end
+	return fixed
 end
 
 -- Whether to send the whisper now. Every field must be exactly as listed; nil (could

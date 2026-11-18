@@ -260,6 +260,15 @@ describe("Capture glue", function()
 		return n
 	end
 
+	it("repairs names saved with a raid marker at load", function()
+		local _, db = boot({
+			mobs = { ["{rt7}Saturated Remnant"] = { name = "{rt7}Saturated Remnant", points = 5,
+				places = { Dalaran = { count = 1 } } } },
+		})
+		assert.is_nil(db.mobs["{rt7}Saturated Remnant"])
+		assert.equal("Saturated Remnant", db.mobs["Saturated Remnant"].name)
+	end)
+
 	it("loads and defines ns.OnLoaded, the hook lists and the tooltip post-call", function()
 		local ns = load()
 		assert.equal("function", type(ns.OnLoaded))

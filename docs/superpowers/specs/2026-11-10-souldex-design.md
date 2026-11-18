@@ -202,7 +202,12 @@ death detection is used; the capture window below replaces the death queue.)
   - the player is not AFK or DND (their auto-reply would show a line).
   One whisper per capture. A reply counts only if its token is pending, its
   sender GUID is the player's own, and its name is plain (no `|`, `:`,
-  newline, `%t`, empty or overlong). A reply that arrives secret (combat) is
+  braces, newline, `%t`, empty or overlong). A marked target's name comes back
+  with its raid marker as text (`{rt8}Mana Phantom`; some clients spell it as a
+  word, `{skull}`): every `{...}` and the spaces around the name are removed
+  first (added after 1.5.1), and names saved with a marker by earlier versions
+  are repaired at load (`Whisper.repairNames`: mobs, raid entries, shard souls;
+  a marked mob also saved under its clean name is merged into it). A reply that arrives secret (combat) is
   re-read from chat history when restrictions lift. `SDX1:` whispers to and
   from the player are hidden by a chat filter (a reply whose text arrives
   secret can't be checked, so it may show), and `/r` is put back after
@@ -986,6 +991,9 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
   reload; if the dex is suddenly empty, relog before reporting a bug.
 
 **Catching**
+- Put a raid marker on a mob in a dungeon and Drain Soul it: the dex and the
+  shard's tooltip show its plain name, no `{rt8}` in front. A soul saved with
+  one by 1.5.1 or earlier shows its plain name after the update.
 - Drain Soul a mob to death and get a shard: the popup "SOUL CLAIMED"
   appears at top centre (name in rarity colour, zone, "Soul #N", "+N pts"),
   a sound plays, it holds 4 s, then fades (about 5 s in all); a second quick kill replaces it.
@@ -1390,6 +1398,21 @@ The rule stands: a lead that could give a wrong name is not used.
 | G | Localised raid lists, or a list of names per NPC id per language. | 2 | No probe: a data job (Questie ships localised names). |
 | H | **Context clues [user: "find context clues from what's around the player, maybe via scanning"].** Comparing units needs no names: `UnitIsUnit("target", "boss1")` may say "the target is this encounter's boss" where the name is hidden. With B's encounter name, and only one boss unit present, that names the boss without the whisper and without keeping it targeted. | 1 | The boss units (`boss1`..`boss5`) exist in this client's dungeons and raids, the comparison is readable during the encounter, and the encounter's name is the boss's (table I). The probe's `scene:` line logs all of it at `ENCOUNTER_START`, at the kill and when a shard arrives. |
 | I | **A small boss table [user]**: per instance, each encounter's id and name, the boss (or bosses) it stands for, and where it is (subzone text). It turns B and H into names safely: an encounter is used only when the table says it has exactly one boss and gives that boss's name ("Ring of Law" and "The Four Horsemen" are in it as "no single boss": never named this way). The subzone is a second check, and a fallback clue where there are no encounter events. | 1, and dungeon bosses for a future Dungeons list | Filled from what the probe logs (encounter ids and names, subzones), not from memory: a wrong row would be a wrong name. For raids the boss names already ship in `RaidData`. |
+
+**Probe results, City of Dalaran (normal dungeon), 2026-11-17.** Two
+encounters (Mana Elemental, Unstable Sentinel), build 1.60.1 (70938):
+- A works: the probe's `%t` whisper sent at `ENCOUNTER_END` came back with
+  the target's name, and Unstable Sentinel, drained during its encounter, was
+  named in the dex. At +1 s and +3 s the target was gone (`<no target>`): the
+  late ask must go out at once, as it does.
+- B: `ENCOUNTER_START` / `ENCOUNTER_END` give the encounter name readably
+  ("Mana Elemental", "Unstable Sentinel").
+- C: `CHAT_MSG_COMBAT_XP_GAIN` is readable in the instance and during an
+  encounter ("Arcanic Enigma dies, you gain 109 experience").
+- D: `C_Secrets.ShouldUnitIdentityBeSecret` answers readably (`true` on
+  instance mobs); `UnitCreatureID` raises "RequiresUnitIdentityAccess".
+- `%t` puts a raid marker in front of a marked target's name
+  (`{rt8}Mana Phantom`); fixed (4.2).
 
 Order of work: probe a dungeon boss first (it decides A, B, C, H at once);
 A is already in the build to try; then the boss table (I) from the logged

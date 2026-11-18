@@ -144,8 +144,11 @@ chat restrictions and pins `%t` to the cast's unit) and dropped.
   (`C_ChatInfo.GetChatLineText` / `GetChatLineSenderGUID`) when restrictions
   lift: `PLAYER_REGEN_ENABLED`, `ADDON_RESTRICTION_STATE_CHANGED`,
   `ENCOUNTER_END`, zone change. Line ids are kept up to the timeout.
+- A raid marker on the target comes back as text before the name
+  (`{rt8}Mana Phantom`, seen in City of Dalaran): every `{...}` is removed
+  first (added after 1.5.1).
 - A reply whose name is empty, still contains `%t`, or contains `|`, `:`,
-  newlines, or is longer than a creature name can be, counts as failed.
+  braces, newlines, or is longer than a creature name can be, counts as failed.
 - **[my call]** Not sent while the player is AFK or DND (the auto-reply would
   show a line the filters don't cover; values checked, unreadable → don't
   send). After sending, the last-tell target (`/r`) is put back to what it
