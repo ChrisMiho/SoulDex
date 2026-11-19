@@ -132,14 +132,17 @@ function Browse.mobs(dex, place, other)
 	local unknownRow
 	if place == Browse.ALL then
 		for name, mob in pairs(mobs) do
-			local count, last = claims(mob, place)
-			rows[#rows + 1] = {
-				name = name,
-				count = count,
-				classification = mob.classification,
-				stars = starCount(dex, mob),
-				last = last,
-			}
+			-- A mob with no place (damaged saved data) is listed nowhere, so not under All either.
+			if next(mob.places or {}) ~= nil then
+				local count, last = claims(mob, place)
+				rows[#rows + 1] = {
+					name = name,
+					count = count,
+					classification = mob.classification,
+					stars = starCount(dex, mob),
+					last = last,
+				}
+			end
 		end
 	else
 		for _, row in ipairs(ns.View.mobsAt(dex, place)) do
@@ -276,6 +279,24 @@ function Browse.apply(rows, filter, sort)
 		end)
 	end
 	return out
+end
+
+-- How many rows the "All zones" (Mobs) or "All classes" (Players) selection lists for the
+-- dex on screen: mobs with at least one place (raid souls are not among them), every player.
+function Browse.size(dex, tab)
+	local n = 0
+	if tab == "Mobs" then
+		for _, mob in pairs(dex.db.mobs) do
+			if next(mob.places or {}) ~= nil then
+				n = n + 1
+			end
+		end
+	elseif tab == "Players" then
+		for _ in pairs(dex.db.players) do
+			n = n + 1
+		end
+	end
+	return n
 end
 
 function Browse.counts(dex, other, tab)

@@ -327,7 +327,8 @@ end
 
 function F.emptyNote(search)
 	if search and search ~= "" then
-		return F.note('No soul matching "' .. search .. '".')
+		-- A typed | would start an escape code: doubled, it shows as itself.
+		return F.note('No soul matching "' .. search:gsub("|", "||") .. '".')
 	end
 	return F.note("Nothing here matches.")
 end

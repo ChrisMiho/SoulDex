@@ -375,6 +375,46 @@ describe("View", function()
 			assert.is_nil(View.mobDetail(dex, "Nope", "Elwynn Forest"))
 			assert.is_nil(View.mobDetail(dex, "Wolf", "Westfall"))
 		end)
+
+		it("whole: the total over every zone, the most-claimed zone with +N, and the widest dates", function()
+			dex:recordMob(mob("Wolf"), ctx("Elwynn Forest", nil, { time = 1000, myLevel = 10, x = 1, y = 2 }))
+			for t = 2000, 2002 do
+				dex:recordMob(mob("Wolf"), ctx("Westfall", nil, { time = t, myLevel = 30, x = 5, y = 6 }))
+			end
+			local d = View.mobDetail(dex, "Wolf", "Elwynn Forest", true)
+			assert.equal(4, d.count)
+			assert.equal("Westfall +1", d.place)
+			assert.equal(1000, d.first)
+			assert.equal(2002, d.last)
+			assert.equal(30, d.myLevel)
+			assert.equal(5, d.x)
+			assert.equal(6, d.y)
+			assert.truthy(d.flavour:find("Elwynn Forest", 1, true)) -- still the first place
+			-- without whole nothing changes
+			assert.equal(1, View.mobDetail(dex, "Wolf", nil).count)
+			assert.equal("Elwynn Forest", View.mobDetail(dex, "Wolf", nil).place)
+		end)
+
+		it("whole: one zone gives no +N; ties go to the alphabetically first zone", function()
+			dex:recordMob(mob("Wolf"), ctx("Westfall"))
+			local d = View.mobDetail(dex, "Wolf", nil, true)
+			assert.equal("Westfall", d.place)
+			assert.equal(1, d.count)
+			dex:recordMob(mob("Wolf"), ctx("Duskwood"))
+			assert.equal("Duskwood +1", View.mobDetail(dex, "Wolf", nil, true).place)
+		end)
+
+		it("whole: a friend's dex without dates", function()
+			local db = { mobs = { Wolf = { name = "Wolf", places = {
+				Westfall = { count = 2 },
+				Duskwood = { count = 5 },
+			} } } }
+			local d = View.mobDetail(ns.Dex.new(db), "Wolf", nil, true)
+			assert.equal(7, d.count)
+			assert.equal("Duskwood +1", d.place)
+			assert.is_nil(d.first)
+			assert.is_nil(d.last)
+		end)
 	end)
 
 	describe("me", function()

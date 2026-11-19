@@ -224,6 +224,8 @@ describe("UIFormat", function()
 			assert.equal("Show: All", F.toolLabel("show", "all", false))
 			assert.equal('No soul matching "zz".', F.emptyNote("zz").text)
 			assert.equal("Nothing here matches.", F.emptyNote().text)
+			-- a typed | is shown as itself, not read as an escape code
+			assert.truthy(F.emptyNote("a|b").text:find("a||b", 1, true))
 		end)
 
 		it("marks elites, rares and bosses, and highlights", function()

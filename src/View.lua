@@ -312,6 +312,24 @@ local function firstPlace(mob)
 	return best
 end
 
+-- The zone a mob was claimed in most (ties: alphabetically first), its text with " +N"
+-- for N other zones, and the total over every zone. View.find's "where" and the whole card.
+local function mostClaimed(mob)
+	local zones, best, bestCount, total = 0, nil, -1, 0
+	for zone, place in pairs(mob.places or {}) do
+		local count = place.count or 0
+		zones, total = zones + 1, total + count
+		if count > bestCount or (count == bestCount and zone < best) then
+			best, bestCount = zone, count
+		end
+	end
+	local where = best
+	if best and zones > 1 then
+		where = best .. " +" .. (zones - 1)
+	end
+	return best, where, total
+end
+
 -- { stars, count, from, to } for the detail pane's Mastery line, or nil (Dex.stars).
 local function mastery(dex, entry)
 	local stars, count, from, to = dex:stars(entry)
@@ -321,7 +339,9 @@ local function mastery(dex, entry)
 	return { stars = stars, count = count, from = from, to = to }
 end
 
-function View.mobDetail(dex, name, place)
+-- whole: the card for the soul over every zone (the All row, a search result): its
+-- total, earliest and latest claim, and the most-claimed zone ("Zone +N"); place is ignored.
+function View.mobDetail(dex, name, place, whole)
 	local mob = dex.db.mobs[name]
 	if not mob then
 		return nil
@@ -329,10 +349,27 @@ function View.mobDetail(dex, name, place)
 	-- The flavour line uses the first place on purpose, so it stays the same whichever
 	-- place is selected (spec 6.5).
 	local firstZone = firstPlace(mob)
-	place = place or firstZone
+	local count, first, last, shown
+	if whole then
+		local best, where, total = mostClaimed(mob)
+		place, shown, count = best, where, total
+		for _, r in pairs(mob.places or {}) do
+			if r.first and (not first or r.first < first) then
+				first = r.first
+			end
+			if r.last and (not last or r.last > last) then
+				last = r.last
+			end
+		end
+	else
+		place = place or firstZone
+	end
 	local record = mob.places and mob.places[place]
 	if not record then
 		return nil
+	end
+	if not whole then
+		shown, count, first, last = place, record.count, record.first, record.last
 	end
 	return {
 		name = mob.name or name,
@@ -341,10 +378,10 @@ function View.mobDetail(dex, name, place)
 		typeText = typeText(mob.creatureType, mob.family),
 		creatureType = mob.creatureType,
 		flavour = ns.Flavour.line(mob.name or name, mob.creatureType, mob.family, firstZone),
-		place = place,
-		count = record.count,
-		first = record.first,
-		last = record.last,
+		place = shown,
+		count = count,
+		first = first,
+		last = last,
 		myLevel = record.myLevel,
 		x = record.x,
 		y = record.y,
@@ -676,18 +713,7 @@ function View.find(dex, text)
 	end
 	for name, mob in pairs(db.mobs) do
 		if matches(name) then
-			local zones, best, bestCount, total = 0, nil, -1, 0
-			for zone, place in pairs(mob.places or {}) do
-				local count = place.count or 0
-				zones, total = zones + 1, total + count
-				if count > bestCount or (count == bestCount and zone < best) then
-					best, bestCount = zone, count
-				end
-			end
-			local where = best
-			if best and zones > 1 then
-				where = best .. " +" .. (zones - 1)
-			end
+			local _, where, total = mostClaimed(mob)
 			out[#out + 1] = { name = name, kind = "mob", count = total, where = where, value = name }
 		end
 	end
