@@ -324,6 +324,18 @@ describe("View", function()
 			assert.is_nil(View.raidMobs(dex, 409)[1].side)
 		end)
 
+		it("raidMobs unlisted mine: lists an unlisted soul only the other dex has", function()
+			friend:recordRaid(mob("Mystery"), ctx("Molten Core", "Dungeons"), 409, 99999)
+			friend:recordRaid(mob("Mystery"), ctx("Molten Core", "Dungeons"), 409, 99999)
+			friend.db.raids[98765] = { instanceID = 409, count = 1, points = 1 } -- no name: skipped
+			friend:recordRaid(mob("Elsewhere"), ctx("Zul'Gurub", "Dungeons"), 309, 99998)
+			local rows = View.raidMobs(dex, 409, friend)
+			assert.equal(4, #rows)
+			assert.same({ npcID = 99999, name = "Mystery", boss = false, count = 2, caught = false, known = false,
+				highlight = false, side = "mine" }, rows[4])
+			assert.equal(3, #View.raidMobs(dex, 409))
+		end)
+
 		it("gives raid detail", function()
 			dex:recordRaid(mob("Core Rager", { classification = "elite", creatureType = "Beast", family = "Core Hound" }),
 				ctx("Molten Core", "Dungeons"), 409, 11672)

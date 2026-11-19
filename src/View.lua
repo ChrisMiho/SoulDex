@@ -250,6 +250,22 @@ function View.raidMobs(dex, instanceID, other)
 			}
 		end
 	end
+	-- Unlisted souls only the other dex has (never a nameless one: no name is invented).
+	for npcID, entry in pairs(other and other.db.raids or {}) do
+		if entry.instanceID == instanceID and entry.name and not listed[npcID] and db.raids[npcID] == nil then
+			extra[#extra + 1] = {
+				npcID = npcID,
+				name = entry.name,
+				boss = false,
+				count = entry.count,
+				stars = nil,
+				caught = false,
+				known = false,
+				highlight = false,
+				side = "mine",
+			}
+		end
+	end
 	table.sort(extra, function(a, b)
 		local an, bn = a.name or "", b.name or ""
 		if an ~= bn then
