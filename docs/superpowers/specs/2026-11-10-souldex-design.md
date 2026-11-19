@@ -368,7 +368,13 @@ The look was settled through mockups; the final versions are in
     <percent>` to any 5%; the scale is saved with the position, and a resize
     keeps the window where it stands. `/souldex reset` and the options'
     "Reset window" put it back in the middle of the screen at 100%. The gear
-    has a tooltip ("Options"). **[call]**
+    has a tooltip ("Options"). **[call]** (changed after 1.5.2-beta.1, user's
+    call: a resize grip.) The bottom-right corner has the game's usual size
+    grip ("Drag to resize" on hover). Dragging it zooms the whole window, text
+    included, the same setting as SIZE's Window row (60% to 160%, 5% steps):
+    the window grows by the share the corner moved, right and down averaged,
+    while its top-left corner stays put. The size and position are saved when
+    the mouse is let go. It is a zoom, not more room: the layout is unchanged.
   - (changed after 1.2.4: rank emblems.) The emblems ship in `art/` as
     64 × 64, 32-bit, uncompressed TGA: original art, one per rank (6.6); no
     game art stands in for them. **[user]**
@@ -1189,6 +1195,11 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
   also with the options already open; `/souldex scale huge` explains itself.
 - Drag the window to a corner, then "Reset window" (or `/souldex reset`): it
   is back in the middle at 100%, and SIZE's Window row reads "100%".
+- Hover the window's bottom-right corner: the size grip lights up and says
+  "Drag to resize". Drag it down-right: the whole window grows in steps, its
+  top-left corner staying where it is; up-left shrinks it, never below 60% or
+  above 160%. Let go, `/reload` and open it: same size and place, and SIZE's
+  Window row shows the new percentage. Dragging the title bar still moves it.
 - "Test popup" and `/souldex test`: the popup shows "ELITE SOUL CLAIMED",
   Hogger, "+5", with the sound when the sound switch is on. Nothing is added
   to the dex.

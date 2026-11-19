@@ -47,6 +47,21 @@ describe("Settings", function()
 			assert.is_nil(Settings.scale(0 / 0))
 		end)
 
+		it("turns a corner drag into a scale", function()
+			-- a 380 x 280 window on screen at 100%: drag the corner 38 right and 28 down
+			assert.equal(1.1, Settings.dragScale(1, 380, 280, 38, 28))
+			-- right only: half the growth (the two directions are averaged)
+			assert.equal(1.05, Settings.dragScale(1, 380, 280, 38, 0))
+			-- up and left shrinks
+			assert.equal(0.9, Settings.dragScale(1, 380, 280, -38, -28))
+			-- from another scale, and kept within the limits
+			assert.equal(1.3, Settings.dragScale(1.2, 456, 336, 38, 28))
+			assert.equal(Settings.SCALE_MAX, Settings.dragScale(1.5, 570, 420, 1000, 1000))
+			assert.equal(Settings.SCALE_MIN, Settings.dragScale(0.7, 266, 196, -1000, -1000))
+			-- nothing to measure: the scale stays
+			assert.equal(1.2, Settings.dragScale(1.2, 0, 0, 50, 50))
+		end)
+
 		it("shows a scale in percent", function()
 			assert.equal("100%", Settings.percent(1))
 			assert.equal("115%", Settings.percent(1.15))

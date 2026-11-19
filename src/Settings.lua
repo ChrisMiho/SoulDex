@@ -35,6 +35,18 @@ function Settings.scale(value)
 	return math.max(Settings.SCALE_MIN, math.min(Settings.SCALE_MAX, n))
 end
 
+-- The scale while the window's corner is dragged: it grows by the share the corner
+-- moved, right and down averaged (w, h: the window's size on screen when the drag
+-- began, at scale `from`; dx right, dy down, in the same units). Rounded and kept
+-- within the limits like Settings.scale.
+function Settings.dragScale(from, w, h, dx, dy)
+	if type(w) ~= "number" or type(h) ~= "number" or w <= 0 or h <= 0 then
+		return from
+	end
+	-- Dragged past the top-left corner: the smallest size (a factor of 0 or less is no scale).
+	return Settings.scale(math.max(0.01, from * (1 + (dx / w + dy / h) / 2))) or from
+end
+
 -- A scale as the options show it: 1.1 -> "110%".
 function Settings.percent(scale)
 	return math.floor(scale * 100 + 0.5) .. "%"

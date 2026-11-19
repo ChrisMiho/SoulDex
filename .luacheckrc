@@ -57,6 +57,7 @@ read_globals = {
 	"Enum",
 	"ERR_CHAT_PLAYER_NOT_FOUND_S",
 	"GetCursorInfo",
+	"GetCursorPosition",
 	"GetGuildInfo",
 	"GetGuildRosterInfo",
 	"GetInstanceInfo",

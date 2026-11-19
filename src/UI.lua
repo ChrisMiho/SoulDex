@@ -330,6 +330,60 @@ local function placeWindow()
 	end
 end
 
+-- The bottom-right corner: drag it to zoom the whole window (the SIZE setting), its
+-- top-left corner staying put. The new size is saved when the mouse is let go.
+local function buildGrip()
+	local grip = CreateFrame("Button", nil, frame)
+	grip:SetSize(16, 16)
+	grip:SetPoint("BOTTOMRIGHT", -2, 2)
+	grip:SetFrameLevel(frame:GetFrameLevel() + 10)
+	grip:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
+	grip:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
+	grip:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
+	local drag -- while dragging: where it began
+	local function follow()
+		local x, y = GetCursorPosition()
+		local eff = drag.eff
+		local scale = ns.Settings.dragScale(drag.scale, WIDTH * eff, HEIGHT * eff, x - drag.x, drag.y - y)
+		if scale ~= frame:GetScale() then
+			-- Point offsets are in the window's own scaled units: convert, so the
+			-- top-left corner stays where it is on screen.
+			frame:SetScale(scale)
+			frame:ClearAllPoints()
+			frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", drag.left * drag.scale / scale, drag.top * drag.scale / scale)
+		end
+	end
+	grip:SetScript("OnMouseDown", function()
+		local left, top = frame:GetLeft(), frame:GetTop()
+		if not left or not top then
+			return
+		end
+		local x, y = GetCursorPosition()
+		drag = { x = x, y = y, left = left, top = top, scale = frame:GetScale(), eff = frame:GetEffectiveScale() }
+		grip:SetScript("OnUpdate", follow)
+	end)
+	grip:SetScript("OnMouseUp", function()
+		if not drag then
+			return
+		end
+		grip:SetScript("OnUpdate", nil)
+		drag = nil
+		local w = ns.db and ns.db.window
+		if w then
+			w.scale = ns.Settings.scale(frame:GetScale())
+		end
+		savePosition()
+	end)
+	grip:SetScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+		GameTooltip:SetText("Drag to resize")
+		GameTooltip:Show()
+	end)
+	grip:SetScript("OnLeave", function()
+		GameTooltip:Hide()
+	end)
+end
+
 local function textButton(parent, text, size)
 	local button = CreateFrame("Button", nil, parent)
 	button:SetSize(size, size)
@@ -580,6 +634,7 @@ local function build()
 	shade:SetPoint("BOTTOMRIGHT", -1, 1)
 	L.gradient(shade, "VERTICAL", SHADE_BOTTOM, 0.97, SHADE_TOP, 0.97)
 	placeWindow()
+	buildGrip()
 	table.insert(UISpecialFrames, "SoulDexFrame") -- Escape closes it
 	buildTitle()
 	buildBody()

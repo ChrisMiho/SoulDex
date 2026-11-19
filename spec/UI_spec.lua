@@ -5,7 +5,7 @@ describe("UI", function()
 		"CreateFrame", "UIParent", "UISpecialFrames", "GameFontNormal", "GameFontHighlightSmall",
 		"RAID_CLASS_COLORS", "SoulDexFrame", "SoulDexOptionsFrame", "date", "UnitName", "time", "LibStub",
 		"Settings", "SoulDexSettingsPanel",
-		"StaticPopupDialogs", "StaticPopup_Show", "IsInGuild",
+		"StaticPopupDialogs", "StaticPopup_Show", "IsInGuild", "GetCursorPosition",
 	}
 	local saved, created, ns
 
@@ -279,6 +279,34 @@ describe("UI", function()
 		ns.UI.selectTab("Friends")
 		assert.is_table(got[1])
 		assert.is_table(got[2])
+	end)
+
+	it("zooms the window by dragging its corner, keeping the top-left corner in place", function()
+		local db = loadDb()
+		ns.UI.toggle()
+		local frame = _G.SoulDexFrame
+		frame.scale = 1
+		frame.GetScale = function(self) return self.scale end
+		frame.GetEffectiveScale = function(self) return self.scale end
+		frame.GetLeft = function() return 100 end
+		frame.GetTop = function() return 600 end
+		local grip
+		for _, f in ipairs(created) do
+			if f.kind == "Button" and f.scripts.OnMouseDown then
+				grip = f
+			end
+		end
+		local cursor = { 500, 300 }
+		_G.GetCursorPosition = function() return cursor[1], cursor[2] end
+		grip.scripts.OnMouseDown(grip)
+		cursor = { 538, 272 } -- 38 right, 28 down on a 380 x 280 window
+		grip.scripts.OnUpdate(grip)
+		assert.equal(1.1, frame.scale)
+		assert.same({ "TOPLEFT", _G.UIParent, "BOTTOMLEFT", 100 / 1.1, 600 / 1.1 }, frame.point)
+		grip.scripts.OnMouseUp(grip)
+		assert.equal(1.1, db.window.scale)
+		assert.is_nil(grip.scripts.OnUpdate)
+		assert.equal(1.1, ns.UI.scale())
 	end)
 
 	it("browses another dex and back", function()
