@@ -212,6 +212,27 @@ function Friends.purge(store, keep)
 	return #gone
 end
 
+-- SoulDex is for warlocks: true only for a class token (UnitClass's second value) that
+-- is known and isn't "WARLOCK". An unknown class (nil) is not held against anyone.
+function Friends.notWarlock(class)
+	return type(class) == "string" and class ~= "" and class ~= "WARLOCK"
+end
+
+-- Deletes everyone, added or not, whose class in classes (store key -> class token) is
+-- known and isn't warlock. Returns how many were deleted.
+function Friends.dropNonWarlocks(store, classes)
+	local gone = {}
+	for name, class in pairs(classes) do
+		if store[name] and Friends.notWarlock(class) then
+			gone[#gone + 1] = name
+		end
+	end
+	for _, name in ipairs(gone) do
+		store[name] = nil
+	end
+	return #gone
+end
+
 -- Someone outside the store is only kept when found in your group or guild.
 function Friends.merge(store, sender, summary, now, inGroupOrGuild)
 	local name = Friends.normalise(sender)

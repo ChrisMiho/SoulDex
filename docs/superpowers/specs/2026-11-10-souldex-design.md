@@ -565,7 +565,16 @@ hovering a person shows their full name in a tooltip.
   read-only view, a "Viewing" marker, a way back and highlighting, is kept.)
 - People added by name are contacted directly when they're online. Offline
   people show their last known summary.
-- Not limited to warlocks: anyone running the addon shows up. **[user]**
+- Warlocks only. **[user]** (changed after 1.6.0, user's call: it was "anyone
+  running the addon shows up", and non-warlocks with SoulDex filled the list.)
+  A non-warlock running SoulDex sends nothing: no summary, version, or answer
+  to a summary or dex request. They can still see warlocks on their own
+  Friends tab. Everyone else drops anyone the guild roster or the group says
+  isn't a warlock: their messages are ignored, and anyone already saved, added
+  or not, is removed when the roster or group updates or when they next send.
+  Adding a name the roster or group knows as another class says "<name> isn't
+  a warlock." and adds nobody. Someone whose class can't be read (outside
+  your guild and group, or a hidden value) is kept.
 - Closing the window while browsing a friend returns you to your own dex the
   next time it opens. (changed during build: so `/souldex` never opens on
   someone else's data by surprise.)
@@ -1407,6 +1416,13 @@ that overlaps, is cut off, or shows as a solid green square (a missing icon).
 - B logs out: about 10 minutes later B is dimmed, "offline" and "Last seen
   <date>". A catch on B updates B's score on A within about 30 s (guild/group)
   or 60 s (added friend only).
+- Warlocks only: a non-warlock guild member running SoulDex (1.6.0 or older)
+  who was on the Friends tab disappears from it within a few seconds of
+  logging in, once the guild roster loads; one on the new version never
+  appears on anyone's tab. In a group with a non-warlock running SoulDex,
+  they don't appear either. Typing a guild mage's name into "Add..." prints
+  "<name> isn't a warlock." Log in a non-warlock with SoulDex: no Lua errors,
+  the Friends tab still lists warlocks, and warlocks don't see them.
 - A dev checkout without `Libs/`: one chat line "Friends are offline:
   AceComm-3.0 is missing...", no Lua errors.
 
@@ -1511,6 +1527,9 @@ The lines that decide the leads: `ENCOUNTER_START`, `BOSS_KILL`,
 - Added friends who are offline are asked every 60 s with no back-off (their
   "not playing" notices are hidden).
 - Alt-Z (hiding the UI) resets browsing to your own dex.
+- A non-warlock on an older SoulDex who is neither in your guild nor in your
+  group, but on your list because you added them, can't be told apart (their
+  class can't be read) and stays listed until you remove them.
 - A saved friend's dex counts as up to date while their summary numbers are
   unchanged, and some catches don't change them: a repeat catch of a normal
   mob between star steps, or a known mob caught in a new zone. Their copy then

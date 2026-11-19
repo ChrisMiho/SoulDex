@@ -292,7 +292,7 @@ describe("Net", function()
 		local STUBBED = {
 			"LibStub", "CreateFrame", "C_Timer", "GetTime", "time", "UnitName", "Ambiguate",
 			"IsInGuild", "IsInRaid", "IsInGroup", "ChatFrame_AddMessageEventFilter", "ERR_CHAT_PLAYER_NOT_FOUND_S",
-			"GetNumGroupMembers", "GetNumGuildMembers", "GetGuildRosterInfo", "issecretvalue", "date",
+			"GetNumGroupMembers", "GetNumGuildMembers", "GetGuildRosterInfo", "issecretvalue", "date", "UnitClass",
 		}
 		local saved, ns, sent, registered, printed, clock, wall, timers, filter, shown
 		local onEvent, finishSends, windowShown
@@ -335,6 +335,7 @@ describe("Net", function()
 			_G.time = function() return wall end
 			_G.date = os.date
 			_G.UnitName = function() return "Fel" end
+			_G.UnitClass = function() return "Warlock", "WARLOCK" end
 			_G.Ambiguate = function(name) return name end
 			_G.IsInGuild = function() return true end
 			_G.IsInRaid = function() return false end
@@ -449,6 +450,81 @@ describe("Net", function()
 			assert.equal("Forgot Shards", sent[#sent].target)
 			ns.Net.removeFriend("Forgot Shards")
 			assert.is_nil(db.friends["Forgot Shards"])
+		end)
+
+		-- GetGuildRosterInfo's 11th value is the class token.
+		local function rosterOf(members)
+			_G.GetNumGuildMembers = function() return #members end
+			_G.GetGuildRosterInfo = function(i)
+				local m = members[i]
+				return m[1], "Member", 1, 60, "", "", "", "", true, 0, m[2]
+			end
+		end
+
+		it("ignores a guild member the roster says isn't a warlock", function()
+			rosterOf({ { "Mia-Realm", "MAGE" }, { "Lok-Realm", "WARLOCK" } })
+			local db = start()
+			ns.Net:OnCommReceived("SoulDex", summary(9), "GUILD", "Mia")
+			ns.Net:OnCommReceived("SoulDex", summary(7), "GUILD", "Lok")
+			assert.is_nil(db.friends.Mia)
+			assert.equal(7, db.friends.Lok.summary.score)
+		end)
+
+		it("ignores a group member who isn't a warlock", function()
+			_G.UnitClass = function(unit)
+				if unit == "Pip" then
+					return "Priest", "PRIEST"
+				end
+				return "Warlock", "WARLOCK"
+			end
+			local db = start()
+			ns.Net:OnCommReceived("SoulDex", summary(9), "PARTY", "Pip")
+			assert.is_nil(db.friends.Pip)
+		end)
+
+		it("drops saved non-warlocks once the guild roster shows their class", function()
+			local db = start()
+			ns.Net:OnCommReceived("SoulDex", summary(9), "GUILD", "Mia")
+			ns.Net.addFriend("Hal")
+			assert.is_not_nil(db.friends.Mia)
+			rosterOf({ { "Mia", "MAGE" }, { "Hal", "HUNTER" } })
+			onEvent(nil, "GUILD_ROSTER_UPDATE")
+			assert.is_nil(db.friends.Mia)
+			assert.is_nil(db.friends.Hal)
+		end)
+
+		it("won't add someone the roster says isn't a warlock", function()
+			rosterOf({ { "Mia", "MAGE" } })
+			local db = start()
+			ns.Net.addFriend("Mia")
+			assert.is_nil(db.friends.Mia)
+			assert.equal("Mia isn't a warlock.", printed[#printed])
+		end)
+
+		it("keeps senders whose class it can't tell", function()
+			local db = start()
+			_G.UnitClass = function() return nil end
+			ns.Net:OnCommReceived("SoulDex", summary(9), "GUILD", "Zed")
+			assert.is_not_nil(db.friends.Zed)
+		end)
+
+		it("sends nothing when you aren't a warlock", function()
+			_G.UnitClass = function(unit)
+				if unit == "player" then
+					return "Priest", "PRIEST"
+				end
+				return "Warlock", "WARLOCK"
+			end
+			local db = start()
+			ns.Net:OnCommReceived("SoulDex", summary(9), "GUILD", "Bob")
+			ns.Net:OnCommReceived("SoulDex", ns.Comm.encodeRequest("Q"), "WHISPER", "Bob")
+			ns.Net:OnCommReceived("SoulDex", ns.Comm.encodeRequest("R"), "WHISPER", "Bob")
+			onEvent(nil, "PLAYER_ENTERING_WORLD")
+			for _, t in ipairs(timers) do
+				t.fn()
+			end
+			assert.same({}, sent)
+			assert.is_not_nil(db.friends.Bob) -- still sees warlocks
 		end)
 
 		it("removes a guild member you never added", function()

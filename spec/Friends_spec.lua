@@ -246,4 +246,25 @@ describe("Friends", function()
 		assert.is_false(Friends.isOnline({}, 1000))
 		assert.is_false(Friends.isOnline(nil, 1000))
 	end)
+	it("tells a known non-warlock from a warlock or an unknown class", function()
+		assert.is_true(Friends.notWarlock("MAGE"))
+		assert.is_false(Friends.notWarlock("WARLOCK"))
+		assert.is_false(Friends.notWarlock(nil))
+		assert.is_false(Friends.notWarlock(""))
+	end)
+
+	it("drops everyone whose class is known and isn't warlock, added or not", function()
+		local store = {
+			Mage = { added = false },
+			Priest = { added = true },
+			Lock = { added = false },
+			Unknown = { added = true },
+		}
+		local removed = Friends.dropNonWarlocks(store, { Mage = "MAGE", Priest = "PRIEST", Lock = "WARLOCK", Gone = "ROGUE" })
+		assert.equal(2, removed)
+		assert.is_nil(store.Mage)
+		assert.is_nil(store.Priest)
+		assert.is_not_nil(store.Lock)
+		assert.is_not_nil(store.Unknown)
+	end)
 end)

@@ -5,6 +5,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- The Friends tab lists warlocks only. Other classes running SoulDex no longer show up, and ones already listed are removed.
 - `/souldex find` ignores capitals for accented letters too: "æthel" finds "Æthelwulf".
 
 ## [1.6.0] - 2026-11-18

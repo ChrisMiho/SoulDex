@@ -342,6 +342,7 @@ local state = {
 	versionWhispered = {}, -- name -> true once "V" was whispered to them
 	versionTold = false, -- the newer-version line was printed this session
 	selected = nil, -- leaderboard selection
+	classes = {}, -- store key -> class token, for guild and group members whose class could be read
 }
 
 -- True only for a readable true from fn() (IsInGuild, IsInRaid, IsInGroup).
@@ -358,6 +359,50 @@ end
 
 local function myName()
 	return Friends.normalise(Friends.fullName(myParts()))
+end
+
+-- UnitClass's class token for unit (a unit id, or a group member's name), or nil.
+local function classToken(unit)
+	local _, token = Capture.call(UnitClass, unit)
+	return Capture.plainString(token) and token or nil
+end
+
+-- SoulDex is for warlocks: anyone else running it sends nothing, so they never show up
+-- on other people's Friends tab. An unreadable class counts as a warlock.
+local function iAmWarlock()
+	return not Friends.notWarlock(classToken("player"))
+end
+
+-- The class of everyone in your group and guild whose class can be read (store key ->
+-- class token). GetGuildRosterInfo's 11th value is the class token.
+local function rosterClasses()
+	local plain, out = Capture.plainString, {}
+	local members = Capture.call(GetNumGroupMembers)
+	local prefix = yes(IsInRaid) and "raid" or "party"
+	for i = 1, Capture.plainNumber(members) and members or 0 do
+		local name, second = Capture.call(UnitName, prefix .. i)
+		local key = plain(name) and Friends.normalise(Friends.fullName(name, plain(second) and second or nil))
+		local class = classToken(prefix .. i)
+		if key and class then
+			out[key] = class
+		end
+	end
+	local guildSize = Capture.call(GetNumGuildMembers)
+	for i = 1, Capture.plainNumber(guildSize) and guildSize or 0 do
+		local info = { Capture.call(GetGuildRosterInfo, i) }
+		local key = plain(info[1]) and Friends.normalise(info[1])
+		local class = plain(info[11]) and info[11] or nil
+		if key and class then
+			out[key] = class
+		end
+	end
+	return out
+end
+
+-- A person's class token, or nil when it can't be told. target: their name as a unit
+-- (UnitClass reads group members by name).
+local function classOf(name, target)
+	return state.classes[name] or classToken(target)
 end
 
 -- Your leaderboard entry (shared with the Me tab's rank).
@@ -380,7 +425,7 @@ end
 
 -- callback(arg, bytesSent, bytesTotal): AceComm calls it as each piece goes out.
 local function send(msg, distribution, target, prio, callback, arg)
-	if state.enabled and msg then
+	if state.enabled and msg and iAmWarlock() then
 		Net:SendCommMessage(Comm.PREFIX, msg, distribution, target, prio, callback, arg)
 	end
 end
@@ -603,6 +648,13 @@ function Net.OnCommReceived(_, prefix, message, distribution, sender)
 	if not name then
 		return
 	end
+	if Friends.notWarlock(classOf(name, target)) then
+		if ns.db.friends[name] then
+			ns.db.friends[name] = nil -- saved before SoulDex checked classes
+			refreshFriends()
+		end
+		return
+	end
 	local kind = message:sub(1, 1)
 	local entry = ns.db.friends[name]
 	local req = requestTo(name)
@@ -639,6 +691,10 @@ function Net.addFriend(text)
 	end
 	if name == myName() then
 		ns.Print("That's you.")
+		return
+	end
+	if Friends.notWarlock(classOf(name, name)) then
+		ns.Print(name .. " isn't a warlock.")
 		return
 	end
 	Friends.add(ns.db.friends, name)
@@ -987,9 +1043,21 @@ end
 
 -- Start ------------------------------------------------------------------------------------
 
+-- Re-reads guild and group classes and drops anyone saved who turns out not to be a warlock.
+local function refreshClasses()
+	if not (ns.db and ns.db.friends) then
+		return
+	end
+	state.classes = rosterClasses()
+	if Friends.dropNonWarlocks(ns.db.friends, state.classes) > 0 then
+		refreshFriends()
+	end
+end
+
 local function start(db)
 	db.friends = type(db.friends) == "table" and db.friends or {}
 	Friends.tidy(db.friends, myName(), time())
+	refreshClasses()
 	if ns.UI then
 		ns.UI.setFriendsTab(drawTab)
 	end
@@ -1007,8 +1075,11 @@ local function start(db)
 	local frame = CreateFrame("Frame")
 	frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 	frame:RegisterEvent("GROUP_ROSTER_UPDATE")
+	frame:RegisterEvent("GUILD_ROSTER_UPDATE")
 	frame:SetScript("OnEvent", function(_, event)
-		if event == "PLAYER_ENTERING_WORLD" then
+		if event == "GUILD_ROSTER_UPDATE" then
+			refreshClasses()
+		elseif event == "PLAYER_ENTERING_WORLD" then
 			if not entered then
 				entered = true
 				C_Timer.After(LOGIN_DELAY, function()
@@ -1016,8 +1087,11 @@ local function start(db)
 					askForSummaries()
 				end)
 			end
-		elseif yes(IsInGroup) then
-			requestBroadcast()
+		else -- GROUP_ROSTER_UPDATE
+			refreshClasses()
+			if yes(IsInGroup) then
+				requestBroadcast()
+			end
 		end
 	end)
 	C_Timer.NewTicker(POLL_EVERY, tick)
