@@ -213,7 +213,7 @@ function F.mobRows(rows)
 			-- Hidden-name catches: muted, no detail pane (no value, not clickable).
 			out[#out + 1] = { text = row.name, color = C.MUTED, right = F.countText(row.count) }
 		else
-				local style = STYLES[row.classification]
+			local style = STYLES[row.classification]
 			local text = row.name
 			if style and style.mark then
 				text = text .. " " .. style.mark

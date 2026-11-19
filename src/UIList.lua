@@ -301,6 +301,17 @@ function List:set(items, onClick, keepScroll)
 	self:scrollTo(keepScroll and self.scroll or 0)
 end
 
+-- Resizes the list and every pooled row; rows made later use the new width, and the next
+-- set lays wrapped text out again.
+function List:setWidth(width)
+	self.width = width
+	self.frame:SetWidth(width)
+	self.child:SetWidth(width)
+	for _, row in ipairs(self.rows) do
+		row:SetWidth(width)
+	end
+end
+
 function List:show(shown)
 	L.setShown(self.frame, shown)
 end

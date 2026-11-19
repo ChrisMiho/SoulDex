@@ -45,6 +45,19 @@ function Settings.dragScale(from, w, h, dx, dy)
 	return Settings.scale(math.max(0.01, from * (1 + (dx / w + dy / h) / 2))) or from
 end
 
+-- The width of the left list on Mobs, Players and Raids (the column split, spec 5.9):
+-- the limits and the default.
+Settings.SPLIT_MIN, Settings.SPLIT_MAX, Settings.SPLIT_DEFAULT = 124, 200, 124
+
+-- A usable split from anything: a number is rounded and kept within the limits; anything
+-- else (nil, text, NaN) gives the default.
+function Settings.split(value)
+	if type(value) ~= "number" or value ~= value then
+		return Settings.SPLIT_DEFAULT
+	end
+	return math.max(Settings.SPLIT_MIN, math.min(Settings.SPLIT_MAX, math.floor(value + 0.5)))
+end
+
 -- A scale as the options show it: 1.1 -> "110%".
 function Settings.percent(scale)
 	return math.floor(scale * 100 + 0.5) .. "%"

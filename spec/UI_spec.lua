@@ -16,6 +16,9 @@ describe("UI", function()
 		IsShown = function(self) return self.shown end,
 		SetScript = function(self, name, fn) self.scripts[name] = fn end,
 		SetText = function(self, text) self.text = text end,
+		GetText = function(self) return self.text end,
+		SetSize = function(self, w, h) self.w, self.h = w, h end,
+		SetWidth = function(self, w) self.w = w end,
 		SetScale = function(self, scale) self.scale = scale end,
 		SetAlpha = function(self, alpha) self.alpha = alpha end,
 		SetPoint = function(self, ...) self.point = { ... } end,
@@ -290,16 +293,16 @@ describe("UI", function()
 		frame.GetEffectiveScale = function(self) return self.scale end
 		frame.GetLeft = function() return 100 end
 		frame.GetTop = function() return 600 end
-		local grip
+		local grip -- the first button taking mouse-downs (the column split's handle comes later)
 		for _, f in ipairs(created) do
-			if f.kind == "Button" and f.scripts.OnMouseDown then
+			if not grip and f.kind == "Button" and f.scripts.OnMouseDown then
 				grip = f
 			end
 		end
 		local cursor = { 500, 300 }
 		_G.GetCursorPosition = function() return cursor[1], cursor[2] end
 		grip.scripts.OnMouseDown(grip)
-		cursor = { 538, 272 } -- 38 right, 28 down on a 380 x 280 window
+		cursor = { 538, 270 } -- 38 right, 30 down on a 380 x 300 window
 		grip.scripts.OnUpdate(grip)
 		assert.equal(1.1, frame.scale)
 		assert.same({ "TOPLEFT", _G.UIParent, "BOTTOMLEFT", 100 / 1.1, 600 / 1.1 }, frame.point)
@@ -368,7 +371,12 @@ describe("UI", function()
 		assert.is_truthy(rowWith("1. Ann"))
 		assert.is_truthy(rowWith("2. Fel (you)"))
 
-		local box = find("EditBox", function() return true end)
+		local box -- the add box: the last edit box built (the window's search box comes first)
+		for _, f in ipairs(created) do
+			if f.kind == "EditBox" then
+				box = f
+			end
+		end
 		box.GetText = function() return "bob" end
 		box.scripts.OnEnterPressed(box)
 		assert.is_true(db.friends.Bob.added)
@@ -739,5 +747,192 @@ describe("UI", function()
 		ns.Toast.rescale()
 		assert.equal(0.8, a.scale)
 		assert.equal(-175, a.offset)
+	end)
+
+	-- The toolbar (spec 5.9) ------------------------------------------------------------
+
+	-- The toolbar button whose label starts with `prefix` ("Sort:", "Show:").
+	local function toolButton(prefix)
+		return find("Button", function(f)
+			local label = rawget(f, "label")
+			return label ~= nil and type(label.text) == "string" and label.text:sub(1, #prefix) == prefix
+		end)
+	end
+
+	local function friendDex()
+		local friend = ns.Dex.new({})
+		friend:recordMob({ name = "Wolf" }, { time = 5, zone = "Durotar", group = "Kalimdor" })
+		return friend
+	end
+
+	it("is 380 x 300", function()
+		loadDb()
+		ns.UI.toggle()
+		assert.equal(380, _G.SoulDexFrame.w)
+		assert.equal(300, _G.SoulDexFrame.h)
+	end)
+
+	it("searches as the box is typed in; text that can't be read is no search", function()
+		loadDb()
+		ns.Capture = { plainString = function(v) return type(v) == "string" and v ~= "" end }
+		ns.UI.toggle()
+		local box = find("EditBox", function() return true end)
+		box.GetText = function() return "ho" end
+		box.scripts.OnTextChanged(box, true)
+		assert.equal("ho", ns.UI.search())
+		box.GetText = function() return 42 end
+		box.scripts.OnTextChanged(box, true)
+		assert.equal("", ns.UI.search())
+	end)
+
+	it("a search moves to Mobs from the Me tab; picking a tab ends it", function()
+		loadDb()
+		ns.UI.toggle()
+		ns.UI.selectTab("Me")
+		ns.UI.setSearch("ho")
+		assert.equal("Mobs", ns.UI.currentTab())
+		assert.equal("ho", ns.UI.search())
+		ns.UI.selectTab("Players")
+		assert.equal("", ns.UI.search())
+	end)
+
+	it("the Sort button steps and saves the choice per tab", function()
+		local db = loadDb()
+		ns.UI.toggle()
+		ns.UI.selectTab("Mobs")
+		local sort = toolButton("Sort:")
+		assert.equal("Sort: A\226\128\147Z", sort.label.text)
+		sort.scripts.OnClick(sort, "LeftButton")
+		assert.equal("count", db.window.sort.Mobs)
+		assert.equal("Sort: Most claimed", sort.label.text)
+		sort.scripts.OnClick(sort, "RightButton") -- a right-click steps back
+		assert.equal("name", db.window.sort.Mobs)
+	end)
+
+	it("a saved Newest sort reads A-Z while browsing a friend", function()
+		local db = loadDb()
+		db.window.sort = { Mobs = "recent" }
+		ns.UI.showDex(friendDex(), "Morwen")
+		ns.UI.selectTab("Mobs")
+		assert.equal("Sort: A\226\128\147Z", toolButton("Sort:").label.text)
+	end)
+
+	it("the Show button steps, and resets for another dex and on closing", function()
+		loadDb()
+		ns.UI.toggle()
+		ns.UI.selectTab("Mobs")
+		local show = toolButton("Show:")
+		assert.equal("Show: All", show.label.text)
+		show.scripts.OnClick(show, "LeftButton")
+		assert.equal("Show: Rare and elite", show.label.text)
+		ns.UI.showDex(friendDex(), "Morwen")
+		assert.equal("Show: Their dex", show.label.text)
+		show.scripts.OnClick(show, "LeftButton")
+		assert.equal("Show: Differences", show.label.text)
+		local frame = _G.SoulDexFrame
+		frame:Hide()
+		frame.scripts.OnHide(frame)
+		ns.UI.toggle()
+		assert.equal("Show: All", show.label.text)
+	end)
+
+	it("widens the left list to the saved split; Reset window restores it", function()
+		local db = loadDb()
+		db.window.split = 180
+		ns.UI.toggle() -- remembered tab: Players
+		local left = find("ScrollFrame", function() return true end)
+		assert.equal(180, left.w)
+		ns.UI.resetWindow()
+		assert.is_nil(db.window.split)
+		assert.equal(124, left.w)
+	end)
+
+	it("drags the column split and saves it when let go", function()
+		local db = loadDb()
+		ns.UI.toggle()
+		local frame = _G.SoulDexFrame
+		frame.GetEffectiveScale = function() return 2 end
+		local handle
+		for _, f in ipairs(created) do
+			if f.kind == "Button" and f.scripts.OnMouseDown then
+				handle = f -- the last one: the grip comes first
+			end
+		end
+		local x = 500
+		_G.GetCursorPosition = function() return x, 300 end
+		handle.scripts.OnMouseDown(handle)
+		x = 540 -- 40 on screen at an effective scale of 2: 20 in the window
+		handle.scripts.OnUpdate(handle)
+		assert.equal(144, find("ScrollFrame", function() return true end).w)
+		assert.is_nil(db.window.split)
+		handle.scripts.OnMouseUp(handle)
+		assert.equal(144, db.window.split)
+		assert.is_nil(handle.scripts.OnUpdate)
+	end)
+
+	-- A shown list row whose text contains `text`.
+	local function shownRow(text)
+		return find("Button", function(f)
+			local left = rawget(f, "left")
+			return f.shown and left ~= nil and type(left.text) == "string" and left.text:find(text, 1, true) ~= nil
+		end)
+	end
+
+	it("opens a search result's card and keeps it only while that search lasts", function()
+		loadDb()
+		ns.UI.toggle()
+		ns.UI.selectTab("Mobs")
+		local cards = 0
+		local playerCard = ns.UIFormat.playerCard
+		ns.UIFormat.playerCard = function(...)
+			cards = cards + 1
+			return playerCard(...)
+		end
+		ns.UI.setSearch("sta")
+		local row = find("Button", function(f)
+			return f.shown and type(f.value) == "table" and f.value.kind == "player"
+		end)
+		row.scripts.OnClick(row)
+		assert.equal(1, cards)
+		ns.UI.refresh()
+		assert.equal(2, cards) -- redrawn, still open
+		ns.UI.setSearch("")
+		ns.UI.refresh()
+		assert.equal(2, cards) -- the search ended and took the card with it
+	end)
+
+	it("starts the right list with the compare line while browsing, but not during a search", function()
+		loadDb()
+		ns.UI.showDex(friendDex(), "Morwen")
+		ns.UI.setCompare(ns.dex)
+		ns.UI.selectTab("Mobs")
+		assert.is_truthy(shownRow("1 missing"))
+		ns.UI.setSearch("wo")
+		assert.is_nil(shownRow("1 missing"))
+		assert.is_truthy(shownRow("Wolf"))
+	end)
+
+	it("says so when the Show choice leaves nothing", function()
+		loadDb()
+		ns.UI.toggle()
+		ns.UI.selectTab("Mobs")
+		local show = toolButton("Show:")
+		show.scripts.OnClick(show, "LeftButton") -- Rare and elite: Hogger
+		assert.is_nil(shownRow("Nothing here matches."))
+		show.scripts.OnClick(show, "LeftButton") -- Mastered: nothing
+		assert.is_truthy(shownRow("Nothing here matches."))
+	end)
+
+	it("draws the All selection on a dex that has become empty", function()
+		local db = loadDb()
+		db.window.tab = "Mobs"
+		for _, fn in ipairs(ns.onLoaded) do
+			fn(db)
+		end
+		ns.UI.toggle() -- a fresh window selects All zones
+		assert.is_truthy(find("Button", function(f) return f.value == ns.Browse.ALL end))
+		ns.dex = ns.Dex.new({})
+		ns.UI.refresh()
+		assert.equal("Mobs", ns.UI.currentTab())
 	end)
 end)
