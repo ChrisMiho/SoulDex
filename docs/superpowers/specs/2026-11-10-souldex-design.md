@@ -703,7 +703,8 @@ Redraws on a catch like the other tabs.
   on Me, Milestones or Friends switches to Mobs. Escape, clearing the box,
   picking a tab or clicking a left-list row ends the search. Nothing found:
   "No soul matching "<text>"." Results are not compare-coloured and show no
-  totals line while browsing.
+  totals line while browsing. A mob's card opened from a search result is
+  the one the All row opens (below).
 - **Sort.** A "Sort: <choice>" button on Mobs and Players; a click steps
   forward, a right-click back. Mobs: A–Z (default), Most claimed, Newest,
   Rarest. Players: Most claimed (default), A–Z, Newest. Newest is left out
@@ -711,18 +712,25 @@ Redraws on a catch like the other tabs.
   bosses, then rares, then elites, then the rest. Ties go by name. The choice
   is saved per character and per tab. Raids keep their roster order and have
   no Sort button. A saved Newest falls back to the tab's default choice while
-  browsing a friend.
+  browsing a friend. Stepping Sort while browsing saves that choice for your
+  own dex too: there is one choice per tab.
 - **Show.** A "Show: <choice>" button. On your own Mobs tab: All, Rare and
   elite, Mastered (1 star or more), Not mastered. Your own Players and Raids
   tabs have none. While browsing a friend, on all three collection tabs:
   Their dex, Differences, Missing, Only mine, Shared. It is not saved: it
   returns to the first choice when the window closes or another dex is shown.
-  Sort and Show are hidden during a search.
+  A newer copy of the same friend's dex arriving while it is on screen keeps
+  the search and the Show choice, and a card that is still in it. Stepping
+  Show closes an open card. Sort and Show are hidden during a search.
 - **All row.** The Mobs left list starts with "All zones" and the Players
-  left list with "All classes", each with the total; it is the selection for
-  a fresh window. Selected, the right list holds every soul of that tab once
-  (a mob's count is its total over all zones). The "Unknown soul" row appears
-  only for a single zone under the first Show choice.
+  left list with "All classes", each with the total of the rows it lists
+  (raid souls are not in the Mobs number). It is the selection the first
+  time the window is opened; after that the selection is remembered as on
+  the other tabs. Selected, the right list holds every soul of that tab once
+  (a mob's count is its total over all zones). A mob's card opened from it
+  shows the soul's total, first and last claim over every zone and its
+  most-claimed zone ("Zone +N" when it has N more). The "Unknown soul" row
+  appears only for a single zone under the first Show choice.
 - **Compare (browsing a friend).** A soul they have and you don't is
   **Missing**, drawn green as before. A soul you have and they don't is
   **Only mine**, drawn amber (`ffb84d`, the same in every theme), listed among
@@ -730,9 +738,11 @@ Redraws on a catch like the other tabs.
   over the whole dex, a player by key, a raid creature by NPC ID, whatever the
   zone. Differences shows Missing and Only mine together. The right list
   starts with one line of this tab's totals: "N missing · N only mine · N
-  shared". Left-list rows show "count +N" in green where N souls there are
-  Missing. In a raid's roster, a creature only you have shows its roster name
-  in amber instead of "? ? ?". In a raid, a soul only you have that is not on
+  shared" (not above the note of an empty dex). In the Raids totals, a soul
+  of yours without a readable name is counted but not listed. Left-list rows
+  show "count +N" in green where N souls there are Missing. In a raid's
+  roster, a creature only you have shows its roster name in amber instead of
+  "? ? ?". In a raid, a soul only you have that is not on
   the raid's roster (every soul of a raid whose roster is still sealed) is
   listed in amber at the end of the list, with the name from your own dex.
 - **Column split.** On Mobs, Players and Raids the line between the lists can
@@ -741,7 +751,8 @@ Redraws on a catch like the other tabs.
   and "Reset window" restore 124. The detail card keeps its place and may
   cover the widened part of the left list while open. Me and Friends keep
   their own widths.
-- A filter that leaves nothing: "Nothing here matches."
+- A filter that leaves nothing, or a zone list with no named soul under All
+  (a dex of only unknown souls): "Nothing here matches."
 
 ## 6. Game layer
 
@@ -1562,7 +1573,7 @@ that overlaps, is cut off, or shows as a solid green square (a missing icon).
 **Dex toolbar: search, sort, show, compare, column split (5.9)** None of this
 has been seen in game.
 - `/souldex`: the window is a little taller; a strip under the title holds
-  "Search all souls", "Sort: A-Z" and "Show: All"; tabs are still along the
+  "Search all souls", "Sort: A–Z" and "Show: All"; tabs are still along the
   bottom; nothing overlaps the resize grip. The labels "Sort: Most claimed",
   "Show: Rare and elite", "Show: Not mastered" and "Show: Differences" fit
   their buttons.
@@ -1578,8 +1589,8 @@ has been seen in game.
 - Typing in the box does not trigger key bindings (no movement, no bars) and
   the box loses focus on Enter. Hiding the window while the box has focus
   releases the keyboard.
-- Click Sort through all four choices; right-click steps back. `/reload`: the
-  choice is kept. Show is back on "All".
+- On Mobs, click Sort through all four choices; right-click steps back.
+  `/reload`: the choice is kept. Show is back on "All".
 - Players: "All classes" first; Sort has three choices, no Show button. Raids:
   no Sort, no Show.
 - Browse a friend's dex: the first right row gives the three totals in green,
@@ -1596,6 +1607,24 @@ has been seen in game.
 - All four colour themes: the toolbar follows the theme; amber stays amber.
 - Window at 60% and 160% size: the toolbar scales with it and the search box
   is still usable.
+- After typing a search, click a result, then press a movement key: the
+  character moves and no letter goes into the box.
+- With a search active and the box unfocused (after Enter), Escape closes
+  the window.
+- The search box widens at the second letter (Sort and Show hide) without
+  disturbing typing.
+- Type `|` and `%` in the box: no error, and the "No soul matching" line
+  reads correctly.
+- During a search while browsing, results are uncoloured and there is no
+  totals line.
+- A mob claimed in two zones: its card from "All zones" and from a search
+  result shows the same total as its row.
+- Open a friend's saved dex and type a search or pick a Show choice before
+  the fresh copy arrives: nothing is reset when it lands.
+- On a friend's raid whose roster is sealed, your own souls there are amber
+  at the end of the list.
+- On a large dex (500+ mobs) on "All zones", claim a soul with the window
+  open and drag the column split: no hitch.
 
 ### Naming souls in dungeons and raids: where it stands and what to try next
 

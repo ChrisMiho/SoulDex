@@ -37,7 +37,8 @@ worktree the packager stops with "No Git, SVN, or Hg checkout found".
 
 - **Pure modules** (no WoW API, busted-tested): `Settings`, `Version` (parsing and
   comparing version strings), `Raids`, `Points`, `Ranks`,
-  `Rarity`, `Flavour`, `Dex`, `Milestones`, `View`, `Comm`, `Friends`, `Catch`,
+  `Rarity`, `Flavour`, `Dex`, `Milestones`, `View`, `Browse` (sorting,
+  filtering and comparing dex rows), `Comm`, `Friends`, `Catch`,
   `Whisper` (soul-name whisper marker, reply parsing, ask decision, pending
   queue), `Shards`, `UIFormat`.
 - **Game-facing** (frames, events, chat): `Capture` (secret-value guards,
