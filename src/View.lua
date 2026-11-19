@@ -340,7 +340,8 @@ local function mastery(dex, entry)
 end
 
 -- whole: the card for the soul over every zone (the All row, a search result): its
--- total, earliest and latest claim, and the most-claimed zone ("Zone +N"); place is ignored.
+-- total, earliest and latest claim (First with the level at that claim), and the
+-- most-claimed zone ("Zone +N") with no coordinates, so the card names it; place is ignored.
 function View.mobDetail(dex, name, place, whole)
 	local mob = dex.db.mobs[name]
 	if not mob then
@@ -349,13 +350,13 @@ function View.mobDetail(dex, name, place, whole)
 	-- The flavour line uses the first place on purpose, so it stays the same whichever
 	-- place is selected (spec 6.5).
 	local firstZone = firstPlace(mob)
-	local count, first, last, shown
+	local count, first, last, shown, firstRecord
 	if whole then
 		local best, where, total = mostClaimed(mob)
 		place, shown, count = best, where, total
 		for _, r in pairs(mob.places or {}) do
 			if r.first and (not first or r.first < first) then
-				first = r.first
+				first, firstRecord = r.first, r
 			end
 			if r.last and (not last or r.last > last) then
 				last = r.last
@@ -368,7 +369,11 @@ function View.mobDetail(dex, name, place, whole)
 	if not record then
 		return nil
 	end
-	if not whole then
+	local myLevel, x, y = record.myLevel, record.x, record.y
+	if whole then
+		-- No dates (a friend's dex): the most-claimed zone's level.
+		myLevel, x, y = (firstRecord or record).myLevel, nil, nil
+	else
 		shown, count, first, last = place, record.count, record.first, record.last
 	end
 	return {
@@ -382,9 +387,9 @@ function View.mobDetail(dex, name, place, whole)
 		count = count,
 		first = first,
 		last = last,
-		myLevel = record.myLevel,
-		x = record.x,
-		y = record.y,
+		myLevel = myLevel,
+		x = x,
+		y = y,
 		points = dex:worth(mob),
 		mastery = mastery(dex, mob),
 	}

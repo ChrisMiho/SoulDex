@@ -386,9 +386,11 @@ describe("View", function()
 			assert.equal("Westfall +1", d.place)
 			assert.equal(1000, d.first)
 			assert.equal(2002, d.last)
-			assert.equal(30, d.myLevel)
-			assert.equal(5, d.x)
-			assert.equal(6, d.y)
+			-- First's level is the one at that earliest claim (Elwynn), not the most-claimed zone's
+			assert.equal(10, d.myLevel)
+			-- no coordinates: the card's Where names the zone ("Westfall +1")
+			assert.is_nil(d.x)
+			assert.is_nil(d.y)
 			assert.truthy(d.flavour:find("Elwynn Forest", 1, true)) -- still the first place
 			-- without whole nothing changes
 			assert.equal(1, View.mobDetail(dex, "Wolf", nil).count)
@@ -414,6 +416,9 @@ describe("View", function()
 			assert.equal("Duskwood +1", d.place)
 			assert.is_nil(d.first)
 			assert.is_nil(d.last)
+			assert.is_nil(d.myLevel)
+			db.mobs.Wolf.places.Duskwood.myLevel = 40 -- no dates: the most-claimed zone's level
+			assert.equal(40, View.mobDetail(ns.Dex.new(db), "Wolf", nil, true).myLevel)
 		end)
 	end)
 

@@ -728,9 +728,10 @@ Redraws on a catch like the other tabs.
   time the window is opened; after that the selection is remembered as on
   the other tabs. Selected, the right list holds every soul of that tab once
   (a mob's count is its total over all zones). A mob's card opened from it
-  shows the soul's total, first and last claim over every zone and its
-  most-claimed zone ("Zone +N" when it has N more). The "Unknown soul" row
-  appears only for a single zone under the first Show choice.
+  shows the soul's total, first and last claim over every zone (First with
+  the level at that earliest claim), and Where names its most-claimed zone
+  ("Zone +N" when it has N more) instead of coordinates. The "Unknown soul"
+  row appears only for a single zone under the first Show choice.
 - **Compare (browsing a friend).** A soul they have and you don't is
   **Missing**, drawn green as before. A soul you have and they don't is
   **Only mine**, drawn amber (`ffb84d`, the same in every theme), listed among
@@ -1625,6 +1626,8 @@ has been seen in game.
   at the end of the list.
 - On a large dex (500+ mobs) on "All zones", claim a soul with the window
   open and drag the column split: no hitch.
+- While dragging the column line, notes and the totals line re-wrap only
+  when the mouse is let go.
 
 ### Naming souls in dungeons and raids: where it stands and what to try next
 

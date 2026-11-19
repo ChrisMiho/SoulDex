@@ -406,6 +406,25 @@ describe("UIFormat", function()
 			assert.is_nil(card.stars)
 		end)
 
+		it("a whole-soul card's Where names the most-claimed zone with +N", function()
+			local ns = { RaidData = {} }
+			for _, file in ipairs({ "Themes", "Rarity", "Raids", "Points", "Dex", "Flavour", "Milestones", "View", "Browse",
+				"UIFormat" }) do
+				LoadAddonFile("src/" .. file .. ".lua", ns)
+			end
+			local dex = ns.Dex.new({})
+			local function claim(zone, t)
+				dex:recordMob({ name = "Wolf", classification = "normal" },
+					{ time = t, myLevel = 20, zone = zone, group = "Eastern Kingdoms", x = 10, y = 20 })
+			end
+			claim("Elwynn Forest", 1000)
+			claim("Westfall", 2000)
+			claim("Westfall", 2001)
+			local card = ns.UIFormat.mobCard(ns.View.mobDetail(dex, "Wolf", nil, true), os.date)
+			assert.equal("Where | Westfall +1", cells(card)[3])
+			assert.truthy(cells(card)[1]:find("3", 1, true))
+		end)
+
 		it("shows stars past the row of eight as +N", function()
 			local card = F.mobCard({ name = "Boar", mastery = { stars = 11, count = 2600, from = 2500, to = 3000 } })
 			assert.equal(8, card.stars.lit)
