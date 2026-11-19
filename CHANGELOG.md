@@ -5,10 +5,12 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-- Drag the window's bottom-right corner to make it bigger or smaller.
+## [1.6.0] - 2026-11-18
+
 - SoulDex keeps the last dex each friend sent you, so Browse dex opens it at once, even while they're offline. It's only fetched again once they've caught something new; until then the Friends tab says "up to date".
 - While browsing a friend's dex, the back button is now "« Friends" and takes you back to the Friends list. The title shows their name in full instead of cutting it off.
 - Friends list: names have more room, so two-part names fit, and hovering someone shows their full name.
+- Drag the window's bottom-right corner to make it bigger or smaller.
 - Souls of mobs with a raid marker (skull, star and so on) are saved under their plain name. Ones already saved with the marker in front, like "{rt7}Saturated Remnant", are fixed when you log in.
 
 ## [1.5.1] - 2026-11-17
