@@ -30,6 +30,7 @@ src\Milestones.lua
 src\View.lua
 src\Comm.lua
 src\Friends.lua
+src\Browse.lua
 src\Catch.lua
 src\Whisper.lua
 src\Shards.lua
