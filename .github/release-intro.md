@@ -1,6 +1,6 @@
-## 💜 SoulDex 1.7.0-beta.1: Colours of the Pact
+## 💜 SoulDex 1.7.0: Colours of the Pact
 
-*A test build: your dex, dressed in the fires you were sworn to.*
+*Your dex, dressed in the fires you were sworn to.*
 
 **What's new**
 
@@ -10,6 +10,6 @@
 - **A tidier options panel.** "Claim chatter in chat" and the "(test)" switch are gone.
 - **Warlocks only.** The Friends tab lists warlocks only, and `/dex find` ignores capitals on accented letters too.
 
-**Install:** download `SoulDex-v1.7.0-beta.1-forever.zip` below and unzip it into `Interface\AddOns`, replacing your old `SoulDex` folder. This build adds a new file, so quit the game fully and start it again; a `/reload` isn't enough.
+**Install:** download `SoulDex-v1.7.0-forever.zip` below and unzip it into `Interface\AddOns`, replacing your old `SoulDex` folder. This build adds a new file, so quit the game fully and start it again; a `/reload` isn't enough.
 
 *Choose your flame, warlock. The souls won't mind which.*

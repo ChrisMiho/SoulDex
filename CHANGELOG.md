@@ -5,6 +5,8 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-11-18
+
 - Colour themes: pick Soul Shard, Fel, Shadow or Ember in the options to change the window's look, popups and rank emblems included. The change shows at once and is saved per character.
 - Bosses drained mid-fight now get their real name once the fight ends, if you keep them targeted, for everyone: the "Boss names after the fight (test)" option is gone.
 - Guild announcements for milestones and rank-ups end with a short line in the warlock's voice.
