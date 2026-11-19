@@ -944,4 +944,274 @@ describe("UI", function()
 		ns.UI.refresh()
 		assert.equal("Mobs", ns.UI.currentTab())
 	end)
+
+	-- Review fixes (spec 5.9) -----------------------------------------------------------
+
+	local function searchBoxOf()
+		return find("EditBox", function() return true end) -- the window's: the first built
+	end
+
+	local function splitGrip()
+		local handle
+		for _, f in ipairs(created) do
+			if f.kind == "Button" and f.scripts.OnMouseDown then
+				handle = f -- the last one: the window's corner grip comes first
+			end
+		end
+		return handle
+	end
+
+	-- Counts the calls of ns.UIFormat[name]; onCall(...) sees each one's arguments.
+	local function counting(name, onCall)
+		local calls = { n = 0 }
+		local original = ns.UIFormat[name]
+		ns.UIFormat[name] = function(...)
+			calls.n = calls.n + 1
+			if onCall then
+				onCall(...)
+			end
+			return original(...)
+		end
+		return calls
+	end
+
+	local function mobsTab(db)
+		db.window.tab = "Mobs"
+		for _, fn in ipairs(ns.onLoaded) do
+			fn(db)
+		end
+	end
+
+	it("a fresh copy of the same friend's dex keeps the search and the Show choice", function()
+		loadDb()
+		ns.UI.showDex(friendDex(), "Morwen")
+		ns.UI.selectTab("Mobs")
+		ns.UI.setSearch("wo")
+		ns.UI.showDex(friendDex(), "Morwen")
+		assert.equal("wo", ns.UI.search())
+		assert.is_truthy(shownRow("Wolf"))
+		ns.UI.setSearch("")
+		local show = toolButton("Show:")
+		show.scripts.OnClick(show, "LeftButton")
+		assert.equal("Show: Differences", show.label.text)
+		ns.UI.showDex(friendDex(), "Morwen")
+		assert.equal("Show: Differences", show.label.text)
+		-- another friend's dex still starts afresh
+		ns.UI.setSearch("wo")
+		ns.UI.showDex(friendDex(), "Ann")
+		assert.equal("", ns.UI.search())
+		assert.equal("Show: Their dex", show.label.text)
+	end)
+
+	it("a fresh copy of the same friend's dex keeps an open card that is still valid", function()
+		loadDb()
+		local cards = counting("mobCard")
+		ns.UI.showDex(friendDex(), "Morwen")
+		ns.UI.selectTab("Mobs")
+		ns.UI.openDetail("Wolf")
+		assert.equal(1, cards.n)
+		ns.UI.showDex(friendDex(), "Morwen")
+		assert.equal(2, cards.n) -- drawn again from the new copy
+		ns.UI.showDex(ns.Dex.new({}), "Morwen") -- Wolf is not in this one: the card closes
+		ns.UI.refresh()
+		assert.equal(2, cards.n)
+	end)
+
+	it("a card from the All row or a search result shows the soul's total over every zone", function()
+		loadDb()
+		for t = 2000, 2001 do
+			ns.dex:recordMob({ name = "Hogger", classification = "elite" },
+				{ time = t, zone = "Westfall", group = "Eastern Kingdoms" })
+		end
+		local shown
+		counting("mobCard", function(d) shown = d end)
+		ns.UI.toggle()
+		ns.UI.selectTab("Mobs") -- All zones
+		ns.UI.openDetail("Hogger")
+		assert.equal(3, shown.count)
+		assert.equal("Westfall +1", shown.place)
+		shown = nil
+		ns.UI.setSearch("hog")
+		local row = find("Button", function(f)
+			return f.shown and type(f.value) == "table" and f.value.kind == "mob"
+		end)
+		row.scripts.OnClick(row)
+		assert.equal(3, shown.count)
+		-- one zone selected: that zone's count
+		ns.UI.setSearch("")
+		local zone = find("Button", function(f) return f.shown and f.value == "Westfall" end)
+		zone.scripts.OnClick(zone)
+		ns.UI.openDetail("Hogger")
+		assert.equal(2, shown.count)
+	end)
+
+	it("All zones counts the rows it lists: raid souls are not mobs there", function()
+		loadDb() -- Hogger and the raid soul Lucifron
+		ns.UI.toggle()
+		ns.UI.selectTab("Mobs")
+		local all = find("Button", function(f) return f.shown and f.value == ns.Browse.ALL end)
+		assert.equal("1", all.right.text)
+	end)
+
+	it("clicks elsewhere in the window take the keyboard from the search box", function()
+		mobsTab(loadDb())
+		ns.UI.toggle()
+		local box = searchBoxOf()
+		local cleared = 0
+		box.ClearFocus = function() cleared = cleared + 1 end
+		ns.UI.setSearch("ho")
+		cleared = 0
+		local row = find("Button", function(f)
+			return f.shown and type(f.value) == "table" and f.value.kind == "mob"
+		end)
+		row.scripts.OnClick(row)
+		assert.equal(1, cleared)
+		ns.UI.setSearch("")
+		cleared = 0
+		local sort, show = toolButton("Sort:"), toolButton("Show:")
+		sort.scripts.OnClick(sort, "LeftButton")
+		assert.equal(1, cleared)
+		show.scripts.OnClick(show, "LeftButton")
+		assert.equal(2, cleared)
+		local handle = splitGrip()
+		_G.GetCursorPosition = function() return 500, 300 end
+		_G.SoulDexFrame.GetEffectiveScale = function() return 1 end
+		handle.scripts.OnMouseDown(handle)
+		assert.equal(3, cleared)
+		handle.scripts.OnMouseUp(handle)
+	end)
+
+	it("dragging the split moves the lists without redrawing them; letting go redraws once", function()
+		local db = loadDb()
+		ns.UI.toggle()
+		local frame = _G.SoulDexFrame
+		frame.GetEffectiveScale = function() return 1 end
+		local handle = splitGrip()
+		local draws = counting("keepScroll") -- every draw starts with it
+		local x = 500
+		_G.GetCursorPosition = function() return x, 300 end
+		handle.scripts.OnMouseDown(handle)
+		for step = 1, 5 do
+			x = 500 + step * 4
+			handle.scripts.OnUpdate(handle)
+		end
+		assert.equal(0, draws.n)
+		assert.equal(144, find("ScrollFrame", function() return true end).w)
+		assert.same({ "BOTTOMLEFT", 144 + 2 - 3, 0 }, handle.point) -- the grip follows
+		handle.scripts.OnMouseUp(handle)
+		assert.equal(1, draws.n)
+		assert.equal(144, db.window.split)
+		-- a drag that ends with the window closing saves, and draws no hidden window
+		handle.scripts.OnMouseDown(handle)
+		x = 524
+		handle.scripts.OnUpdate(handle)
+		frame:Hide()
+		handle.scripts.OnHide(handle)
+		assert.equal(1, draws.n)
+		assert.equal(148, db.window.split)
+	end)
+
+	it("a search builds no zone rows it would only throw away", function()
+		loadDb()
+		ns.UI.toggle()
+		ns.UI.selectTab("Mobs")
+		local built = counting("mobRows")
+		ns.UI.setSearch("ho")
+		assert.equal(0, built.n)
+		assert.is_truthy(shownRow("Hogger"))
+		ns.UI.setSearch("")
+		assert.equal(1, built.n)
+	end)
+
+	it("a dex of only unknown souls says nothing matches instead of a blank list", function()
+		local db = loadDb()
+		ns.dex = ns.Dex.new({})
+		ns.dex:recordUnknown({ time = 5, zone = "Elwynn Forest", group = "Eastern Kingdoms" })
+		mobsTab(db)
+		ns.UI.toggle()
+		assert.is_truthy(shownRow("Nothing here matches."))
+	end)
+
+	it("no compare line above an empty dex's note", function()
+		loadDb()
+		ns.UI.showDex(ns.Dex.new({}), "Morwen")
+		ns.UI.setCompare(ns.dex)
+		ns.UI.selectTab("Mobs")
+		assert.is_truthy(shownRow("No souls claimed yet."))
+		assert.is_nil(shownRow("only mine"))
+		ns.UI.selectTab("Players")
+		assert.is_truthy(shownRow("No player souls yet."))
+		assert.is_nil(shownRow("only mine"))
+	end)
+
+	it("labels the Show button as kind show", function()
+		loadDb()
+		local kinds = {}
+		counting("toolLabel", function(kind) kinds[kind] = true end)
+		ns.UI.toggle()
+		ns.UI.selectTab("Mobs")
+		assert.is_true(kinds.show)
+		assert.is_nil(kinds.filter)
+	end)
+
+	it("stepping Show closes the card; stepping Sort keeps it", function()
+		loadDb()
+		local cards = counting("mobCard")
+		ns.UI.toggle()
+		ns.UI.selectTab("Mobs")
+		ns.UI.openDetail("Hogger")
+		assert.equal(1, cards.n)
+		local sort, show = toolButton("Sort:"), toolButton("Show:")
+		sort.scripts.OnClick(sort, "LeftButton")
+		assert.equal(2, cards.n) -- kept and drawn again
+		show.scripts.OnClick(show, "LeftButton")
+		ns.UI.refresh()
+		assert.equal(2, cards.n) -- closed
+	end)
+
+	it("typing a search keeps the left list's scroll; a search that moves tab resets it", function()
+		mobsTab(loadDb())
+		for i = 1, 20 do
+			local ctx = { time = 1000, zone = string.format("Zone %02d", i), group = "Kalimdor" }
+			ns.dex:recordMob({ name = "Mob " .. i }, ctx)
+		end
+		ns.UI.toggle()
+		local scrolls = {}
+		for _, f in ipairs(created) do
+			if f.kind == "ScrollFrame" then
+				scrolls[#scrolls + 1] = f
+			end
+		end
+		local left, right = scrolls[1], scrolls[2]
+		left.scripts.OnMouseWheel(left, -3)
+		local leftScroll = left.vscroll
+		assert.is_true(leftScroll > 0)
+		ns.UI.setSearch("mo")
+		assert.equal(leftScroll, left.vscroll)
+		assert.equal(0, right.vscroll)
+		ns.UI.setSearch("mob")
+		assert.equal(leftScroll, left.vscroll)
+		ns.UI.selectTab("Me")
+		ns.UI.setSearch("mo") -- moves to Mobs: both lists start at the top
+		assert.equal("Mobs", ns.UI.currentTab())
+		assert.equal(0, left.vscroll)
+	end)
+
+	it("a search result's card survives a new catch while the same search lasts", function()
+		loadDb()
+		ns.UI.toggle()
+		ns.UI.selectTab("Mobs")
+		local cards = counting("mobCard")
+		ns.UI.setSearch("hog")
+		local row = find("Button", function(f)
+			return f.shown and type(f.value) == "table" and f.value.kind == "mob"
+		end)
+		row.scripts.OnClick(row)
+		assert.equal(1, cards.n)
+		ns.dex:recordMob({ name = "Hogger", classification = "elite" },
+			{ time = 2000, zone = "Elwynn Forest", group = "Eastern Kingdoms" })
+		ns.onCatch[1]({}, {}) -- a new catch redraws through draw's check: drawn again, not closed
+		assert.equal(2, cards.n)
+		assert.equal("hog", ns.UI.search())
+	end)
 end)

@@ -115,6 +115,13 @@ local function clearSearch()
 	end
 end
 
+-- A click elsewhere in the window: the search box lets go of the keyboard (its text stays).
+local function unfocusSearch()
+	if searchBox then
+		searchBox:ClearFocus()
+	end
+end
+
 -- The saved Sort choice of a tab, read through Browse.valid so junk is harmless.
 local function sortFor(tab, browsing)
 	local w = ns.db and ns.db.window
@@ -142,18 +149,26 @@ local function applySplit(width)
 	rightList.frame:SetPoint("TOPLEFT", width + 5, 0)
 end
 
+-- The divider and the split's grip at the left list's edge.
+local function placeDivider(split)
+	divider:ClearAllPoints()
+	divider:SetPoint("TOPLEFT", split + 2, 0)
+	divider:SetPoint("BOTTOMLEFT", split + 2, 0)
+	splitHandle:ClearAllPoints()
+	splitHandle:SetPoint("TOPLEFT", split + 2 - math.floor(HANDLE_W / 2), 0)
+	splitHandle:SetPoint("BOTTOMLEFT", split + 2 - math.floor(HANDLE_W / 2), 0)
+end
+
 -- Drawing ---------------------------------------------------------------------------
 
--- fromSearch: a search result's card, so a mob's is for no particular place.
+-- fromSearch: a search result's card; it and the All row's show a mob over every zone.
 local function detailCard(tab, value, fromSearch)
 	local dex, View = dexNow(), ns.View
 	local card
 	if tab == "Mobs" then
 		local place = state.sel.Mobs
-		if fromSearch or place == ns.Browse.ALL then
-			place = nil
-		end
-		local d = View.mobDetail(dex, value, place)
+		local whole = fromSearch or place == ns.Browse.ALL
+		local d = View.mobDetail(dex, value, not whole and place or nil, whole)
 		card = d and F.mobCard(d)
 	elseif tab == "Players" then
 		local d = View.playerDetail(dex, value)
@@ -179,6 +194,7 @@ end
 
 -- value: a row's value; a search result's is { kind, id } and opens the card of its kind.
 local function openDetail(value)
+	unfocusSearch()
 	local tab, search = state.tab, nil
 	if type(value) == "table" then
 		tab, search = KIND_TAB[value.kind], activeSearch()
@@ -225,9 +241,11 @@ local function pickOrAll(rows, field, current)
 	return ns.Browse.ALL
 end
 
--- rows: what Browse.apply kept of `all`; a filter that leaves nothing says so.
+-- rows: what Browse.apply kept of `all`; a list left empty says so. all nil (Mobs and
+-- Players, which list a zone or class): always, even when nothing was there to filter (a
+-- dex of only unknown souls). A raid's list: only when the filter emptied it.
 local function filtered(rows, all)
-	if #rows == 0 and #all > 0 then
+	if #rows == 0 and (all == nil or #all > 0) then
 		return { F.emptyNote() }
 	end
 	return rows
@@ -238,29 +256,29 @@ local function drawLists(dex, keepLeft, keepRight)
 	local browsing, them = state.owner ~= nil, other()
 	local filter = Browse.valid(Browse.filters(tab, browsing), state.filter)
 	local sort = sortFor(tab, browsing)
-	local leftRows, rightRows
+	-- During a search the right list holds its results, so the usual rows are not built.
+	local search = activeSearch()
+	local leftRows, rightRows, emptyDex
 	if tab == "Mobs" then
 		local places = View.places(dex, them)
 		local place = pickOrAll(places, "place", state.sel.Mobs)
 		state.sel.Mobs = place
-		leftRows = F.placeRows(places, place, dex:uniqueMobs(), browsing)
-		if place then
-			local all = Browse.mobs(dex, place, them)
-			rightRows = filtered(F.mobRows(Browse.apply(all, filter, sort)), all)
-		else
-			rightRows = { F.note("No souls claimed yet. Go drain something.") }
+		leftRows = F.placeRows(places, place, Browse.size(dex, "Mobs"), browsing)
+		if not place then
+			rightRows, emptyDex = { F.note("No souls claimed yet. Go drain something.") }, true
+		elseif not search then
+			rightRows = filtered(F.mobRows(Browse.apply(Browse.mobs(dex, place, them), filter, sort)))
 		end
 	elseif tab == "Players" then
 		local classes = View.classes(dex, them)
 		local class = pickOrAll(classes, "class", state.sel.Players)
 		state.sel.Players = class
 		leftRows = F.classRows(classes, class, RAID_CLASS_COLORS, LOCALIZED_CLASS_NAMES_MALE,
-			dex:uniquePlayers(), browsing)
-		if class then
-			local all = Browse.players(dex, class, them)
-			rightRows = filtered(F.playerRows(Browse.apply(all, filter, sort)), all)
-		else
-			rightRows = { F.note("No player souls yet.") }
+			Browse.size(dex, "Players"), browsing)
+		if not class then
+			rightRows, emptyDex = { F.note("No player souls yet.") }, true
+		elseif not search then
+			rightRows = filtered(F.playerRows(Browse.apply(Browse.players(dex, class, them), filter, sort)))
 		end
 	else
 		local raids = View.raids(dex)
@@ -269,24 +287,23 @@ local function drawLists(dex, keepLeft, keepRight)
 		state.sel.Raids = key
 		leftRows = F.raidRows(raids, key)
 		local raid = key and ns.Raids.byKey(key)
-		if raid then
+		if not raid then
+			rightRows, emptyDex = { F.note("No raid data.") }, true
+		elseif not search then
 			local all = View.raidMobs(dex, raid.instanceID, them)
 			rightRows = filtered(F.raidMobRows(Browse.apply(all, filter, nil)), all)
 			if raid.tbd then
 				table.insert(rightRows, 1, F.tbdNote(raid))
 			end
-		else
-			rightRows = { F.note("No raid data.") }
 		end
 	end
-	local search = activeSearch()
 	if search then
 		-- Every soul of the dex on screen whose name holds the text; not compare-coloured.
 		rightRows = F.findRows(View.find(dex, search), LOCALIZED_CLASS_NAMES_MALE)
 		if #rightRows == 0 then
 			rightRows = { F.emptyNote(search) }
 		end
-	elseif browsing and them then
+	elseif browsing and them and not emptyDex then
 		table.insert(rightRows, 1, F.compareLine(Browse.counts(dex, them, tab)))
 	end
 	leftList:set(leftRows, selectLeft, keepLeft)
@@ -366,7 +383,7 @@ local function drawToolbar()
 		sortButton.label:SetText(F.toolLabel("sort", sortFor(tab, browsing), browsing))
 	end
 	if showFilter then
-		showButton.label:SetText(F.toolLabel("filter", Browse.valid(filters, state.filter), browsing))
+		showButton.label:SetText(F.toolLabel("show", Browse.valid(filters, state.filter), browsing))
 	end
 	-- Right to left: Show (anchored to the right edge), Sort, then the search box.
 	local edge = showFilter and showButton or nil
@@ -434,13 +451,8 @@ draw = function(action)
 	elseif tab == "Friends" then
 		split = FRIENDS_LEFT_W
 	end
-	divider:ClearAllPoints()
-	divider:SetPoint("TOPLEFT", split + 2, 0)
-	divider:SetPoint("BOTTOMLEFT", split + 2, 0)
 	setShown(splitHandle, collection)
-	splitHandle:ClearAllPoints()
-	splitHandle:SetPoint("TOPLEFT", split + 2 - math.floor(HANDLE_W / 2), 0)
-	splitHandle:SetPoint("BOTTOMLEFT", split + 2 - math.floor(HANDLE_W / 2), 0)
+	placeDivider(split)
 	setShown(friendsBox, tab == "Friends")
 
 	if collection then
@@ -677,6 +689,7 @@ end
 
 -- A click on Sort or Show steps forward through the tab's choices, a right-click back.
 local function stepSort(back)
+	unfocusSearch()
 	local tab, w = state.tab, ns.db and ns.db.window
 	local list = ns.Browse.sorts(tab, state.owner ~= nil)
 	if #list == 0 or not w then
@@ -689,12 +702,15 @@ local function stepSort(back)
 	draw("select")
 end
 
+-- The open card closes: its row may be one the new choice leaves out.
 local function stepFilter(back)
+	unfocusSearch()
 	local list = ns.Browse.filters(state.tab, state.owner ~= nil)
 	if #list == 0 then
 		return
 	end
 	state.filter = ns.Browse.step(list, state.filter, back)
+	closeDetail(true)
 	draw("select")
 end
 
@@ -745,7 +761,8 @@ local function buildToolbar()
 end
 
 -- The column split: an invisible grip over the divider. Dragging it widens the left list
--- (Settings.split's limits); the width is saved when the mouse is let go.
+-- (Settings.split's limits); the width is saved when the mouse is let go. While dragging
+-- only the lists and the divider move; the rows are drawn again once, when it ends.
 local function buildSplitHandle(body)
 	splitHandle = CreateFrame("Button", nil, body)
 	splitHandle:SetWidth(HANDLE_W)
@@ -756,7 +773,8 @@ local function buildSplitHandle(body)
 		local width = ns.Settings.split(splitDrag.start + (x - splitDrag.x) / splitDrag.eff)
 		if width ~= splitDrag.split then
 			splitDrag.split = width
-			draw("refresh")
+			applySplit(width)
+			placeDivider(width)
 		end
 	end
 	local function stop()
@@ -770,8 +788,12 @@ local function buildSplitHandle(body)
 		if w then
 			w.split = width
 		end
+		if frame:IsShown() then
+			draw("refresh")
+		end
 	end
 	splitHandle:SetScript("OnMouseDown", function()
+		unfocusSearch()
 		local x = GetCursorPosition()
 		local start = splitNow()
 		splitDrag = { x = x, start = start, split = start, eff = frame:GetEffectiveScale() or 1 }
@@ -976,7 +998,10 @@ end
 -- Shows `dex` (nil = yours). ownerName nil means it is your own; otherwise you are
 -- browsing that friend's dex and rows compare against setCompare's dex. savedAt: the
 -- time() a saved copy of their dex arrived, shown in the title (nil for a fresh one).
+-- A newer copy of the friend's dex already on screen keeps the search, the Show choice
+-- and an open card that is still in it.
 function UI.showDex(dex, ownerName, savedAt)
+	local again = frame ~= nil and frame:IsShown() and ownerName ~= nil and ownerName == state.owner
 	state.dex = dex
 	state.owner = ownerName
 	state.savedAt = ownerName and savedAt or nil
@@ -988,6 +1013,10 @@ function UI.showDex(dex, ownerName, savedAt)
 	end
 	if not frame then
 		build()
+	end
+	if again then
+		draw("refresh")
+		return
 	end
 	closeDetail(true)
 	clearSearch()
@@ -1104,14 +1133,17 @@ function UI.setSearch(text)
 		searchBox:SetText(state.search)
 	end
 	closeDetail(true)
+	-- Typing keeps the left list where it is; a search that moves to Mobs starts it afresh.
+	local action = "select"
 	if activeSearch() and not isCollection(state.tab) then
 		state.tab = "Mobs"
+		action = "tab"
 		if ns.db and ns.db.window then
 			ns.db.window.tab = "Mobs"
 		end
 	end
 	if frame and frame:IsShown() then
-		draw("tab")
+		draw(action)
 	end
 end
 
