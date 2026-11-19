@@ -623,13 +623,15 @@ View.FIND_LIMIT = 8 -- lines printed; the rest are counted
 -- claimed in most (with "+N" for its other zones), a player's class token, or a raid
 -- creature's raid. Names that start with the text come first, then by name.
 function View.find(dex, text)
-	local needle = type(text) == "string" and text:lower():match("^%s*(.-)%s*$") or ""
+	-- Friends loads after View, but find only runs once everything has loaded.
+	local lower = ns.Friends and ns.Friends.lower or string.lower
+	local needle = type(text) == "string" and lower(text):match("^%s*(.-)%s*$") or ""
 	if #needle < View.FIND_MIN then
 		return {}
 	end
 	local db, out = dex.db, {}
 	local function matches(name)
-		return type(name) == "string" and name:lower():find(needle, 1, true) ~= nil
+		return type(name) == "string" and lower(name):find(needle, 1, true) ~= nil
 	end
 	for name, mob in pairs(db.mobs) do
 		if matches(name) then
@@ -660,7 +662,7 @@ function View.find(dex, text)
 		end
 	end
 	table.sort(out, function(a, b)
-		local aFirst, bFirst = a.name:lower():find(needle, 1, true) == 1, b.name:lower():find(needle, 1, true) == 1
+		local aFirst, bFirst = lower(a.name):find(needle, 1, true) == 1, lower(b.name):find(needle, 1, true) == 1
 		if aFirst ~= bFirst then
 			return aFirst
 		end

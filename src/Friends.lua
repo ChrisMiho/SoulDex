@@ -23,6 +23,9 @@ local function lowerCase(s)
 	end))
 end
 
+-- Lower case, with the accented Latin letters too ("ÆTHEL" -> "æthel"); search uses it.
+Friends.lower = lowerCase
+
 local function upperFirst(s)
 	local lead, second = s:byte(1, 2)
 	if lead == 195 and second and second >= 160 and second <= 190 and second ~= 183 then

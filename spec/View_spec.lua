@@ -524,6 +524,14 @@ describe("View", function()
 			assert.equal("Young Wolf", found[2].name)
 		end)
 
+		it("ignores case for accented letters too (\195\166 finds \195\134)", function()
+			dex:recordMob(mob("\195\134thelwulf"), ctx("Dun Morogh"))
+			dex:recordMob(mob("Gr\195\171ymane"), ctx("Dun Morogh"))
+			assert.equal("\195\134thelwulf", View.find(dex, "\195\166thel")[1].name)
+			assert.equal("\195\134thelwulf", View.find(dex, "\195\134THEL")[1].name)
+			assert.equal("Gr\195\171ymane", View.find(dex, "GR\195\139Y")[1].name)
+		end)
+
 		it("gives a mob's total and the zone it was claimed in most", function()
 			local row = View.find(dex, "pillager")[1]
 			assert.equal(3, row.count)

@@ -5,6 +5,8 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- `/souldex find` ignores capitals for accented letters too: "æthel" finds "Æthelwulf".
+
 ## [1.6.0] - 2026-11-18
 
 - SoulDex keeps the last dex each friend sent you, so Browse dex opens it at once, even while they're offline. It's only fetched again once they've caught something new; until then the Friends tab says "up to date".

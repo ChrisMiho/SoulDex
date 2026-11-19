@@ -172,6 +172,21 @@ describe("Comm", function()
 		assert.equal(a:score(), b:score())
 	end)
 
+	it("carries names with letters like \195\134, \195\171 and \195\159 unchanged", function()
+		local dex = ns.Dex.new({ mobs = {}, places = {}, players = {}, raids = {} })
+		local where = { time = 5, zone = "Dun Morogh", group = "Eastern Kingdoms" }
+		dex:recordMob({ name = "\195\134thelwulf the Gr\195\171y" }, where)
+		dex:recordPlayer({ name = "Ka\195\166l \195\134ris", class = "ROGUE", race = "Human" }, where)
+		local _, decoded = Comm.decode(Comm.encodeDex(dex.db))
+		assert.is_table(decoded)
+		assert.is_truthy(decoded.mobs["\195\134thelwulf the Gr\195\171y"])
+		local found
+		for _, p in pairs(decoded.players) do
+			found = found or p.name
+		end
+		assert.equal("Ka\195\166l \195\134ris", found)
+	end)
+
 	it("rebuilds the shapes the readers use", function()
 		local d = Comm.decodeDex(Comm.encodeDex(fakeDb()))
 		assert.equal(4, d.mobs.Wolf.places["Elwynn Forest"].count)

@@ -900,7 +900,8 @@ manage the Friends list by name; any other word prints the command list.
 choice of which is the builder's. **[call]**)
 
 - `/souldex find <text>` looks a soul up by name: every mob, player and raid
-  creature in your dex whose name contains the text (any case, at least 2
+  creature in your dex whose name contains the text (any case, accented
+  letters such as Æ/æ and Ë/ë included, changed after 1.6.0; at least 2
   letters), names starting with it first, up to 8 lines in your own chat:
   "Hogger ×12 · Elwynn Forest" (the zone it was claimed in most, "+N" for its
   other zones; a player's class; a raid creature's raid), then "...and N
@@ -1205,7 +1206,9 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
   to the dex.
 - Untick "Login message in chat", `/reload`: no "loaded" line. Tick it again.
 - `/souldex find <part of a name you have>`: a heading and one line per soul
-  with its count and zone. `/souldex find zzzz`: "No soul matching".
+  with its count and zone. `/souldex find zzzz`: "No soul matching". With a
+  soul whose name starts with an accented capital (an "Æ" name), searching
+  its lower-case start ("æ...") finds it too.
 - `/souldex version` prints the version; hovering the gear shows "Options".
 - Catching still works after the shard-map change: drain a mob, get the popup,
   the shard's tooltip names it; `/reload`, the tooltip still names it; move the

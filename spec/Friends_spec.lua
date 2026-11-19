@@ -79,6 +79,10 @@ describe("Friends", function()
 		assert.equal("\195\139lric", Friends.normalise("\195\171lric"))
 		-- the multiplication sign is not a letter and is left alone
 		assert.equal("\195\151x", Friends.normalise("\195\151X"))
+		-- Æ / æ, at the start of either word and inside one; ß has no capital and stays
+		assert.equal("\195\134rith Stra\195\159e", Friends.normalise("\195\166rith stra\195\159e"))
+		assert.equal("Ka\195\166l \195\134ris", Friends.normalise("KA\195\134L \195\166RIS"))
+		assert.equal("\195\134rith", Friends.normalise("\195\134rith-Realm"))
 		local store = {}
 		Friends.add(store, "\195\171lric")
 		Friends.merge(store, "\195\139lric-Forever", { score = 4 }, 10, false)
