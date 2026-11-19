@@ -1,15 +1,15 @@
-## 💜 SoulDex 1.6.0: Kept Souls
+## 💜 SoulDex 1.7.0-beta.1: Colours of the Pact
 
-*Your rivals' collections, held close even after they log off.*
+*A test build: your dex, dressed in the fires you were sworn to.*
 
 **What's new**
 
-- **Friends' dexes, kept.** Browse a friend once and SoulDex keeps their dex. Next time it opens at once, even while they're offline.
-- **Only fetched when it changed.** A friend's dex is asked for again only after they've caught something new; until then their pane says "up to date".
-- **A tidier Friends tab.** Two-part names fit in the list and the title, hovering someone shows their whole name, and "« Friends" takes you straight back to the list.
-- **Grab the corner.** Drag the window's bottom-right corner to make it bigger or smaller.
-- **Plain names for marked mobs.** A mob wearing a skull or any other raid marker is saved under its own name, and souls already saved with one are fixed when you log in.
+- **Warlock themes.** Pick Soul Shard, Fel, Shadow or Ember in the options. The window, the popups and your rank emblems all change at once, saved per character.
+- **Bosses named after the fight.** Drain a boss mid-fight, keep it targeted, and it gets its real name once the fight ends. No option to tick any more: it's always on.
+- **Guild announcements with a bite.** Milestones and rank-ups in guild chat now end with a short line in the warlock's voice.
+- **A tidier options panel.** "Claim chatter in chat" and the "(test)" switch are gone.
+- **Warlocks only.** The Friends tab lists warlocks only, and `/dex find` ignores capitals on accented letters too.
 
-**Install:** download `SoulDex-v1.6.0-forever.zip` below and unzip it into `Interface\AddOns`, replacing your old `SoulDex` folder. Coming from 1.5.x, a `/reload` is enough.
+**Install:** download `SoulDex-v1.7.0-beta.1-forever.zip` below and unzip it into `Interface\AddOns`, replacing your old `SoulDex` folder. This build adds a new file, so quit the game fully and start it again; a `/reload` isn't enough.
 
-*Know what your rivals hold, warlock. Then go take more.*
+*Choose your flame, warlock. The souls won't mind which.*
