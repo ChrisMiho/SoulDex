@@ -37,12 +37,15 @@ local function groupBefore(a, b)
 	return a < b
 end
 
-function View.places(dex)
+function View.places(dex, other)
 	local db = dex.db
-	local counts = {}
-	for _, mob in pairs(db.mobs) do
+	local counts, new = {}, {}
+	for name, mob in pairs(db.mobs) do
 		for zone in pairs(mob.places or {}) do
 			counts[zone] = (counts[zone] or 0) + 1
+			if other and other.db.mobs[name] == nil then
+				new[zone] = (new[zone] or 0) + 1
+			end
 		end
 	end
 	-- A zone with only unknown souls is still listed; its count (unique mobs) is 0.
@@ -58,7 +61,7 @@ function View.places(dex)
 			groups[group] = {}
 			names[#names + 1] = group
 		end
-		groups[group][#groups[group] + 1] = { place = zone, count = count }
+		groups[group][#groups[group] + 1] = { place = zone, count = count, new = new[zone] or 0 }
 	end
 	table.sort(names, groupBefore)
 
@@ -106,15 +109,18 @@ function View.mobsAt(dex, place, other)
 	return rows
 end
 
-function View.classes(dex)
-	local counts = {}
-	for _, player in pairs(dex.db.players) do
+function View.classes(dex, other)
+	local counts, new = {}, {}
+	for key, player in pairs(dex.db.players) do
 		local class = player.class or "UNKNOWN"
 		counts[class] = (counts[class] or 0) + 1
+		if other and other.db.players[key] == nil then
+			new[class] = (new[class] or 0) + 1
+		end
 	end
 	local rows = {}
 	for class, count in pairs(counts) do
-		rows[#rows + 1] = { class = class, count = count }
+		rows[#rows + 1] = { class = class, count = count, new = new[class] or 0 }
 	end
 	table.sort(rows, function(a, b)
 		if a.count ~= b.count then
@@ -191,6 +197,22 @@ function View.raidMobs(dex, instanceID, other)
 		return other ~= nil and other.db.raids[npcID] == nil
 	end
 
+	-- The other dex's entry for a creature of this raid, if it has one.
+	local function theirs(npcID)
+		local entry = other and other.db.raids[npcID]
+		return entry and entry.instanceID == instanceID and entry or nil
+	end
+	-- "missing": only dex has it; "shared": both; "mine": only other has it; nil: neither or no other.
+	local function side(npcID, caught)
+		if not other then
+			return nil
+		end
+		if caught then
+			return other.db.raids[npcID] == nil and "missing" or "shared"
+		end
+		return theirs(npcID) and "mine" or nil
+	end
+
 	local rows, listed = {}, {}
 	for _, mob in ipairs(raid.mobs) do
 		listed[mob.id] = true
@@ -198,15 +220,17 @@ function View.raidMobs(dex, instanceID, other)
 		if entry and entry.instanceID ~= instanceID then
 			entry = nil
 		end
+		local mine = not entry and theirs(mob.id) or nil
 		rows[#rows + 1] = {
 			npcID = mob.id,
-			name = entry and mob.name or nil,
+			name = (entry or mine) and mob.name or nil,
 			boss = mob.boss == true,
-			count = entry and entry.count or nil,
+			count = entry and entry.count or mine and mine.count or nil,
 			stars = entry and starCount(dex, entry) or nil,
 			caught = entry ~= nil,
 			known = true,
 			highlight = entry ~= nil and isNew(mob.id),
+			side = side(mob.id, entry ~= nil),
 		}
 	end
 
@@ -222,6 +246,7 @@ function View.raidMobs(dex, instanceID, other)
 				caught = true,
 				known = false,
 				highlight = isNew(npcID),
+				side = side(npcID, true),
 			}
 		end
 	end
@@ -647,18 +672,20 @@ function View.find(dex, text)
 			if best and zones > 1 then
 				where = best .. " +" .. (zones - 1)
 			end
-			out[#out + 1] = { name = name, kind = "mob", count = total, where = where }
+			out[#out + 1] = { name = name, kind = "mob", count = total, where = where, value = name }
 		end
 	end
-	for _, entry in pairs(db.players) do
+	for key, entry in pairs(db.players) do
 		if matches(entry.name) then
-			out[#out + 1] = { name = entry.name, kind = "player", count = entry.count or 0, where = entry.class }
+			out[#out + 1] = { name = entry.name, kind = "player", count = entry.count or 0, where = entry.class,
+				value = key }
 		end
 	end
-	for _, entry in pairs(db.raids) do
+	for npcID, entry in pairs(db.raids) do
 		if matches(entry.name) then
 			local raid = ns.Raids.byInstance(entry.instanceID)
-			out[#out + 1] = { name = entry.name, kind = "raid", count = entry.count or 0, where = raid and raid.name }
+			out[#out + 1] = { name = entry.name, kind = "raid", count = entry.count or 0, where = raid and raid.name,
+				value = npcID }
 		end
 	end
 	table.sort(out, function(a, b)

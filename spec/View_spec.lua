@@ -107,6 +107,23 @@ describe("View", function()
 		end)
 	end)
 
+	describe("places new", function()
+		it("counts the mobs of a place that the other dex lacks", function()
+			dex:recordMob(mob("Hogger"), ctx("Elwynn Forest"))
+			dex:recordMob(mob("Wolf"), ctx("Elwynn Forest"))
+			friend:recordMob(mob("Wolf"), ctx("Elwynn Forest"))
+			local function elwynn(rows)
+				for _, row in ipairs(rows) do
+					if row.place == "Elwynn Forest" then
+						return row
+					end
+				end
+			end
+			assert.equal(1, elwynn(View.places(dex, friend)).new)
+			assert.equal(0, elwynn(View.places(dex)).new)
+		end)
+	end)
+
 	describe("mastery", function()
 		it("puts stars on rows and the way to the next star in the details", function()
 			for _ = 1, 12 do
@@ -168,9 +185,9 @@ describe("View", function()
 
 		it("sorts classes by count then name", function()
 			assert.same({
-				{ class = "MAGE", count = 2 },
-				{ class = "ROGUE", count = 2 },
-				{ class = "WARRIOR", count = 1 },
+				{ class = "MAGE", count = 2, new = 0 },
+				{ class = "ROGUE", count = 2, new = 0 },
+				{ class = "WARRIOR", count = 1, new = 0 },
 			}, View.classes(dex))
 		end)
 
@@ -182,6 +199,20 @@ describe("View", function()
 			assert.equal(2, rows[1].count)
 			assert.is_true(rows[1].highlight)
 			assert.is_false(rows[2].highlight)
+		end)
+
+		it("counts the players of a class that the other dex lacks", function()
+			friend:recordPlayer(player("Ann", "ROGUE"), ctx("Elwynn Forest"))
+			local function newOf(rows, class)
+				for _, row in ipairs(rows) do
+					if row.class == class then
+						return row.new
+					end
+				end
+			end
+			assert.equal(1, newOf(View.classes(dex, friend), "ROGUE"))
+			assert.equal(2, newOf(View.classes(dex, friend), "MAGE"))
+			assert.equal(0, newOf(View.classes(dex), "ROGUE"))
 		end)
 
 		it("gives player detail", function()
@@ -269,6 +300,28 @@ describe("View", function()
 			assert.equal("Mystery", rows[4].name)
 			assert.is_false(rows[4].known)
 			assert.is_true(rows[4].highlight)
+		end)
+
+		it("marks each raid row missing, shared, mine or neither", function()
+			dex:recordRaid(mob("Lucifron"), ctx("Molten Core", "Dungeons"), 409, 12118)
+			dex:recordRaid(mob("Core Hound"), ctx("Molten Core", "Dungeons"), 409, 11671)
+			friend:recordRaid(mob("Core Hound"), ctx("Molten Core", "Dungeons"), 409, 11671)
+			friend:recordRaid(mob("Whatever"), ctx("Molten Core", "Dungeons"), 409, 11672)
+			friend:recordRaid(mob("Whatever"), ctx("Molten Core", "Dungeons"), 409, 11672)
+			dex:recordRaid(mob("Zed"), ctx("Zul'Gurub", "Dungeons"), 309, 1)
+			local rows = View.raidMobs(dex, 409, friend)
+			assert.equal("missing", rows[1].side)
+			assert.is_true(rows[1].highlight)
+			assert.equal("shared", rows[2].side)
+			assert.is_false(rows[2].highlight)
+			assert.equal("mine", rows[3].side)
+			assert.is_false(rows[3].caught)
+			assert.equal("Core Rager", rows[3].name)
+			assert.equal(2, rows[3].count)
+			assert.equal(3, #rows)
+			local none = View.raidMobs(ns.Dex.new({}), 409, ns.Dex.new({}))
+			assert.is_nil(none[1].side)
+			assert.is_nil(View.raidMobs(dex, 409)[1].side)
 		end)
 
 		it("gives raid detail", function()
@@ -549,6 +602,20 @@ describe("View", function()
 			assert.same({}, View.find(dex, "%a+"))
 			assert.same({}, View.find(dex, nil))
 			assert.has_no.errors(function() View.find(dex, "[(") end)
+		end)
+
+		it("gives each row the value that identifies it", function()
+			assert.equal("Young Wolf", View.find(dex, "young")[1].value)
+			assert.equal("Wolfbane-Realm", View.find(dex, "wolfbane")[1].value)
+			assert.equal(11671, View.find(dex, "core h")[1].value)
+		end)
+
+		it("finds plain text, never a pattern", function()
+			dex:recordMob(mob("Thing (Elite)"), ctx("Elwynn Forest"))
+			assert.is_table(View.find(dex, "%s[("))
+			assert.is_table(View.find(dex, "a."))
+			assert.is_table(View.find(dex, "a-"))
+			assert.equal("Thing (Elite)", View.find(dex, "(el")[1].name)
 		end)
 
 		it("writes the chat lines", function()
