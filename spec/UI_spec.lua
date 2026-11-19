@@ -79,7 +79,7 @@ describe("UI", function()
 			Print = function() end,
 		}
 		for _, file in ipairs({
-			"Themes", "Settings", "Raids", "Points", "Rarity", "Ranks", "Flavour", "Dex", "Milestones", "View",
+			"Themes", "Settings", "Raids", "Points", "Rarity", "Ranks", "Flavour", "Dex", "Milestones", "View", "Browse",
 			"UIFormat", "UIList", "UI", "UIDetail", "Options",
 		}) do
 			LoadAddonFile("src/" .. file .. ".lua", ns)

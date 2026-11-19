@@ -142,14 +142,15 @@ local function drawLists(dex, keepLeft, keepRight)
 		local places = View.places(dex)
 		local place = F.pick(places, "place", state.sel.Mobs)
 		state.sel.Mobs = place
-		leftRows = F.placeRows(places, place)
+		leftRows = F.placeRows(places, place, dex:uniqueMobs(), state.owner ~= nil)
 		rightRows = place and F.mobRows(View.mobsAt(dex, place, other()))
 			or { F.note("No souls claimed yet. Go drain something.") }
 	elseif tab == "Players" then
 		local classes = View.classes(dex)
 		local class = F.pick(classes, "class", state.sel.Players)
 		state.sel.Players = class
-		leftRows = F.classRows(classes, class, RAID_CLASS_COLORS, LOCALIZED_CLASS_NAMES_MALE)
+		leftRows = F.classRows(classes, class, RAID_CLASS_COLORS, LOCALIZED_CLASS_NAMES_MALE,
+			dex:uniquePlayers(), state.owner ~= nil)
 		rightRows = class and F.playerRows(View.playersOf(dex, class, other())) or { F.note("No player souls yet.") }
 	else
 		local raids = View.raids(dex)

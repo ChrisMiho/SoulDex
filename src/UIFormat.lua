@@ -155,17 +155,49 @@ function F.note(text)
 	return { text = text, color = C.MUTED, wrap = true }
 end
 
+-- A soul only the viewer has, drawn beside a friend's: amber, the same in every theme.
+F.MINE = "ffb84d"
+
+-- The right-hand text of a left-list row: the count, with "+N" (green) for N souls there
+-- that the viewer lacks while browsing a friend's dex.
+local function countWithNew(row, browsing)
+	if browsing and (row.new or 0) > 0 then
+		return row.count .. " +" .. row.new, C.GOOD
+	end
+	return tostring(row.count), nil
+end
+
+local function allRow(text, total, selected)
+	return { text = text, right = tostring(total), value = ns.Browse.ALL, selected = selected == ns.Browse.ALL }
+end
+
+-- A row's colour and click value from its compare side: Missing is green and clickable,
+-- Only mine amber and not clickable, anything else keeps its own colour.
+local function sideStyle(row, color, value)
+	if row.side == "missing" or row.highlight then
+		return C.GOOD, value
+	elseif row.side == "mine" then
+		return F.MINE, nil
+	end
+	return color, value
+end
+
 -- List rows ---------------------------------------------------------------------
 
-function F.placeRows(rows, selected)
+function F.placeRows(rows, selected, total, browsing)
 	local out = {}
+	if #rows > 0 then
+		out[1] = allRow("All zones", total, selected)
+	end
 	for _, row in ipairs(rows) do
 		if row.header then
 			out[#out + 1] = { text = row.header:upper(), color = C.HEADER, header = true }
 		else
+			local right, rightColor = countWithNew(row, browsing)
 			out[#out + 1] = {
 				text = row.place,
-				right = tostring(row.count),
+				right = right,
+				rightColor = rightColor,
 				value = row.place,
 				selected = row.place == selected,
 			}
@@ -181,31 +213,37 @@ function F.mobRows(rows)
 			-- Hidden-name catches: muted, no detail pane (no value, not clickable).
 			out[#out + 1] = { text = row.name, color = C.MUTED, right = F.countText(row.count) }
 		else
-			local style = STYLES[row.classification]
+				local style = STYLES[row.classification]
 			local text = row.name
 			if style and style.mark then
 				text = text .. " " .. style.mark
 			end
+			local color, value = sideStyle(row, (style and style.color) or C.TEXT, row.name)
 			out[#out + 1] = {
 				text = text,
-				color = row.highlight and C.GOOD or (style and style.color) or C.TEXT,
+				color = color,
 				right = F.masteryCount(row.stars, row.count),
 				stripe = style and style.color or C.DIVIDER, -- an ordinary soul's row; rarer ones use their colour
-				value = row.name,
+				value = value,
 			}
 		end
 	end
 	return out
 end
 
-function F.classRows(rows, selected, classColors, classNames)
+function F.classRows(rows, selected, classColors, classNames, total, browsing)
 	local out = {}
+	if #rows > 0 then
+		out[1] = allRow("All classes", total, selected)
+	end
 	for _, row in ipairs(rows) do
 		local name = F.className(row.class, classNames)
+		local right, rightColor = countWithNew(row, browsing)
 		out[#out + 1] = {
 			text = name,
 			color = F.classHex(row.class, classColors) or C.TEXT,
-			right = tostring(row.count),
+			right = right,
+			rightColor = rightColor,
 			value = row.class,
 			selected = row.class == selected,
 		}
@@ -216,11 +254,12 @@ end
 function F.playerRows(rows)
 	local out = {}
 	for _, row in ipairs(rows) do
+		local color, value = sideStyle(row, C.TEXT, row.key)
 		out[#out + 1] = {
 			text = row.name or row.key,
-			color = row.highlight and C.GOOD or C.TEXT,
+			color = color,
 			right = F.countText(row.count),
-			value = row.key,
+			value = value,
 		}
 	end
 	return out
@@ -247,6 +286,52 @@ function F.raidRows(rows, selected)
 	return out
 end
 
+-- Search results (View.find rows): the name, where it was claimed and the count. A click
+-- passes { kind, id } back.
+function F.findRows(found, classNames)
+	local out = {}
+	for _, row in ipairs(found) do
+		local where = row.where
+		if row.kind == "player" then
+			where = row.where and F.className(row.where, classNames) or "player"
+		end
+		out[#out + 1] = {
+			text = row.name,
+			right = F.join({ where, F.countText(row.count) }, " ", 2),
+			value = { kind = row.kind, id = row.value },
+		}
+	end
+	return out
+end
+
+-- The compare view's totals line: "61 missing, 87 only mine, 140 shared".
+function F.compareLine(counts)
+	local function part(color, n, word)
+		return "|cff" .. color .. n .. " " .. word .. "|r"
+	end
+	local dot = "|cff" .. C.MUTED .. DOT .. "|r"
+	return {
+		text = part(C.GOOD, counts.missing, "missing") .. dot .. part(F.MINE, counts.mine, "only mine") .. dot
+			.. "|cff" .. C.MUTED .. counts.shared .. " shared|r",
+		wrap = true,
+	}
+end
+
+-- A toolbar button's text: "Sort: A-Z" or "Show: Their dex".
+function F.toolLabel(kind, id, browsing)
+	if kind == "sort" then
+		return "Sort: " .. ns.Browse.label(id)
+	end
+	return "Show: " .. ns.Browse.label(id, browsing)
+end
+
+function F.emptyNote(search)
+	if search and search ~= "" then
+		return F.note('No soul matching "' .. search .. '".')
+	end
+	return F.note("Nothing here matches.")
+end
+
 -- The first right-pane row of a raid whose creature list is not known yet.
 function F.tbdNote(raid)
 	if raid.bossCount then
@@ -256,17 +341,19 @@ function F.tbdNote(raid)
 	return F.note("Roster still sealed. Every soul you claim here is kept.")
 end
 
--- Uncaught rows are "? ? ?" and not clickable; bosses keep their skull either way.
+-- Uncaught rows are "? ? ?" and not clickable; bosses keep their skull either way. A creature
+-- only the viewer has (side "mine") shows its name, amber and not clickable.
 function F.raidMobRows(rows)
 	local out = {}
 	for _, row in ipairs(rows) do
-		if row.caught then
+		if row.caught or row.side == "mine" then
+			local color, value = sideStyle(row, (row.boss and C.BOSS) or C.TEXT, row.npcID)
 			out[#out + 1] = {
 				text = row.boss and (row.name .. " " .. SKULL) or row.name,
-				color = row.highlight and C.GOOD or (row.boss and C.BOSS) or C.TEXT,
+				color = color,
 				right = F.masteryCount(row.stars, row.count),
 				stripe = row.boss and C.BOSS or C.DIVIDER,
-				value = row.npcID,
+				value = value,
 			}
 		else
 			out[#out + 1] = {

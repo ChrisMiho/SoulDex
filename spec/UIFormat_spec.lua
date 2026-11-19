@@ -3,7 +3,7 @@ describe("UIFormat", function()
 
 	before_each(function()
 		local ns = LoadAddonFile("src/Rarity.lua", LoadAddonFile("src/Themes.lua"))
-		F = LoadAddonFile("src/UIFormat.lua", LoadAddonFile("src/View.lua", ns)).UIFormat
+		F = LoadAddonFile("src/UIFormat.lua", LoadAddonFile("src/Browse.lua", LoadAddonFile("src/View.lua", ns))).UIFormat
 	end)
 
 	describe("applyTheme", function()
@@ -114,13 +114,116 @@ describe("UIFormat", function()
 				{ header = "Eastern Kingdoms" },
 				{ place = "Elwynn Forest", count = 2 },
 				{ place = "Westfall", count = 1 },
-			}, "Westfall")
-			assert.same({ "EASTERN KINGDOMS", "Elwynn Forest | 2", "Westfall | 1" }, texts(rows))
-			assert.is_true(rows[1].header)
+			}, "Westfall", 3)
+			assert.same({ "All zones | 3", "EASTERN KINGDOMS", "Elwynn Forest | 2", "Westfall | 1" }, texts(rows))
+			assert.is_true(rows[2].header)
+			assert.is_nil(rows[2].value)
+			assert.is_false(rows[3].selected)
+			assert.is_true(rows[4].selected)
+			assert.equal("Westfall", rows[4].value)
+		end)
+
+		it("starts the places with an All row holding the total", function()
+			local places = { { place = "A", count = 2 }, { place = "B", count = 5 } }
+			local out = F.placeRows(places, "*", 7)
+			assert.equal("All zones", out[1].text)
+			assert.equal("7", out[1].right)
+			assert.equal("*", out[1].value)
+			assert.is_true(out[1].selected)
+			assert.is_false(out[2].selected)
+			assert.is_false(out[3].selected)
+		end)
+
+		it("has no All row without places", function()
+			assert.same({}, F.placeRows({}, "*", 0))
+			assert.is_nil(F.pick({}, "place", "*"))
+		end)
+
+		it("shows how many souls of a place are new, only while browsing", function()
+			local function right(row, browsing)
+				return F.placeRows({ row }, "x", 1, browsing)[2]
+			end
+			local new = right({ place = "A", count = 14, new = 3 }, true)
+			assert.equal("14 +3", new.right)
+			assert.equal(F.COLORS.GOOD, new.rightColor)
+			local none = right({ place = "A", count = 14, new = 0 }, true)
+			assert.equal("14", none.right)
+			assert.is_nil(none.rightColor)
+			assert.equal("14", right({ place = "A", count = 14, new = 3 }, false).right)
+		end)
+
+		it("starts the classes with an All row and shows new players", function()
+			local rows = F.classRows({ { class = "ROGUE", count = 6, new = 2 } }, "*", {}, { ROGUE = "Rogue" }, 9, true)
+			assert.same({ "All classes | 9", "Rogue | 6 +2" }, {
+				rows[1].text .. " | " .. rows[1].right, rows[2].text .. " | " .. rows[2].right })
+			assert.equal("*", rows[1].value)
+			assert.is_true(rows[1].selected)
+			assert.equal(F.COLORS.GOOD, rows[2].rightColor)
+		end)
+
+		it("colours compared mob rows by side", function()
+			local rows = F.mobRows({
+				{ name = "A", count = 1, side = "missing" },
+				{ name = "B", count = 1, side = "mine" },
+				{ name = "C", count = 1, side = "shared" },
+			})
+			assert.equal(F.COLORS.GOOD, rows[1].color)
+			assert.equal("A", rows[1].value)
+			assert.equal(F.MINE, rows[2].color)
+			assert.is_nil(rows[2].value)
+			assert.equal(F.COLORS.TEXT, rows[3].color)
+			assert.equal("C", rows[3].value)
+		end)
+
+		it("colours compared player rows by side", function()
+			local rows = F.playerRows({
+				{ key = "a", name = "A", count = 1, side = "missing" },
+				{ key = "b", name = "B", count = 1, side = "mine" },
+			})
+			assert.equal(F.COLORS.GOOD, rows[1].color)
+			assert.equal(F.MINE, rows[2].color)
+			assert.is_nil(rows[2].value)
+		end)
+
+		it("shows the name of a raid creature only the viewer has", function()
+			local rows = F.raidMobRows({
+				{ name = "Lucifron", boss = true, caught = false, side = "mine", count = 2 },
+				{ npcID = 5, caught = false },
+			})
+			assert.equal("Lucifron " .. F.MARKS.SKULL, rows[1].text)
+			assert.equal(F.MINE, rows[1].color)
 			assert.is_nil(rows[1].value)
-			assert.is_false(rows[2].selected)
-			assert.is_true(rows[3].selected)
-			assert.equal("Westfall", rows[3].value)
+			assert.equal("? ? ?", rows[2].text)
+		end)
+
+		it("draws search results with where and count", function()
+			local rows = F.findRows({
+				{ kind = "mob", value = "Hogger", name = "Hogger", where = "Elwynn Forest +1", count = 12 },
+				{ kind = "player", value = "Stab-R", name = "Stab", where = "ROGUE", count = 1 },
+				{ kind = "player", value = "Nob-R", name = "Nob", count = 2 },
+			}, { ROGUE = "Rogue" })
+			assert.equal("Elwynn Forest +1 " .. F.countText(12), rows[1].right)
+			assert.same({ kind = "mob", id = "Hogger" }, rows[1].value)
+			assert.equal("Rogue " .. F.countText(1), rows[2].right)
+			assert.same({ kind = "player", id = "Stab-R" }, rows[2].value)
+			assert.equal("player " .. F.countText(2), rows[3].right)
+		end)
+
+		it("draws the compare totals line", function()
+			local row = F.compareLine({ missing = 61, mine = 87, shared = 140 })
+			assert.is_true(row.wrap)
+			assert.is_nil(row.value)
+			assert.is_truthy(row.text:find("|cff" .. F.COLORS.GOOD .. "61 missing|r", 1, true))
+			assert.is_truthy(row.text:find("|cff" .. F.MINE .. "87 only mine|r", 1, true))
+			assert.is_truthy(row.text:find("140 shared", 1, true))
+		end)
+
+		it("labels the toolbar buttons and the empty list", function()
+			assert.equal("Sort: A\226\128\147Z", F.toolLabel("sort", "name"))
+			assert.equal("Show: Their dex", F.toolLabel("show", "all", true))
+			assert.equal("Show: All", F.toolLabel("show", "all", false))
+			assert.equal('No soul matching "zz".', F.emptyNote("zz").text)
+			assert.equal("Nothing here matches.", F.emptyNote().text)
 		end)
 
 		it("marks elites, rares and bosses, and highlights", function()
@@ -149,11 +252,11 @@ describe("UIFormat", function()
 
 		it("names classes in their colours", function()
 			local rows = F.classRows({ { class = "ROGUE", count = 6 }, { class = "UNKNOWN", count = 1 } }, "ROGUE",
-				{ ROGUE = { r = 1, g = 0.96, b = 0.41 } }, { ROGUE = "Rogue" })
-			assert.same({ "Rogue | 6", "Unknown | 1" }, texts(rows))
-			assert.equal("fff569", rows[1].color)
-			assert.is_true(rows[1].selected)
-			assert.equal("UNKNOWN", rows[2].value)
+				{ ROGUE = { r = 1, g = 0.96, b = 0.41 } }, { ROGUE = "Rogue" }, 7)
+			assert.same({ "All classes | 7", "Rogue | 6", "Unknown | 1" }, texts(rows))
+			assert.equal("fff569", rows[2].color)
+			assert.is_true(rows[2].selected)
+			assert.equal("UNKNOWN", rows[3].value)
 		end)
 
 		it("lists players by key", function()
