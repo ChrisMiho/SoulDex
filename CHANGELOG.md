@@ -5,6 +5,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- SoulDex keeps the last dex each friend sent you, so Browse dex opens it at once, even while they're offline. The title shows the date it's from, and a fresh one replaces it when they're online.
 - Souls of mobs with a raid marker (skull, star and so on) are saved under their plain name. Ones already saved with the marker in front, like "{rt7}Saturated Remnant", are fixed when you log in.
 
 ## [1.5.1] - 2026-11-17

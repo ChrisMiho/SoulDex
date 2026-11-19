@@ -586,7 +586,22 @@ Not mocked up. Same two columns. **[user for what; call for layout]**
     Anyone who whispers a request still gets the dex; that is not limited to
     friends. **[call; see Known limitations]**
   - A dex that arrives after the window was closed doesn't reopen it: one
-    chat line says it arrived and to press Browse dex again.
+    chat line says it arrived, is saved, and to press Browse dex to see it.
+  - (changed after 1.5.2-beta.1, user's call: so a rival's dex can be looked
+    at while they're offline.) Every dex SoulDex asked for and received is
+    saved with that person, in the form it came over the wire, with the time
+    it arrived; a newer one replaces it. Their summary pane shows "Dex saved
+    <date>". Browse dex on someone with a saved copy opens the copy at once,
+    the title reading "SoulDex · Viewing X · saved <date>". If they are
+    offline (not heard from in 10 minutes) nothing is sent. If they are online
+    a fresh dex is asked for quietly: no chat lines for the second ask or for
+    no answer (the tab then says "No answer from X. Showing the copy saved
+    <date>."). The fresh dex replaces the view only while that person's copy
+    is still on screen; otherwise, or with the window closed, it is just
+    saved, with nothing printed. The copy goes when the person is removed (the
+    ×, Clean up, or the 30-day rule for people never added). A copy that can't
+    be read (from an older wire format) is dropped and Browse dex asks as it
+    did before.
   - An entry that can't be put on the wire (no name, a negative number) is
     left out of the dex sent, so one damaged entry no longer makes the whole
     dex unreadable for every friend.
@@ -1348,6 +1363,14 @@ that overlaps, is cut off, or shows as a solid green square (a missing icon).
   60 s a chat line "No answer from X yet, asking again...", after 90 s
   "No answer from X." in chat and on the tab.
 - Browse A, then quickly browse B: only B's dex opens, even if A answers late.
+- Saved copies: after A has browsed B once, B logs out. About 10 minutes later
+  (B dimmed, "offline"), B's pane shows "Dex saved <today's date>" and Browse
+  dex opens B's dex at once, the title reading "SoulDex · Viewing B · saved
+  <date>", with no chat lines. `/reload` and try again: still there. With B
+  back online, Browse dex opens the copy at once, then within a few seconds to
+  minutes the "saved" date leaves the title (a fresh dex arrived); go back to
+  "« My dex" before it arrives and it doesn't pull you back. Remove B with the
+  ×: the copy is gone (add B again and the pane has no "Dex saved").
 - B logs out: about 10 minutes later B is dimmed, "offline" and "Last seen
   <date>". A catch on B updates B's score on A within about 30 s (guild/group)
   or 60 s (added friend only).

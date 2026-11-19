@@ -303,7 +303,20 @@ function Net.personLines(row, entry, fmt)
 		lines[#lines + 1] = { hr = true }
 		lines[#lines + 1] = { text = "Not heard from yet.", color = C.MUTED }
 	end
+	if entry and type(entry.dex) == "string" then
+		lines[#lines + 1] = kv("Dex saved", F.dateText(entry.dexAt, fmt) or F.DASH)
+	end
 	return lines
+end
+
+-- What Browse dex does. hasCopy: a saved copy of their dex; online: Friends.isOnline.
+-- copy: open the saved copy at once; ask: ask them for a fresh one; quiet: that ask
+-- prints nothing in chat (the copy is already on screen).
+function Net.browsePlan(hasCopy, online)
+	if not hasCopy then
+		return { copy = false, ask = true, quiet = false }
+	end
+	return { copy = true, ask = online == true, quiet = true }
 end
 
 -- Game wiring ---------------------------------------------------------------------------
@@ -525,32 +538,53 @@ function handlers.V(_, _, version)
 	end
 end
 
--- db is nil when the dex couldn't be read.
-function handlers.D(name, _, db)
-	if requestTo(name) then
+-- Opens a friend's dex in the window. savedAt: the time() a saved copy arrived (nil for
+-- one that just came in).
+local function openDex(db, name, savedAt)
+	local UI = ns.UI
+	if UI then
+		UI.showDex(ns.Dex.new(db), name, savedAt)
+		UI.setCompare(ns.dex)
+		if UI.currentTab() == "Friends" then
+			UI.selectTab("Mobs")
+		end
+	end
+end
+
+-- db is nil when the dex couldn't be read; message is the dex as it came over the wire.
+function handlers.D(name, _, db, _, message)
+	local req = requestTo(name)
+	local quiet = req ~= nil and req.quiet
+	if req then
 		state.request = nil
 	end
 	if state.asking == name then
 		state.asking = nil
 	end
 	if not db then
-		ns.Print("Couldn't read " .. name .. "'s dex.")
+		if not quiet then
+			ns.Print("Couldn't read " .. name .. "'s dex.")
+		end
 		refreshFriends()
 		return
 	end
+	Friends.keepDex(ns.db.friends, name, message, time())
+	refreshFriends()
 	local UI = ns.UI
-	if UI and not UI.isShown() then
-		-- A dex can take minutes: don't reopen a window the player has closed since.
-		ns.Print(name .. "'s dex arrived while SoulDex was closed. Open it and press Browse dex again to see it.")
+	if quiet then
+		-- Their saved copy was opened at once: swap in the fresh one only while it is
+		-- still on screen, never pulling the player away from where they went since.
+		if UI and UI.isShown() and UI.owner() == name then
+			openDex(db, name, nil)
+		end
 		return
 	end
-	if UI then
-		UI.showDex(ns.Dex.new(db), name)
-		UI.setCompare(ns.dex)
-		if UI.currentTab() == "Friends" then
-			UI.selectTab("Mobs")
-		end
+	if UI and not UI.isShown() then
+		-- A dex can take minutes: don't reopen a window the player has closed since.
+		ns.Print(name .. "'s dex arrived while SoulDex was closed. It's saved: press Browse dex to see it.")
+		return
 	end
+	openDex(db, name, nil)
 end
 
 -- AceComm callback (RegisterComm's default method name, called as Net:OnCommReceived).
@@ -575,7 +609,7 @@ function Net.OnCommReceived(_, prefix, message, distribution, sender)
 	end
 	local decoded, payload = Comm.decode(message)
 	if decoded == kind then
-		handlers[kind](name, target, payload, distribution)
+		handlers[kind](name, target, payload, distribution, message)
 	elseif kind == "D" then
 		handlers.D(name, target, nil) -- asked for, but unreadable: say so
 	end
@@ -689,12 +723,28 @@ function Net.cleanUp()
 	refreshFriends()
 end
 
--- Asks someone for their dex; "D" opens it (handlers.D). No answer after ANSWER_WAIT:
--- one more ask; none by REQUEST_TTL: give up. Once they announce it ("W") there is no
--- second ask, and the wait lasts as long as the dex's size needs (handlers.W).
+-- Opens someone's saved dex at once when there is one (Net.browsePlan), and asks them
+-- for a fresh one unless they're offline; "D" opens it (handlers.D). No answer after
+-- ANSWER_WAIT: one more ask; none by REQUEST_TTL: give up. Once they announce it ("W")
+-- there is no second ask, and the wait lasts as long as the dex's size needs
+-- (handlers.W). With a saved copy on screen the ask says nothing in chat.
 function Net.browse(name)
 	if not state.enabled then
 		ns.Print("Friends need AceComm-3.0 (a packaged build).")
+		return
+	end
+	local store = ns.db and ns.db.friends or {}
+	local saved, savedAt = Friends.savedDex(store, name)
+	local copy = saved and Comm.decodeDex(saved)
+	if saved and not copy then
+		Friends.dropDex(store, name) -- unreadable (an older wire format): ask as before
+	end
+	local plan = Net.browsePlan(copy ~= nil and copy ~= false, Friends.isOnline(store[name], time()))
+	if plan.copy then
+		openDex(copy, name, savedAt)
+	end
+	if not plan.ask then
+		refreshFriends()
 		return
 	end
 	local asked = GetTime()
@@ -703,7 +753,8 @@ function Net.browse(name)
 		refreshFriends() -- already on its way: asking again would only be ignored
 		return
 	end
-	local req = { name = name, asked = asked, deadline = asked + REQUEST_TTL }
+	local quiet = plan.quiet
+	local req = { name = name, asked = asked, deadline = asked + REQUEST_TTL, quiet = quiet }
 	state.request = req -- a late dex from someone asked earlier is not wanted now
 	state.asking = name
 	state.noAnswer = nil
@@ -715,7 +766,9 @@ function Net.browse(name)
 	end
 	C_Timer.After(ANSWER_WAIT, function()
 		if stillAsking() and not req.comingAt then
-			ns.Print("No answer from " .. name .. " yet, asking again...")
+			if not quiet then
+				ns.Print("No answer from " .. name .. " yet, asking again...")
+			end
 			whisper(request, name)
 			refreshFriends()
 		end
@@ -730,7 +783,11 @@ function Net.browse(name)
 			return
 		end
 		local text = req.comingAt and (name .. "'s dex didn't arrive in time.") or ("No answer from " .. name .. ".")
-		ns.Print(text)
+		if quiet then
+			text = text .. " Showing the copy saved " .. (ns.UIFormat.dateText(savedAt) or "earlier") .. "."
+		else
+			ns.Print(text)
+		end
 		state.request = nil
 		state.asking = nil
 		state.noAnswer, state.noAnswerText = name, text

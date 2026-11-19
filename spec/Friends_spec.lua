@@ -174,4 +174,50 @@ describe("Friends", function()
 		assert.equal(0, rows[4].score)
 		assert.is_true(rows[4].added)
 	end)
+
+	it("keeps a copy of a person's dex with the time it arrived", function()
+		local store = {}
+		Friends.add(store, "bob")
+		assert.is_true(Friends.keepDex(store, "bob", "D\t1", 500))
+		assert.equal("D\t1", store.Bob.dex)
+		assert.equal(500, store.Bob.dexAt)
+		local text, at = Friends.savedDex(store, "Bob")
+		assert.equal("D\t1", text)
+		assert.equal(500, at)
+		-- a newer copy replaces it
+		Friends.keepDex(store, "Bob", "D\t1\nX", 600)
+		assert.equal(600, store.Bob.dexAt)
+		-- nobody to keep it with, or nothing to keep
+		assert.is_false(Friends.keepDex(store, "Zed", "D\t1", 700))
+		assert.is_nil(store.Zed)
+		assert.is_false(Friends.keepDex(store, "Bob", nil, 700))
+		assert.equal(600, store.Bob.dexAt)
+		assert.is_nil(Friends.savedDex(store, "Zed"))
+		-- forgetting it
+		Friends.dropDex(store, "Bob")
+		assert.is_nil(store.Bob.dex)
+		assert.is_nil(store.Bob.dexAt)
+		assert.is_nil(Friends.savedDex(store, "Bob"))
+	end)
+
+	it("tidy keeps the newer saved dex when two spellings merge", function()
+		local store = {
+			["Bob jones"] = { added = true, seen = 1, dex = "old", dexAt = 10 },
+			["Bob Jones"] = { added = false, seen = 9, dex = "new", dexAt = 20 },
+			["Ann smith"] = { added = true, seen = 1, dex = "mine", dexAt = 30 },
+			["Ann Smith"] = { added = false, seen = 9 },
+		}
+		Friends.tidy(store, "Fel")
+		assert.equal("new", store["Bob Jones"].dex)
+		assert.equal(20, store["Bob Jones"].dexAt)
+		assert.equal("mine", store["Ann Smith"].dex)
+		assert.equal(30, store["Ann Smith"].dexAt)
+	end)
+
+	it("tells who is online", function()
+		assert.is_true(Friends.isOnline({ seen = 900 }, 1000))
+		assert.is_false(Friends.isOnline({ seen = 100 }, 1000))
+		assert.is_false(Friends.isOnline({}, 1000))
+		assert.is_false(Friends.isOnline(nil, 1000))
+	end)
 end)

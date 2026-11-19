@@ -264,13 +264,29 @@ describe("Net", function()
 			local fresh = Net.personLines({ name = "Cid", score = 0, mobs = 0, players = 0, raids = 0 }, { added = true })
 			assert.equal("Not heard from yet.", fresh[#fresh].text)
 		end)
+
+		it("shows when a person's dex was saved", function()
+			local row = { name = "Bob", score = 0, mobs = 0, players = 0, raids = 0, online = true }
+			local lines = Net.personLines(row, { summary = {}, seen = 1, dex = "D\t1", dexAt = 86400 * 300 }, os.date)
+			assert.equal("Dex saved", lines[#lines].text)
+			assert.equal(ns.UIFormat.dateText(86400 * 300, os.date), lines[#lines].right)
+			local none = Net.personLines(row, { summary = {}, seen = 1 }, os.date)
+			assert.are_not.equal("Dex saved", none[#none].text)
+		end)
+
+		it("plans a browse: a saved copy at once, and a fresh one from someone online", function()
+			assert.same({ copy = false, ask = true, quiet = false }, Net.browsePlan(false, true))
+			assert.same({ copy = false, ask = true, quiet = false }, Net.browsePlan(false, false))
+			assert.same({ copy = true, ask = true, quiet = true }, Net.browsePlan(true, true))
+			assert.same({ copy = true, ask = false, quiet = true }, Net.browsePlan(true, false))
+		end)
 	end)
 
 	describe("game glue", function()
 		local STUBBED = {
 			"LibStub", "CreateFrame", "C_Timer", "GetTime", "time", "UnitName", "Ambiguate",
 			"IsInGuild", "IsInRaid", "IsInGroup", "ChatFrame_AddMessageEventFilter", "ERR_CHAT_PLAYER_NOT_FOUND_S",
-			"GetNumGroupMembers", "GetNumGuildMembers", "GetGuildRosterInfo", "issecretvalue",
+			"GetNumGroupMembers", "GetNumGuildMembers", "GetGuildRosterInfo", "issecretvalue", "date",
 		}
 		local saved, ns, sent, registered, printed, clock, wall, timers, filter, shown
 		local onEvent, finishSends, windowShown
@@ -311,6 +327,7 @@ describe("Net", function()
 			}
 			_G.GetTime = function() return clock end
 			_G.time = function() return wall end
+			_G.date = os.date
 			_G.UnitName = function() return "Fel" end
 			_G.Ambiguate = function(name) return name end
 			_G.IsInGuild = function() return true end
@@ -326,7 +343,11 @@ describe("Net", function()
 				setFriendsTab = function(fn) ns.UI.builder = fn end,
 				currentTab = function() return ns.UI.tab end,
 				refresh = function() end,
-				showDex = function(dex, owner) shown[#shown + 1] = { dex = dex, owner = owner } end,
+				showDex = function(dex, owner, savedAt)
+					shown[#shown + 1] = { dex = dex, owner = owner, savedAt = savedAt }
+					ns.UI.viewing = owner
+				end,
+				owner = function() return ns.UI.viewing end,
 				isShown = function() return windowShown end,
 				setCompare = function(dex) ns.UI.compare = dex end,
 				selectTab = function(name) ns.UI.tab = name end,
@@ -589,7 +610,7 @@ describe("Net", function()
 			ns.Net:OnCommReceived("SoulDex", payload, "WHISPER", "Bob")
 			assert.equal(0, #shown)
 			assert.equal("Friends", ns.UI.tab)
-			assert.equal("Bob's dex arrived while SoulDex was closed. Open it and press Browse dex again to see it.",
+			assert.equal("Bob's dex arrived while SoulDex was closed. It's saved: press Browse dex to see it.",
 				printed[#printed])
 			-- the request is over: no retry, no "no answer"
 			local count, lines = #sent, #printed
@@ -813,6 +834,109 @@ describe("Net", function()
 			assert.is_truthy(shown[1].dex.db.mobs.Wolf)
 			assert.equal(ns.dex, ns.UI.compare)
 			assert.equal("Mobs", ns.UI.tab)
+		end)
+
+		describe("saved copies", function()
+			local function friendDex()
+				local friendDb = { mobs = {}, places = {}, players = {}, raids = {} }
+				ns.Dex.new(friendDb):recordMob({ name = "Wolf" }, { time = 5, zone = "Durotar", group = "Kalimdor" })
+				return ns.Comm.encodeDex(friendDb)
+			end
+
+			it("keeps the dex it asked for", function()
+				local db = start()
+				ns.Net.addFriend("Bob")
+				ns.Net.browse("Bob")
+				local payload = friendDex()
+				ns.Net:OnCommReceived("SoulDex", payload, "WHISPER", "Bob")
+				assert.equal(payload, db.friends.Bob.dex)
+				assert.equal(wall, db.friends.Bob.dexAt)
+				assert.is_nil(shown[1].savedAt) -- a fresh one: no "saved" date
+			end)
+
+			it("opens the saved copy of someone offline without asking them", function()
+				local db = start()
+				db.friends.Bob = { added = true, seen = wall - 3600, dex = friendDex(), dexAt = 5 }
+				local count = #sent
+				ns.Net.browse("Bob")
+				assert.equal(count, #sent)
+				assert.equal(1, #shown)
+				assert.equal("Bob", shown[1].owner)
+				assert.equal(5, shown[1].savedAt)
+				assert.is_truthy(shown[1].dex.db.mobs.Wolf)
+				assert.equal(ns.dex, ns.UI.compare)
+				assert.equal("Mobs", ns.UI.tab)
+				assert.equal(0, #timers)
+			end)
+
+			it("opens the saved copy of someone online and quietly asks for a fresh one", function()
+				local db = start()
+				db.friends.Bob = { added = true, seen = wall, dex = friendDex(), dexAt = 5 }
+				ns.Net.browse("Bob")
+				assert.equal(5, shown[1].savedAt)
+				assert.equal(ns.Comm.encodeRequest("R"), sent[#sent].text)
+				local lines = #printed
+				clock = 161
+				timers[1].fn() -- asks again, without a chat line
+				assert.equal(ns.Comm.encodeRequest("R"), sent[#sent].text)
+				assert.equal(lines, #printed)
+				local fresh = ns.Comm.encodeDex({ mobs = {}, places = {}, players = {}, raids = {} })
+				wall = wall + 50
+				ns.Net:OnCommReceived("SoulDex", fresh, "WHISPER", "Bob")
+				assert.equal(2, #shown)
+				assert.is_nil(shown[2].savedAt)
+				assert.equal(fresh, db.friends.Bob.dex)
+				assert.equal(wall, db.friends.Bob.dexAt)
+				assert.equal(lines, #printed)
+			end)
+
+			it("says nothing when the quiet ask gets no answer", function()
+				local db = start()
+				db.friends.Bob = { added = true, seen = wall, dex = friendDex(), dexAt = 5 }
+				ns.Net.browse("Bob")
+				local lines = #printed
+				clock = 161
+				timers[1].fn()
+				clock = 191
+				timers[2].fn()
+				assert.equal(lines, #printed)
+			end)
+
+			it("a fresh copy doesn't pull you away from what you went to", function()
+				local db = start()
+				db.friends.Bob = { added = true, seen = wall, dex = friendDex(), dexAt = 5 }
+				ns.Net.browse("Bob")
+				ns.UI.viewing = nil -- back to your own dex
+				local fresh = ns.Comm.encodeDex({ mobs = {}, places = {}, players = {}, raids = {} })
+				local lines = #printed
+				ns.Net:OnCommReceived("SoulDex", fresh, "WHISPER", "Bob")
+				assert.equal(1, #shown)
+				assert.equal(fresh, db.friends.Bob.dex)
+				assert.equal(lines, #printed)
+			end)
+
+			it("a fresh copy arriving with the window closed is only saved", function()
+				local db = start()
+				db.friends.Bob = { added = true, seen = wall, dex = friendDex(), dexAt = 5 }
+				ns.Net.browse("Bob")
+				windowShown = false
+				local fresh = ns.Comm.encodeDex({ mobs = {}, places = {}, players = {}, raids = {} })
+				local lines = #printed
+				ns.Net:OnCommReceived("SoulDex", fresh, "WHISPER", "Bob")
+				assert.equal(1, #shown)
+				assert.equal(fresh, db.friends.Bob.dex)
+				assert.equal(lines, #printed)
+			end)
+
+			it("drops a saved copy it can't read and asks as before", function()
+				local db = start()
+				db.friends.Bob = { added = true, seen = wall - 3600, dex = "D\t1\nGARBAGE", dexAt = 5 }
+				ns.Net.browse("Bob")
+				assert.equal(0, #shown)
+				assert.is_nil(db.friends.Bob.dex)
+				assert.is_nil(db.friends.Bob.dexAt)
+				assert.equal(ns.Comm.encodeRequest("R"), sent[#sent].text)
+			end)
 		end)
 
 		it("says so when a dex can't be read", function()

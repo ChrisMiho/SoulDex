@@ -1,5 +1,6 @@
 -- The friends store and leaderboard (pure; no WoW API). The store maps a
--- normalised name to { summary, seen, added }.
+-- normalised name to { summary, seen, added, dex, dexAt }: dex is the last dex they
+-- sent, as it came over the wire, and dexAt the time() it arrived.
 local _, ns = ...
 
 local Friends = {}
@@ -80,6 +81,9 @@ function Friends.tidy(store, me, now)
 				if (old.seen or 0) > (cur.seen or 0) then
 					cur.seen, cur.summary = old.seen, old.summary or cur.summary
 				end
+				if old.dex and (old.dexAt or 0) > (cur.dexAt or 0) then
+					cur.dex, cur.dexAt = old.dex, old.dexAt
+				end
 			end
 		end
 	end
@@ -102,6 +106,38 @@ end
 
 local function isSeen(entry, now)
 	return entry.seen ~= nil and now - entry.seen <= ONLINE_WINDOW
+end
+
+-- Heard from in the last 10 minutes.
+function Friends.isOnline(entry, now)
+	return entry ~= nil and isSeen(entry, now)
+end
+
+-- Keeps text (a dex as it came over the wire) as the person's saved copy, replacing
+-- any older one. Only for someone already in the store; returns whether it was kept.
+function Friends.keepDex(store, name, text, now)
+	local entry = store[Friends.normalise(name) or ""]
+	if not entry or type(text) ~= "string" then
+		return false
+	end
+	entry.dex, entry.dexAt = text, now
+	return true
+end
+
+-- The person's saved copy and the time it arrived, or nil.
+function Friends.savedDex(store, name)
+	local entry = store[Friends.normalise(name) or ""]
+	if entry and type(entry.dex) == "string" then
+		return entry.dex, entry.dexAt
+	end
+	return nil
+end
+
+function Friends.dropDex(store, name)
+	local entry = store[Friends.normalise(name) or ""]
+	if entry then
+		entry.dex, entry.dexAt = nil, nil
+	end
 end
 
 function Friends.add(store, name)

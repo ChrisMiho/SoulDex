@@ -45,6 +45,7 @@ local state = {
 	tab = "Mobs",
 	dex = nil, -- the dex on screen; nil = your own (ns.dex)
 	owner = nil, -- whose dex it is when browsing a friend
+	savedAt = nil, -- when browsing a saved copy of their dex: the time() it arrived
 	compare = nil, -- the dex rows are compared with while browsing (Task 13)
 	sel = {}, -- selection on the left, per tab
 	msOpen = {}, -- Milestones groups whose earned rows are showing
@@ -241,6 +242,10 @@ draw = function(action)
 	titleLeft:ClearAllPoints()
 	if state.owner then
 		left = "SoulDex \194\183 Viewing " .. state.owner
+		local saved = F.dateText(state.savedAt)
+		if saved then
+			left = left .. " \194\183 saved " .. saved
+		end
 		titleLeft:SetPoint("LEFT", myDexButton, "RIGHT", 5, 0)
 	else
 		titleLeft:SetPoint("LEFT", TITLE_H, 0)
@@ -572,7 +577,7 @@ local function build()
 	-- Closing the window while browsing a friend: it reopens on your own dex.
 	frame:SetScript("OnHide", function()
 		closeDetail(true)
-		state.dex, state.owner, state.compare = nil, nil, nil
+		state.dex, state.owner, state.compare, state.savedAt = nil, nil, nil, nil
 	end)
 	frame:Hide()
 end
@@ -603,10 +608,12 @@ function UI.toggle()
 end
 
 -- Shows `dex` (nil = yours). ownerName nil means it is your own; otherwise you are
--- browsing that friend's dex and rows compare against setCompare's dex.
-function UI.showDex(dex, ownerName)
+-- browsing that friend's dex and rows compare against setCompare's dex. savedAt: the
+-- time() a saved copy of their dex arrived, shown in the title (nil for a fresh one).
+function UI.showDex(dex, ownerName, savedAt)
 	state.dex = dex
 	state.owner = ownerName
+	state.savedAt = ownerName and savedAt or nil
 	if not ownerName then
 		state.compare = nil
 	end
@@ -673,6 +680,11 @@ end
 
 function UI.isBrowsing()
 	return state.owner ~= nil
+end
+
+-- Whose dex is on screen (nil = your own).
+function UI.owner()
+	return state.owner
 end
 
 function UI.setCompare(otherDex)
