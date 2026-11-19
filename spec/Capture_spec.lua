@@ -199,8 +199,8 @@ describe("Capture glue", function()
 	local function load()
 		local ns = {}
 		local pure = {
-			"Settings", "RaidData", "ForeverData", "Raids", "Points", "Rarity", "Ranks", "Flavour", "Dex", "Milestones",
-			"Friends", "Catch", "Whisper", "Shards",
+			"Themes", "Settings", "RaidData", "ForeverData", "Raids", "Points", "Rarity", "Ranks", "Flavour", "Dex",
+			"Milestones", "View", "UIFormat", "Friends", "Catch", "Whisper", "Shards",
 		}
 		for _, f in ipairs(pure) do
 			LoadAddonFile("src/" .. f .. ".lua", ns)
@@ -821,7 +821,8 @@ describe("Capture glue", function()
 			putShard(1, "A")
 			fire("BAG_UPDATE_DELAYED")
 			flush()
-			assert.same({ "GUILD:SoulDex: Big one!" }, sentChat)
+			assert.same({ "GUILD:" .. ns.Flavour.announce("SoulDex: Big one!") }, sentChat)
+			assert.truthy(sentChat[1]:find("SoulDex: Big one! ", 1, true)) -- the news first, then the tail
 			assert.equal(1, hooked)
 			-- no C_ChatInfo and a global that errors: the hooks still run, nothing escapes
 			_G.C_ChatInfo = nil
@@ -869,18 +870,6 @@ describe("Capture glue", function()
 			_G.SOUNDKIT = nil
 			assert.equal(888, S({ kind = "mob", points = 1 }, { name = "Reaper" }))
 			assert.equal(8959, S({ kind = "raid", points = 25 }))
-		end)
-
-		it("prints a line for every claim when chatter is on, and none when it is off", function()
-			world.target = HOGGER
-			local _, _, printed = boot({ settings = { popup = false, sound = false, announce = false, chatter = true } })
-			drain("cast1", "Hogger")
-			putShard(1, "A")
-			fire("BAG_UPDATE_DELAYED")
-			flush()
-			local text = table.concat(printed, "\n")
-			assert.truthy(text:find("Hogger", 1, true))
-			assert.truthy(text:find("(+5 pts)", 1, true))
 		end)
 
 		describe("ranking up", function()
@@ -935,9 +924,10 @@ describe("Capture glue", function()
 				_G.C_ChatInfo = {
 					SendChatMessage = function(text, channel) sentChat[#sentChat + 1] = channel .. ":" .. text end,
 				}
-				bootRanks({ popup = false, sound = false, announce = true })
+				local ns = bootRanks({ popup = false, sound = false, announce = true })
 				catchHogger("cast1", 1, "A")
-				assert.same({ "GUILD:SoulDex: reached the rank of Reaper!" }, sentChat)
+				assert.same({ "GUILD:" .. ns.Flavour.announce("SoulDex: reached the rank of Reaper!") }, sentChat)
+				assert.truthy(sentChat[1]:find("SoulDex: reached the rank of Reaper! ", 1, true))
 			end)
 
 			it("stays out of guild chat when announcements are off", function()
@@ -965,6 +955,7 @@ describe("Capture glue", function()
 				db.settings = db.settings or { popup = false, sound = false, announce = true }
 				local ns = boot(db)
 				ns.Milestones.check = function() return { { text = "Completed Molten Core", announce = true } } end
+				ns.Flavour.announce = function(text) return text end -- the tail is tested elsewhere
 				return ns, db
 			end
 
@@ -1303,7 +1294,7 @@ describe("Capture glue", function()
 			end },
 			{ "the player is AFK", function() world.afk = true end },
 			{ "DND is secret", function() world.dnd = SECRET end },
-			{ "chat is locked down", function() world.locked = true end },
+			-- Chat locked down holds the ask until the lock lifts: "boss names after the fight".
 			{ "the player's own name is secret", function() _G.GetUnitName = function() return SECRET end end },
 		}) do
 			it("does not ask when " .. case[1], function()
@@ -1627,26 +1618,18 @@ describe("Capture glue", function()
 				assert.equal(1, #timers) -- the popup, a frame later
 			end)
 
-			describe("boss names after the fight (experimental, settings.lateAsk)", function()
-				local function bootLate(on)
+			describe("boss names after the fight", function()
+				local function bootLate()
 					world.target = MONK
 					world.locked = true -- a boss encounter: chat is locked
-					local ns, db = boot({ settings = { popup = false, sound = false, announce = false, lateAsk = on } })
+					local ns, db = boot({ settings = { popup = false, sound = false, announce = false } })
 					local caught = {}
 					table.insert(ns.onCatch, function(result, entry) caught[#caught + 1] = { result, entry } end)
 					return ns, db, caught
 				end
 
-				it("off: a soul claimed while chat is locked is an Unknown soul at once, as before", function()
-					local ns, db = bootLate(false)
-					drain("cast1", SECRET)
-					assert.equal(0, ns.Capture.whispers.queue:count())
-					newShard(1, "NEW")
-					assert.is_true(db.shardSouls.NEW.soul.unknown)
-				end)
-
-				it("on: holds the shard, asks when the fight ends, and names the soul", function()
-					local ns, db, caught = bootLate(true)
+				it("holds the shard, asks when the fight ends, and names the soul", function()
+					local ns, db, caught = bootLate()
 					drain("cast1", SECRET)
 					assert.equal(0, #sends) -- never sent into a chat lock
 					assert.equal(1, ns.Capture.whispers.queue:count())
@@ -1666,8 +1649,8 @@ describe("Capture glue", function()
 					assert.equal(1, #caught)
 				end)
 
-				it("on: a target change before the fight ends makes it an Unknown soul, and nothing is sent", function()
-					local _, db = bootLate(true)
+				it("a target change before the fight ends makes it an Unknown soul, and nothing is sent", function()
+					local _, db = bootLate()
 					drain("cast1", SECRET)
 					newShard(1, "NEW")
 					fire("PLAYER_TARGET_CHANGED")
@@ -1678,8 +1661,8 @@ describe("Capture glue", function()
 					assert.equal(1, db.unknown["Elwynn Forest"].count)
 				end)
 
-				it("on: recasting through the fight ends in one whisper", function()
-					local ns = bootLate(true)
+				it("recasting through the fight ends in one whisper", function()
+					local ns = bootLate()
 					drain("cast1", SECRET)
 					fire("UNIT_SPELLCAST_CHANNEL_STOP", "player", "cast1", 1120)
 					world.clock = world.clock + 20
@@ -1692,8 +1675,8 @@ describe("Capture glue", function()
 					assert.equal(1, #sends)
 				end)
 
-				it("on: a refused send at the end makes it an Unknown soul", function()
-					local _, db = bootLate(true)
+				it("a refused send at the end makes it an Unknown soul", function()
+					local _, db = bootLate()
 					drain("cast1", SECRET)
 					newShard(1, "NEW")
 					world.locked, world.sendFails = false, true
@@ -2401,6 +2384,13 @@ describe("Capture glue", function()
 			assert.same({ "6b4fa0", "c9a8ff" }, { T.accent("ffffff") })
 			assert.same({ "ffd25a", "ffd25a" }, { T.accent("ffd25a") })
 			assert.same({ "9dff3a", "9dff3a" }, { T.accent("ffd25a", 3) })
+		end)
+		it("takes its border, title and mastery colour from the theme", function()
+			local ns = load()
+			ns.UIFormat.applyTheme("ember")
+			assert.same({ "9a3022", "ffb08a" }, { ns.Toast.accent(nil) })
+			assert.same({ "ff7a1a", "ff7a1a" }, { ns.Toast.accent("ffd25a", 1) })
+			assert.same({ "ffd25a", "ffd25a" }, { ns.Toast.accent("ffd25a") })
 		end)
 	end)
 

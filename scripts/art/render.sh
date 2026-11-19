@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Renders the rank emblems from emblem.html with headless Chrome (or Edge) and turns them
 # into the game's textures. Run from anywhere (Git Bash on Windows): scripts/art/render.sh
-# Output: art/rank1.tga .. art/rank8.tga and docs/curseforge/images/rank-emblems.png.
+# Output: art/rank1.tga .. art/rank8.tga, art/<theme>/rank1.tga .. rank8.tga for the other
+# colour themes, docs/curseforge/images/rank-emblems.png and .release/emblem-sheets/.
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -66,10 +67,23 @@ shoot() {
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
-for rank in 1 2 3 4 5 6 7 8; do
-	shoot "?rank=$rank" 256 256 "$tmp/rank$rank.png"
-	"$python" "$here/to_tga.py" "$tmp/rank$rank.png" "$root/art/rank$rank.tga"
-	echo "  art/rank$rank.tga"
+# Soul Shard (the branding theme) at the top of art/, every other theme in its own folder
+# (the ids of src/Themes.lua). Soul Shard's review sheet is the CurseForge image; the
+# others' go to .release/emblem-sheets/ (git-ignored) for a look.
+for theme in soulshard fel shadow ember; do
+	if [ "$theme" = soulshard ]; then
+		dir="$root/art"
+		sheet="$root/docs/curseforge/images/rank-emblems.png"
+	else
+		dir="$root/art/$theme"
+		sheet="$root/.release/emblem-sheets/rank-emblems-$theme.png"
+	fi
+	mkdir -p "$dir" "$(dirname "$sheet")"
+	for rank in 1 2 3 4 5 6 7 8; do
+		shoot "?rank=$rank&theme=$theme" 256 256 "$tmp/rank$rank.png"
+		"$python" "$here/to_tga.py" "$tmp/rank$rank.png" "$dir/rank$rank.tga"
+		echo "  ${dir#"$root/"}/rank$rank.tga"
+	done
+	shoot "?sheet&theme=$theme" 1200 420 "$sheet"
+	echo "  ${sheet#"$root/"}"
 done
-shoot "?sheet" 1200 420 "$root/docs/curseforge/images/rank-emblems.png"
-echo "  docs/curseforge/images/rank-emblems.png"

@@ -481,7 +481,7 @@ function View.me(dex, friendsStore, me, now)
 		{ label = "Unique mobs", value = tostring(dex:uniqueMobs()) },
 		{ label = "Players", value = tostring(dex:uniquePlayers()) },
 		{ label = "Raids completed", value = tostring(dex:raidsCompleted()) },
-		{ label = "Mastery stars", value = thousands(dex:masteryStars()), color = "FEL" },
+		{ label = "Mastery stars", value = thousands(dex:masteryStars()), color = "ACCENT" },
 		{ label = "Souls taken", value = thousands(souls) },
 		{ label = "Zones visited", value = tostring(zones) },
 		{ label = "Most claimed", value = countedText(mobName, mobCount) },
@@ -512,7 +512,7 @@ function View.meCard(dex, friendsStore, me, now)
 		{ label = "Unique mobs", value = value["Unique mobs"] },
 		{ label = "Players", value = value["Players"] },
 		{ label = "Raids", value = value["Raids completed"] .. " / " .. #ns.Raids.completable() },
-		{ label = "Mastery", value = value["Mastery stars"], color = "FEL", star = true },
+		{ label = "Mastery", value = value["Mastery stars"], color = "ACCENT", star = true },
 		{ label = "Souls taken", value = value["Souls taken"] },
 	}
 	if friendsStore == false then

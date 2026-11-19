@@ -154,7 +154,7 @@ function Whisper.shouldAsk(s)
 		and s.dnd == false
 end
 
--- Whether to hold the ask for later (the experimental "boss names after the fight"):
+-- Whether to hold the ask for later ("boss names after the fight"):
 -- everything is right for asking except that chat is locked, as it is for the whole of
 -- a boss encounter. The whisper then waits for the lock to lift (lateStep).
 function Whisper.shouldDefer(s)

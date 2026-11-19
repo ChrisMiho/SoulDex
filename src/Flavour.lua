@@ -234,31 +234,28 @@ function Flavour.line(name, creatureType, family, zone)
 	end))
 end
 
--- One chat line in the warlock's voice for a claim (the "Claim chatter" setting).
--- count: how many times this soul has now been claimed; points: what this claim scored.
-local FIRST = {
-	"{name}'s soul is yours.",
-	"Another for the collection: {name}.",
-	"{name}, claimed. They always look so surprised.",
-	"{name} is a shard now. An improvement.",
+-- A short tail in the warlock's voice for a guild announcement (a milestone or a rank-up):
+-- the message, a space, then one line picked by the message itself, so the same news
+-- always gets the same words. The plain news stays first; guild chat allows 255 bytes.
+local GUILD_TAILS = {
+	"They always look so surprised.",
+	"They never learn.",
+	"The shards keep coming.",
+	"A shard for every one of them.",
+	"Soul Shards don't farm themselves.",
+	"The bags grow heavier.",
+	"Somewhere, a demon is taking notes.",
+	"No soul goes to waste.",
 }
-local AGAIN = {
-	"{name}'s soul is yours. That's {count}.",
-	"{name} again. That's {count}.",
-	"{name}, number {count}. They never learn.",
-	"Shard {count} from {name}. Reliable.",
-}
+Flavour.GUILD_TAILS = GUILD_TAILS
 
-function Flavour.chatter(name, count, points)
-	if type(name) ~= "string" or name == "" then
-		return nil
+function Flavour.announce(text)
+	if type(text) ~= "string" or text == "" then
+		return text
 	end
-	count = type(count) == "number" and count or 1
-	local list = count > 1 and AGAIN or FIRST
-	local line = list[(hash(name) + count) % #list + 1]
-	line = line:gsub("{name}", (name:gsub("%%", "%%%%"))):gsub("{count}", tostring(count))
-	if type(points) == "number" and points > 0 then
-		line = line .. " (+" .. points .. " pts)"
+	local line = text .. " " .. GUILD_TAILS[hash(text) % #GUILD_TAILS + 1]
+	if #line > 255 then
+		return text
 	end
 	return line
 end

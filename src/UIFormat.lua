@@ -9,21 +9,10 @@ local _, ns = ...
 local F = {}
 ns.UIFormat = F
 
-local C = {
-	TEXT = "e8e0f0",
-	WHITE = "ffffff",
-	TITLE = "c9a8ff",
-	MUTED = "9a8fb0",
-	HEADER = "8a72b8",
-	UNKNOWN = "4d4360",
-	DIM = "6e6385",
-	GREEN = "7dff6a",
-	FLAVOUR = "b9a6d9",
-	FEL = "9dff3a",
-	ELITE = ns.Rarity.ELITE,
-	RARE = ns.Rarity.RARE,
-	BOSS = ns.Rarity.BOSS,
-}
+-- The window's colours by slot name (see src/Themes.lua), filled from the active theme by
+-- F.applyTheme. Always this one table, refilled in place, so every file reading it follows
+-- a theme change. ELITE / RARE / BOSS are the rarity colours, the same in every theme.
+local C = {}
 F.COLORS = C
 
 F.DASH = ns.View.DASH
@@ -35,20 +24,39 @@ local STAR = "|TInterface\\TargetingFrame\\UI-RaidTargetingIcon_1:0|t"
 local SKULL = "|TInterface\\TargetingFrame\\UI-RaidTargetingIcon_8:0|t"
 local SKULL_DIM = "|TInterface\\TargetingFrame\\UI-RaidTargetingIcon_8:0:0:0:0:64:64:0:64:0:64:120:85:65|t"
 local CHECK = "|TInterface\\RaidFrame\\ReadyCheck-Ready:0|t"
--- A mastery star: the same star tinted fel green, so it isn't read as the elite mark.
-local FEL_STAR = "|TInterface\\TargetingFrame\\UI-RaidTargetingIcon_1:0:0:0:0:64:64:0:64:0:64:157:255:58|t"
-F.MARKS = { STAR = STAR, SKULL = SKULL, SKULL_DIM = SKULL_DIM, CHECK = CHECK, FEL_STAR = FEL_STAR }
+F.MARKS = { STAR = STAR, SKULL = SKULL, SKULL_DIM = SKULL_DIM, CHECK = CHECK }
+
+-- A mastery star: the same star tinted in the theme's accent, so it isn't read as the
+-- elite mark. Rebuilt by F.applyTheme as F.MARKS.ACCENT_STAR.
+local function accentStar(hex)
+	return "|TInterface\\TargetingFrame\\UI-RaidTargetingIcon_1:0:0:0:0:64:64:0:64:0:64:"
+		.. tonumber(hex:sub(1, 2), 16) .. ":" .. tonumber(hex:sub(3, 4), 16) .. ":" .. tonumber(hex:sub(5, 6), 16) .. "|t"
+end
+
+-- Fills F.COLORS (in place) and the accent star from a theme (an id; unknown ids get the
+-- default theme). Returns the id now in use.
+function F.applyTheme(id)
+	local Themes = ns.Themes
+	id = Themes.id(id)
+	for slot, hex in pairs(Themes.palette(id)) do
+		C[slot] = hex
+	end
+	C.ELITE, C.RARE, C.BOSS = ns.Rarity.ELITE, ns.Rarity.RARE, ns.Rarity.BOSS
+	F.MARKS.ACCENT_STAR = accentStar(C.ACCENT)
+	Themes.current = id
+	return id
+end
+F.applyTheme(ns.Themes.DEFAULT)
 
 -- "3<star> ×212": a row's claim count with its mastery stars in front (none: just the count).
 function F.masteryCount(stars, count)
 	local text = F.countText(count)
 	if stars and stars > 0 then
-		return stars .. FEL_STAR .. " " .. (text or "")
+		return stars .. F.MARKS.ACCENT_STAR .. " " .. (text or "")
 	end
 	return text
 end
 
-local STRIPE = "3d2d5c" -- the left stripe of an ordinary soul's row; rarer ones use their colour
 
 local R = ns.Rarity
 local STYLES = {
@@ -180,9 +188,9 @@ function F.mobRows(rows)
 			end
 			out[#out + 1] = {
 				text = text,
-				color = row.highlight and C.GREEN or (style and style.color) or C.TEXT,
+				color = row.highlight and C.GOOD or (style and style.color) or C.TEXT,
 				right = F.masteryCount(row.stars, row.count),
-				stripe = style and style.color or STRIPE,
+				stripe = style and style.color or C.DIVIDER, -- an ordinary soul's row; rarer ones use their colour
 				value = row.name,
 			}
 		end
@@ -210,7 +218,7 @@ function F.playerRows(rows)
 	for _, row in ipairs(rows) do
 		out[#out + 1] = {
 			text = row.name or row.key,
-			color = row.highlight and C.GREEN or C.TEXT,
+			color = row.highlight and C.GOOD or C.TEXT,
 			right = F.countText(row.count),
 			value = row.key,
 		}
@@ -230,7 +238,7 @@ function F.raidRows(rows, selected)
 		out[#out + 1] = {
 			text = row.name,
 			right = right,
-			rightColor = (row.tbd and C.MUTED) or (row.done and C.GREEN) or nil,
+			rightColor = (row.tbd and C.MUTED) or (row.done and C.GOOD) or nil,
 			bar = (not row.done and row.total > 0) and (row.caught / row.total) or nil,
 			value = row.key,
 			selected = row.key == selected,
@@ -255,9 +263,9 @@ function F.raidMobRows(rows)
 		if row.caught then
 			out[#out + 1] = {
 				text = row.boss and (row.name .. " " .. SKULL) or row.name,
-				color = row.highlight and C.GREEN or (row.boss and C.BOSS) or C.TEXT,
+				color = row.highlight and C.GOOD or (row.boss and C.BOSS) or C.TEXT,
 				right = F.masteryCount(row.stars, row.count),
-				stripe = row.boss and C.BOSS or STRIPE,
+				stripe = row.boss and C.BOSS or C.DIVIDER,
 				value = row.npcID,
 			}
 		else
@@ -278,7 +286,7 @@ function F.milestoneRows(items, fmt)
 		local goal = item.title and (DOT .. item.text) or item.text
 		if item.earned then
 			out[#out + 1] = {
-				text = item.title and ("|cff" .. C.FEL .. item.title .. "|r" .. goal) or goal,
+				text = item.title and ("|cff" .. C.ACCENT .. item.title .. "|r" .. goal) or goal,
 				color = item.title and C.MUTED or C.WHITE,
 				right = F.dateText(item.earned, fmt) or "",
 			}
@@ -401,7 +409,7 @@ end
 -- The stars of a card as text: lit ones fel green, the rest dark, then "+N" past the row.
 local DARK_STAR = "|TInterface\\TargetingFrame\\UI-RaidTargetingIcon_1:0:0:0:0:64:64:0:64:0:64:60:48:84|t"
 function F.starText(stars)
-	local text = string.rep(FEL_STAR, stars.lit) .. string.rep(DARK_STAR, stars.total - stars.lit)
+	local text = string.rep(F.MARKS.ACCENT_STAR, stars.lit) .. string.rep(DARK_STAR, stars.total - stars.lit)
 	if stars.extra then
 		text = text .. " +" .. stars.extra
 	end
@@ -438,7 +446,7 @@ function F.milestoneGroups(items, groups, expanded, fmt)
 				local shown = expanded and expanded[group]
 				out[#out + 1] = {
 					text = CHECK .. " " .. #earned .. " earned",
-					color = C.FEL,
+					color = C.ACCENT,
 					right = shown and "hide" or "show",
 					rightColor = C.MUTED,
 					value = "group:" .. group,

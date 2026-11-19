@@ -279,7 +279,7 @@ end
 function Net.personLines(row, entry, fmt)
 	local F = ns.UIFormat
 	local C = F.COLORS
-	local status, statusColor = "online", C.GREEN
+	local status, statusColor = "online", C.GOOD
 	if not row.online then
 		status, statusColor = "offline", C.DIM
 	end
@@ -289,8 +289,8 @@ function Net.personLines(row, entry, fmt)
 	local lines = {
 		{ text = row.name, color = C.WHITE, right = status, rightColor = statusColor, big = true },
 		{ hr = true },
-		{ text = "Rank", color = C.MUTED, right = ns.Ranks.of(row.score).name, rightColor = C.FEL },
-		{ text = "Score", color = C.MUTED, right = ns.View.thousands(row.score) .. " pts", rightColor = C.GREEN },
+		{ text = "Rank", color = C.MUTED, right = ns.Ranks.of(row.score).name, rightColor = C.ACCENT },
+		{ text = "Score", color = C.MUTED, right = ns.View.thousands(row.score) .. " pts", rightColor = C.GOOD },
 		kv("Unique mobs", tostring(row.mobs)),
 		kv("Players", tostring(row.players)),
 		kv("Raids completed", tostring(row.raids)),
@@ -858,7 +858,6 @@ end
 
 -- Friends tab ------------------------------------------------------------------------------
 
-local PANE_BG, DIVIDER = "0d0a14", "3d2d5c"
 local ROW_H, LINE_H, BOX_H, BUTTON_H = 16, 15, 16, 16
 
 local CLEANUP_W = 58
@@ -895,7 +894,7 @@ end
 
 -- Each pooled leaderboard row gets a hover-only "×" that removes that person.
 local function decorateRows()
-	local UI, C = ns.UI, ns.UIFormat.COLORS
+	local UI = ns.UI
 	for _, row in ipairs(tab.list.rows) do
 		local remove = removeButtons[row]
 		if not remove then
@@ -905,7 +904,7 @@ local function decorateRows()
 				Net.removeFriend(row.value)
 			end)
 			remove:SetScript("OnLeave", function(self)
-				UI.textColor(self.label, C.TITLE)
+				UI.textColor(self.label, "TITLE")
 				onRowLeave(row)
 			end)
 			row:SetScript("OnEnter", onRowEnter)
@@ -922,7 +921,7 @@ local function decorateRows()
 end
 
 local function buildTab(left, right)
-	local UI, C = ns.UI, ns.UIFormat.COLORS
+	local UI = ns.UI
 	local leftW, rightW, h = UI.FRIENDS_LEFT_W, UI.FRIENDS_RIGHT_W, UI.FRIENDS_H
 
 	tab.list = UI.newList(left, leftW, h - BOX_H - 4, ROW_H, false)
@@ -935,11 +934,11 @@ local function buildTab(left, right)
 	box:SetMaxLetters(48)
 	box:SetFontObject(GameFontHighlightSmall)
 	box:SetTextInsets(4, 4, 0, 0)
-	UI.backdrop(box, PANE_BG, DIVIDER)
+	UI.backdrop(box, "PANE_BG", "DIVIDER")
 	local hint = box:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	hint:SetPoint("LEFT", 4, 0)
 	hint:SetText("Add...")
-	UI.textColor(hint, C.MUTED)
+	UI.textColor(hint, "MUTED")
 	local function showHint(self)
 		ns.UIList.setShown(hint, (self:GetText() or "") == "" and not self:HasFocus())
 	end
@@ -994,7 +993,7 @@ local function buildTab(left, right)
 	tab.status:SetPoint("RIGHT", right, "RIGHT", -4, 0)
 	tab.status:SetJustifyH("LEFT")
 	tab.status:SetWordWrap(false)
-	UI.textColor(tab.status, C.MUTED)
+	UI.textColor(tab.status, "MUTED")
 end
 
 local function selectPerson(name)

@@ -1,5 +1,6 @@
--- The options: switches saved to db.settings the moment they are clicked; under SIZE, the
--- size of the window and of the popups; a sample popup and a window reset. Shown in a
+-- The options: switches saved to db.settings the moment they are clicked; the colour
+-- theme; under SIZE, the size of the window and of the popups; a sample popup and a
+-- window reset. Shown in a
 -- small panel (/souldex options or the gear on the window) and as a page of the game's
 -- own Settings window. Game code.
 local _, ns = ...
@@ -11,10 +12,8 @@ Options.ITEMS = {
 	{ key = "popup", label = "New-soul popup" },
 	{ key = "sound", label = "New-soul sound" },
 	{ key = "announce", label = "Guild announcements" },
-	{ key = "chatter", label = "Claim chatter in chat" },
 	{ key = "greeting", label = "Login message in chat" },
 	{ key = "unitTooltip", label = "\"Soul collected\" on tooltips" },
-	{ key = "lateAsk", label = "Boss names after the fight (test)" },
 }
 
 -- The SIZE rows: each is a label, then - 100% +. get/set read and save a scale.
@@ -55,16 +54,21 @@ Options.SIZES = {
 local WIDTH = 200
 local ROW_H = 24
 local TOP = 24 -- the floating panel's title strip
-local SIZE_GAP = 4 -- from the last switch to the rule above SIZE
+local SIZE_GAP = 4 -- from the last switch to the rule above THEME
+local THEME_H = 26 -- the Theme row, from its rule to the rule above SIZE
+local THEME_VALUE_W = 70
 local SIZE_HEAD, SIZE_ROW = 20, 22
 local BUTTON_GAP, BUTTON_H = 4, 18
--- What fill() draws, top to bottom: the switches, the SIZE section, the two buttons.
-local FILL_H = #Options.ITEMS * ROW_H + SIZE_GAP + SIZE_HEAD + #Options.SIZES * SIZE_ROW + BUTTON_GAP + BUTTON_H
+-- What fill() draws, top to bottom: the switches, the Theme row, the SIZE section, the
+-- two buttons.
+local FILL_H = #Options.ITEMS * ROW_H + SIZE_GAP + THEME_H
+	+ SIZE_HEAD + #Options.SIZES * SIZE_ROW + BUTTON_GAP + BUTTON_H
 local HEIGHT = TOP + FILL_H + 8
 local DIM = 0.35 -- a - or + that can go no further
 local panel
 -- Every set of controls built (the floating panel's, the game Settings page's):
--- { checks = { CheckButton... }, steppers = { { minus, plus, value }... }, reset = Button },
+-- { checks = { CheckButton... }, theme = FontString, steppers = { { minus, plus, value }... },
+-- reset = Button },
 -- kept in step by sync.
 local sets = {}
 
@@ -75,6 +79,7 @@ local function sync()
 		for i, item in ipairs(Options.ITEMS) do
 			set.checks[i]:SetChecked(settings[item.key] == true)
 		end
+		set.theme:SetText(ns.Themes.name(settings.theme))
 		local changed = false
 		for i, size in ipairs(Options.SIZES) do
 			local scale = size.get()
@@ -113,6 +118,18 @@ local function step(size, by)
 	end
 end
 
+-- The theme `by` (1 or -1) steps from the one in use, wrapping round: applied at once,
+-- with a silent sample popup in it.
+function Options.stepTheme(by)
+	local settings = ns.db and ns.db.settings
+	if not settings then
+		return
+	end
+	ns.UI.setTheme(ns.Themes.next(settings.theme, by))
+	Options.testPopup(true)
+	sync()
+end
+
 -- A sample of the new-soul popup, so the player can see (and, when the sound is on,
 -- hear) what the options do without draining anything, also while the popup itself is
 -- switched off. quiet: no sound (the Popup size row's preview). Nothing is recorded.
@@ -132,7 +149,7 @@ end
 -- Builds the switches, the SIZE section and the two buttons into parent, from (left,
 -- top) down. width: how far the rows reach (the labels are clickable).
 local function fill(parent, left, top, width)
-	local UI, C = ns.UI, ns.UIFormat.COLORS
+	local UI = ns.UI
 	local set = { checks = {}, steppers = {} }
 	for i, item in ipairs(Options.ITEMS) do
 		local check = CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")
@@ -142,7 +159,7 @@ local function fill(parent, left, top, width)
 		local label = check:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 		label:SetPoint("LEFT", check, "RIGHT", 2, 0)
 		label:SetText(item.label)
-		UI.textColor(label, C.TEXT)
+		UI.textColor(label, "TEXT")
 		check:SetScript("OnClick", function(self)
 			if ns.db and ns.db.settings then
 				ns.db.settings[item.key] = self:GetChecked() and true or false
@@ -156,18 +173,43 @@ local function fill(parent, left, top, width)
 		set.checks[i] = check
 	end
 
-	-- SIZE: a rule, the heading with "Reset" on its right, and one row per size.
-	local right = left + width - 2 -- the right edge the + buttons and "Reset" line up on
+	-- Theme: a rule, then "Theme" with  <  Soul Shard  >  on the right.
+	local right = left + width - 2 -- the right edge the > / + buttons and "Reset" line up on
 	local y = top - #Options.ITEMS * ROW_H - SIZE_GAP
+	local themeRule = parent:CreateTexture(nil, "ARTWORK")
+	themeRule:SetSize(width, 1)
+	themeRule:SetPoint("TOPLEFT", left, y)
+	UI.fill(themeRule, "DIVIDER")
+	local themeLabel = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	themeLabel:SetPoint("TOPLEFT", left + 6, y - 8)
+	themeLabel:SetText("Theme")
+	UI.textColor(themeLabel, "TEXT")
+	local nextTheme = UI.button(parent, ">", 18, 16, function()
+		Options.stepTheme(1)
+	end)
+	nextTheme:SetPoint("TOPLEFT", right - 18, y - 5)
+	local themeName = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	themeName:SetPoint("RIGHT", nextTheme, "LEFT", -4, 0)
+	themeName:SetWidth(THEME_VALUE_W)
+	themeName:SetJustifyH("CENTER")
+	UI.textColor(themeName, "WHITE")
+	local previousTheme = UI.button(parent, "<", 18, 16, function()
+		Options.stepTheme(-1)
+	end)
+	previousTheme:SetPoint("RIGHT", themeName, "LEFT", -4, 0)
+	set.theme = themeName
+
+	-- SIZE: a rule, the heading with "Reset" on its right, and one row per size.
+	y = y - THEME_H
 	local rule = parent:CreateTexture(nil, "ARTWORK")
 	rule:SetSize(width, 1)
 	rule:SetPoint("TOPLEFT", left, y)
-	UI.fill(rule, "3d2d5c")
+	UI.fill(rule, "DIVIDER")
 	local head = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	head:SetPoint("TOPLEFT", left + 6, y - 7)
 	head:SetText("SIZE")
 	head:SetTextHeight(8)
-	UI.textColor(head, C.HEADER)
+	UI.textColor(head, "HEADER")
 
 	local reset = CreateFrame("Button", nil, parent)
 	reset:SetSize(36, 14)
@@ -175,12 +217,12 @@ local function fill(parent, left, top, width)
 	reset.label = reset:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	reset.label:SetPoint("RIGHT", 0, 0)
 	reset.label:SetText("Reset")
-	UI.textColor(reset.label, C.MUTED)
+	UI.textColor(reset.label, "MUTED")
 	reset:SetScript("OnEnter", function(self)
-		UI.textColor(self.label, C.WHITE)
+		UI.textColor(self.label, "WHITE")
 	end)
 	reset:SetScript("OnLeave", function(self)
-		UI.textColor(self.label, C.MUTED)
+		UI.textColor(self.label, "MUTED")
 	end)
 	reset:SetScript("OnClick", function()
 		for _, size in ipairs(Options.SIZES) do
@@ -197,14 +239,14 @@ local function fill(parent, left, top, width)
 		local label = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 		label:SetPoint("TOPLEFT", left + 6, rowY - 3)
 		label:SetText(size.label)
-		UI.textColor(label, C.TEXT)
+		UI.textColor(label, "TEXT")
 		local plus = UI.button(parent, "+", 18, 16, step(size, 1))
 		plus:SetPoint("TOPLEFT", right - 18, rowY)
 		local value = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 		value:SetPoint("RIGHT", plus, "LEFT", -4, 0)
 		value:SetWidth(36)
 		value:SetJustifyH("CENTER")
-		UI.textColor(value, C.WHITE)
+		UI.textColor(value, "WHITE")
 		local minus = UI.button(parent, "-", 18, 16, step(size, -1))
 		minus:SetPoint("RIGHT", value, "LEFT", -4, 0)
 		set.steppers[i] = { minus = minus, plus = plus, value = value }
@@ -228,7 +270,7 @@ local function fill(parent, left, top, width)
 end
 
 local function build()
-	local UI, C = ns.UI, ns.UIFormat.COLORS
+	local UI = ns.UI
 	panel = CreateFrame("Frame", "SoulDexOptionsFrame", UIParent, "BackdropTemplate")
 	panel:SetSize(WIDTH, HEIGHT)
 	panel:SetPoint("CENTER", UIParent, "CENTER", 0, 120)
@@ -240,13 +282,13 @@ local function build()
 	panel:RegisterForDrag("LeftButton")
 	panel:SetScript("OnDragStart", panel.StartMoving)
 	panel:SetScript("OnDragStop", panel.StopMovingOrSizing)
-	UI.backdrop(panel, "14101c", "6b4fa0", 0.97)
+	UI.backdrop(panel, "BG", "BORDER", 0.97)
 	table.insert(UISpecialFrames, "SoulDexOptionsFrame") -- Escape closes it
 
 	local title = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 	title:SetPoint("TOPLEFT", 8, -6)
 	title:SetText("SoulDex Options")
-	UI.textColor(title, C.TITLE)
+	UI.textColor(title, "TITLE")
 	local close = UI.textButton(panel, "\195\151", 14)
 	close:SetPoint("TOPRIGHT", -4, -4)
 	close:SetScript("OnClick", function()
@@ -256,7 +298,7 @@ local function build()
 	rule:SetHeight(1)
 	rule:SetPoint("TOPLEFT", 6, -22)
 	rule:SetPoint("TOPRIGHT", -6, -22)
-	UI.fill(rule, "3d2d5c")
+	UI.fill(rule, "DIVIDER")
 
 	fill(panel, 6, -TOP, WIDTH - 12)
 	panel:SetScript("OnShow", sync)

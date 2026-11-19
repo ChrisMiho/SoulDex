@@ -79,7 +79,7 @@ describe("UI", function()
 			Print = function() end,
 		}
 		for _, file in ipairs({
-			"Settings", "Raids", "Points", "Rarity", "Ranks", "Flavour", "Dex", "Milestones", "View",
+			"Themes", "Settings", "Raids", "Points", "Rarity", "Ranks", "Flavour", "Dex", "Milestones", "View",
 			"UIFormat", "UIList", "UI", "UIDetail", "Options",
 		}) do
 			LoadAddonFile("src/" .. file .. ".lua", ns)
@@ -547,6 +547,47 @@ describe("UI", function()
 		assert.is_nil(db.window.scale)
 		assert.equal("100%", shownSize(1))
 		assert.is_false(button("Reset").shown)
+	end)
+
+	it("the theme steps, is saved and repaints what is already drawn", function()
+		local db = loadDb()
+		local borders = {}
+		methods.SetBackdropBorderColor = function(self, r, g, b) borders[self] = { r, g, b } end
+		ns.Options.toggle() -- first: nth() finds its buttons before the window's
+		ns.UI.toggle()
+		local frame = _G.SoulDexFrame
+		local function shownTheme()
+			return nth("<", 1).point[2].text
+		end
+		assert.equal("soulshard", db.settings.theme)
+		assert.equal("Soul Shard", shownTheme())
+		nth(">", 1).scripts.OnClick()
+		assert.equal("fel", db.settings.theme)
+		assert.equal("fel", ns.Themes.current)
+		assert.equal("Fel", shownTheme())
+		assert.same({ ns.UIFormat.hexRGB("4f8a2a") }, borders[frame])
+		nth("<", 1).scripts.OnClick()
+		nth("<", 1).scripts.OnClick()
+		assert.equal("ember", db.settings.theme)
+		assert.same({ ns.UIFormat.hexRGB("9a3022") }, borders[frame])
+		assert.equal("Interface\\AddOns\\SoulDex\\art\\ember\\rank1.tga", ns.Ranks.of(0).emblem)
+		methods.SetBackdropBorderColor = nil
+	end)
+
+	it("draws in the saved theme from the start, and the default for an unknown one", function()
+		local db = { settings = ns.Settings.normalise({ theme = "shadow" }), window = {} }
+		ns.db = db
+		ns.dex = ns.Dex.new(db)
+		for _, fn in ipairs(ns.onLoaded) do
+			fn(db)
+		end
+		assert.equal("shadow", ns.Themes.current)
+		assert.equal("c18cff", ns.UIFormat.COLORS.ACCENT)
+		db.settings.theme = "gone"
+		for _, fn in ipairs(ns.onLoaded) do
+			fn(db)
+		end
+		assert.equal("soulshard", ns.Themes.current)
 	end)
 
 	it("the popup size steps, resizes the popups and shows a sample", function()

@@ -67,6 +67,16 @@ describe("Ranks", function()
 		assert.equal(Ranks.emblem(8), Ranks.of(99999).emblem)
 	end)
 
+	it("takes a theme's own emblems, the theme in use by default", function()
+		local ns = LoadAddonFile("src/Ranks.lua", LoadAddonFile("src/Themes.lua"))
+		assert.equal("Interface\\AddOns\\SoulDex\\art\\rank2.tga", ns.Ranks.emblem(2))
+		assert.equal("Interface\\AddOns\\SoulDex\\art\\ember\\rank2.tga", ns.Ranks.emblem(2, "ember"))
+		assert.equal("Interface\\AddOns\\SoulDex\\art\\rank2.tga", ns.Ranks.emblem(2, "gone"))
+		ns.Themes.current = "fel"
+		assert.equal("Interface\\AddOns\\SoulDex\\art\\fel\\rank5.tga", ns.Ranks.emblem(5))
+		assert.equal(ns.Ranks.emblem(5), ns.Ranks.of(2500).emblem)
+	end)
+
 	it("gives the nearest real emblem for a bad index", function()
 		assert.equal(Ranks.emblem(1), Ranks.emblem(nil))
 		assert.equal(Ranks.emblem(1), Ranks.emblem("3"))

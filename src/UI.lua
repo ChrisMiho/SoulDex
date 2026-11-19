@@ -31,12 +31,6 @@ local FRIENDS_RIGHT_X = FRIENDS_LEFT_W + 5
 -- Sizes of the two Friends tab frames handed to the builder (see setFriendsTab).
 UI.FRIENDS_LEFT_W, UI.FRIENDS_RIGHT_W, UI.FRIENDS_H = FRIENDS_LEFT_W, BODY_W - FRIENDS_RIGHT_X, BODY_H
 
-local WINDOW_BG, BORDER, DIVIDER = "14101c", "6b4fa0", "3d2d5c"
-local TAB_BG = "251b36"
-local SHADE_TOP, SHADE_BOTTOM = "241835", "0b0812" -- the window's top-to-bottom shading
-local TRACK, FILL, FEL = "2d2240", "7dff6a", "9dff3a"
-local CHIP_BG, CHIP_EDGE = "0a1404", "3d6b1f"
-local TILE_BG, TILE_EDGE = "151020", "231a35"
 local TILE_H, TILE_GAP = 30, 3
 
 -- Shared painting helpers (src/UIList.lua), kept on UI for callers.
@@ -135,8 +129,8 @@ end
 local function styleTabs()
 	for _, button in ipairs(tabButtons) do
 		local on = button.tab == state.tab
-		UI.backdrop(button, on and DIVIDER or TAB_BG, on and BORDER or DIVIDER)
-		UI.textColor(button.label, on and C.WHITE or C.TEXT)
+		UI.backdrop(button, on and "DIVIDER" or "TAB_BG", on and "BORDER" or "DIVIDER")
+		UI.textColor(button.label, on and "WHITE" or "TEXT")
 		setShown(button.underline, on)
 	end
 end
@@ -192,7 +186,7 @@ local function drawMe(dex, keepScroll)
 	crest.place:SetText("RANK " .. rank.index .. " OF " .. rank.count)
 	crest.score:SetText(ns.View.thousands(rank.score) .. " pts")
 	if rank.nextName then
-		crest.next:SetText(ns.View.thousands(rank.toNext) .. " pts to |cff" .. FEL .. rank.nextName .. "|r")
+		crest.next:SetText(ns.View.thousands(rank.toNext) .. " pts to |cff" .. C.ACCENT .. rank.nextName .. "|r")
 	else
 		crest.next:SetText("The highest rank")
 	end
@@ -206,8 +200,8 @@ local function drawMe(dex, keepScroll)
 		setShown(tile, data ~= nil)
 		if data then
 			local value = tostring(data.value or F.DASH)
-			tile.value:SetText(data.star and (value .. " " .. F.MARKS.FEL_STAR) or value)
-			UI.textColor(tile.value, data.color and C[data.color] or C.WHITE)
+			tile.value:SetText(data.star and (value .. " " .. F.MARKS.ACCENT_STAR) or value)
+			UI.textColor(tile.value, data.color or "WHITE")
 			tile.label:SetText(data.label:upper())
 		end
 	end
@@ -390,12 +384,12 @@ local function textButton(parent, text, size)
 	button.label = button:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 	button.label:SetPoint("CENTER")
 	button.label:SetText(text)
-	UI.textColor(button.label, C.TITLE)
+	UI.textColor(button.label, "TITLE")
 	button:SetScript("OnEnter", function(self)
-		UI.textColor(self.label, C.WHITE)
+		UI.textColor(self.label, "WHITE")
 	end)
 	button:SetScript("OnLeave", function(self)
-		UI.textColor(self.label, C.TITLE)
+		UI.textColor(self.label, "TITLE")
 	end)
 	return button
 end
@@ -436,7 +430,7 @@ local function buildTitle()
 	icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 	local glow = gear:CreateTexture(nil, "HIGHLIGHT")
 	glow:SetAllPoints()
-	UI.fill(glow, C.WHITE, 0.2)
+	UI.fill(glow, "WHITE", 0.2)
 	gear:SetScript("OnClick", function()
 		if ns.Options then
 			ns.Options.toggle()
@@ -453,15 +447,15 @@ local function buildTitle()
 
 	titleRight = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	titleRight:SetPoint("RIGHT", gear, "LEFT", -6, 0)
-	UI.textColor(titleRight, C.TEXT)
+	UI.textColor(titleRight, "TEXT")
 	-- The rank chip, left of the totals.
 	chip = CreateFrame("Frame", nil, bar, "BackdropTemplate")
 	chip:SetSize(60, 14)
 	chip:SetPoint("RIGHT", titleRight, "LEFT", -6, 0)
-	UI.backdrop(chip, CHIP_BG, CHIP_EDGE)
+	UI.backdrop(chip, "CHIP_BG", "CHIP_EDGE")
 	chip.label = chip:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	chip.label:SetPoint("CENTER", 0, 0)
-	UI.textColor(chip.label, FEL)
+	UI.textColor(chip.label, "ACCENT")
 	-- "« Friends": shown while browsing a friend's dex (draw anchors the title after it).
 	-- Back to the list you browsed from, on your own dex.
 	myDexButton = UI.button(bar, "\194\171 Friends", 60, 14, function()
@@ -479,18 +473,18 @@ local function buildTitle()
 	titleLeft:SetPoint("RIGHT", chip, "LEFT", -6, 0)
 	titleLeft:SetJustifyH("LEFT")
 	titleLeft:SetWordWrap(false)
-	UI.textColor(titleLeft, C.TITLE)
+	UI.textColor(titleLeft, "TITLE")
 
 	-- Under the title: the rank progress line, a track with a fel-green fill.
 	local track = frame:CreateTexture(nil, "BORDER")
 	track:SetHeight(2)
 	track:SetPoint("TOPLEFT", bar, "BOTTOMLEFT", 0, -1)
 	track:SetPoint("TOPRIGHT", bar, "BOTTOMRIGHT", 0, -1)
-	UI.fill(track, TRACK)
+	UI.fill(track, "TRACK")
 	rankFill = frame:CreateTexture(nil, "ARTWORK")
 	rankFill:SetHeight(2)
 	rankFill:SetPoint("TOPLEFT", bar, "BOTTOMLEFT", 0, -1)
-	UI.fill(rankFill, FEL)
+	UI.fill(rankFill, "ACCENT")
 end
 
 -- The Me tab: the rank crest in the left column, tiles and records in the right.
@@ -506,26 +500,26 @@ local function buildMe(body)
 	crest.icon:SetPoint("TOP", 0, -8)
 	crest.rank = crest:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 	crest.rank:SetPoint("TOP", crest.icon, "BOTTOM", 0, -6)
-	UI.textColor(crest.rank, FEL)
+	UI.textColor(crest.rank, "ACCENT")
 	crest.place = crest:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	crest.place:SetPoint("TOP", crest.rank, "BOTTOM", 0, -2)
 	crest.place:SetTextHeight(8)
-	UI.textColor(crest.place, C.HEADER)
+	UI.textColor(crest.place, "HEADER")
 	crest.score = crest:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
 	crest.score:SetPoint("TOP", crest.place, "BOTTOM", 0, -8)
-	UI.textColor(crest.score, C.WHITE)
+	UI.textColor(crest.score, "WHITE")
 	local track = crest:CreateTexture(nil, "BORDER")
 	track:SetSize(LEFT_W - 16, 4)
 	track:SetPoint("TOP", crest.score, "BOTTOM", 0, -7)
-	UI.fill(track, TRACK)
+	UI.fill(track, "TRACK")
 	crest.fill = crest:CreateTexture(nil, "ARTWORK")
 	crest.fill:SetHeight(4)
 	crest.fill:SetPoint("LEFT", track, "LEFT", 0, 0)
-	UI.fill(crest.fill, FILL)
+	UI.fill(crest.fill, "GOOD")
 	crest.next = crest:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	crest.next:SetPoint("TOP", track, "BOTTOM", 0, -5)
 	crest.next:SetWidth(LEFT_W - 8)
-	UI.textColor(crest.next, C.MUTED)
+	UI.textColor(crest.next, "MUTED")
 
 	local rightW = BODY_W - RIGHT_X
 	local tileW = (rightW - 2 * TILE_GAP) / 3
@@ -535,13 +529,13 @@ local function buildMe(body)
 		local col, row = (i - 1) % 3, math.floor((i - 1) / 3)
 		tile:SetSize(tileW, TILE_H)
 		tile:SetPoint("TOPLEFT", RIGHT_X + col * (tileW + TILE_GAP), -2 - row * (TILE_H + TILE_GAP))
-		UI.backdrop(tile, TILE_BG, TILE_EDGE)
+		UI.backdrop(tile, "TILE_BG", "TILE_EDGE")
 		tile.value = tile:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 		tile.value:SetPoint("TOP", 0, -4)
 		tile.label = tile:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 		tile.label:SetPoint("BOTTOM", 0, 3)
 		tile.label:SetTextHeight(7.5)
-		UI.textColor(tile.label, C.HEADER)
+		UI.textColor(tile.label, "HEADER")
 		tiles[i] = tile
 	end
 	local top = 2 + 2 * (TILE_H + TILE_GAP) + 2
@@ -569,7 +563,7 @@ local function buildBody()
 	divider:SetWidth(1)
 	divider:SetPoint("TOPLEFT", LEFT_W + 2, 0)
 	divider:SetPoint("BOTTOMLEFT", LEFT_W + 2, 0)
-	UI.fill(divider, DIVIDER)
+	UI.fill(divider, "DIVIDER")
 
 	friendsBox = CreateFrame("Frame", nil, body)
 	friendsBox:SetAllPoints()
@@ -582,7 +576,7 @@ local function buildBody()
 	friendsNote = friendsBox:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	friendsNote:SetPoint("CENTER")
 	friendsNote:SetText("Friends arrive soon")
-	UI.textColor(friendsNote, C.MUTED)
+	UI.textColor(friendsNote, "MUTED")
 
 	buildMe(body)
 
@@ -604,7 +598,7 @@ local function buildTabs()
 		button.underline:SetHeight(2)
 		button.underline:SetPoint("BOTTOMLEFT", 3, 0)
 		button.underline:SetPoint("BOTTOMRIGHT", -3, 0)
-		UI.fill(button.underline, FEL)
+		UI.fill(button.underline, "ACCENT")
 		button:SetSize(math.max(34, math.ceil(button.label:GetStringWidth() or 0) + 14), TAB_H - 2)
 		if previous then
 			button:SetPoint("LEFT", previous, "RIGHT", 2, 0)
@@ -627,12 +621,12 @@ local function build()
 	frame:SetMovable(true)
 	frame:SetClampedToScreen(true)
 	frame:EnableMouse(true)
-	UI.backdrop(frame, WINDOW_BG, BORDER, 0.97)
+	UI.backdrop(frame, "BG", "BORDER", 0.97)
 	-- Shading: lighter purple at the top fading to near-black at the bottom.
 	local shade = frame:CreateTexture(nil, "BACKGROUND", nil, 1)
 	shade:SetPoint("TOPLEFT", 1, -1)
 	shade:SetPoint("BOTTOMRIGHT", -1, 1)
-	L.gradient(shade, "VERTICAL", SHADE_BOTTOM, 0.97, SHADE_TOP, 0.97)
+	L.gradient(shade, "VERTICAL", "SHADE_BOTTOM", 0.97, "SHADE_TOP", 0.97)
 	placeWindow()
 	buildGrip()
 	table.insert(UISpecialFrames, "SoulDexFrame") -- Escape closes it
@@ -735,6 +729,19 @@ function UI.resetWindow()
 	end
 end
 
+-- Switches the colour theme (an id from ns.Themes; an unknown one gives the default),
+-- saves it for this character and repaints the window and the options at once. The
+-- popups take it on their next show. Returns the id now in use.
+function UI.setTheme(id)
+	id = F.applyTheme(id)
+	if ns.db and ns.db.settings then
+		ns.db.settings.theme = id
+	end
+	L.repaint()
+	UI.refresh()
+	return id
+end
+
 function UI.isShown()
 	return frame ~= nil and frame:IsShown() and true or false
 end
@@ -790,6 +797,8 @@ ns.onLoaded = ns.onLoaded or {}
 ns.onCatch = ns.onCatch or {}
 
 table.insert(ns.onLoaded, function(db)
+	-- The saved theme, before any window or popup is drawn in it.
+	F.applyTheme(type(db.settings) == "table" and db.settings.theme)
 	db.window = type(db.window) == "table" and db.window or {}
 	if isTab(db.window.tab) then
 		state.tab = db.window.tab

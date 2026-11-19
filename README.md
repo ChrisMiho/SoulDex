@@ -96,14 +96,14 @@ minimap.
 | `/souldex test` or `/dex test` | Show a sample popup |
 | `/souldex version` or `/dex version` | Print the version you are running |
 
-The new-soul popup, the sound, guild announcements, a chat line for every claim and the
-login message each have their own on/off switch in the settings, with the size of the
+The new-soul popup, the sound, guild announcements, the login message and the
+"Soul collected" tooltip line each have their own on/off switch in the settings, with the size of the
 window and of the popups under them. The settings are also a page of the game's
 own Settings window (Options > AddOns > SoulDex). `/dex help` lists the commands
 in game.
 
-Experimental, off by default: "Boss names after the fight (test)" names a boss
-drained mid-fight once the fight ends, if you keep it targeted.
+A boss drained mid-fight gets its real name once the fight ends, if you keep it
+targeted.
 
 SoulDex is in the game's addon list by the minimap (click to open, right-click
 for the settings), and you can bind a key to it under Options > Keybindings >

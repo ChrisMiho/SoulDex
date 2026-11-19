@@ -7,7 +7,9 @@
 	The eight rank emblems, drawn from the shapes of docs/curseforge/source/shard.svg
 	(original art). ?rank=N (1..8, default 8) draws one emblem from the window's top-left
 	corner, ?s=<px> pixels square (default 256, the size render.sh shoots); ?sheet draws
-	the review sheet. scripts/art/render.sh turns these into art/rank<N>.tga.
+	the review sheet. &theme=<id> recolours them for a SoulDex colour theme (src/Themes.lua):
+	the violet family takes the theme's main hue and the fel-green family its accent hue.
+	scripts/art/render.sh turns these into art/rank<N>.tga and art/<theme>/rank<N>.tga.
 -->
 <style>
 	html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; }
@@ -243,8 +245,64 @@ function emblem(rank, prefix, size) {
 	return svg.replace(/@/g, prefix);
 }
 
+// Theme hues, in degrees: main replaces the violet family (around 270), accent the fel
+// green (around 95). lift brightens the accent family a little where its hue reads dark.
+// Soul Shard is the original drawing and is not recoloured.
+var THEMES = {
+	fel: { main: 105, accent: 72, lift: 0.04 },
+	shadow: { main: 236, accent: 278, lift: 0.06 },
+	ember: { main: 4, accent: 24, lift: 0 },
+};
+
+function toHsl(hex) {
+	var r = parseInt(hex.substr(0, 2), 16) / 255, g = parseInt(hex.substr(2, 2), 16) / 255, b = parseInt(hex.substr(4, 2), 16) / 255;
+	var max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2, h = 0, s = 0;
+	if (max !== min) {
+		var d = max - min;
+		s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+		h = max === r ? (g - b) / d + (g < b ? 6 : 0) : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+		h *= 60;
+	}
+	return [h, s, l];
+}
+
+function toHex(h, s, l) {
+	function f(n) {
+		var k = (n + h / 30) % 12, a = s * Math.min(l, 1 - l);
+		var c = l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+		return ("0" + Math.round(c * 255).toString(16)).slice(-2);
+	}
+	return f(0) + f(8) + f(4);
+}
+
+// One "#rrggbb" in a theme: colours near violet move to its main hue, near green to its
+// accent hue (keeping their spread round the centre); greys and the rest stay.
+function recolourHex(hex, theme) {
+	var hsl = toHsl(hex), h = hsl[0], s = hsl[1], l = hsl[2];
+	if (s < 0.06) {
+		return hex;
+	}
+	if (h >= 225 && h <= 315) {
+		return toHex((theme.main + (h - 270) * 0.5 + 360) % 360, s, l);
+	}
+	if (h >= 60 && h <= 140) {
+		return toHex((theme.accent + (h - 95) * 0.5 + 360) % 360, s, Math.min(0.97, l + theme.lift));
+	}
+	return hex;
+}
+
+function recolour(markup, theme) {
+	if (!theme) {
+		return markup;
+	}
+	return markup.replace(/#([0-9a-fA-F]{6})\b/g, function (_, hex) {
+		return "#" + recolourHex(hex.toLowerCase(), theme);
+	});
+}
+
 var NAMES = ["Initiate", "Acolyte", "Soul Thief", "Shardbinder", "Reaper", "Soul Harvester", "Soul Tyrant", "Lord of Souls"];
 var params = new URLSearchParams(location.search);
+var theme = THEMES[params.get("theme")];
 
 if (params.has("sheet")) {
 	var html = '<div class="sheet">';
@@ -255,14 +313,20 @@ if (params.has("sheet")) {
 		});
 		html += "</div>";
 	}
-	document.body.innerHTML = html + "</div>";
+	document.body.innerHTML = recolour(html + "</div>", theme);
+	if (theme) {
+		document.querySelector(".sheet").style.background = "#" + recolourHex("14101c", theme);
+		document.querySelectorAll(".name").forEach(function (el) {
+			el.style.color = "#" + recolourHex("9dff3a", theme);
+		});
+	}
 } else {
 	var n = parseInt(params.get("rank"), 10);
 	if (!(n >= 1 && n <= 8)) {
 		n = 8;
 	}
 	var px = parseInt(params.get("s"), 10) || 256;
-	document.body.innerHTML = emblem(n, "e-", px).replace("<svg ", '<svg class="one" ');
+	document.body.innerHTML = recolour(emblem(n, "e-", px), theme).replace("<svg ", '<svg class="one" ');
 }
 </script>
 </body>

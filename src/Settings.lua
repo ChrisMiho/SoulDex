@@ -4,16 +4,14 @@ local _, ns = ...
 local Settings = {}
 ns.Settings = Settings
 
--- chatter: a chat line in the warlock's voice for every claim; off unless asked for.
 -- greeting: the "loaded" chat line after each login and /reload.
--- lateAsk: experimental, off unless asked for: a boss drained during its encounter keeps
--- its shard held, and its name is asked for when the fight ends (spec 4.2).
 -- unitTooltip: the "Soul collected" line on a caught creature's or player's tooltip
 -- (spec 6.3a).
 -- popupScale: the size of the new-soul and rank-up popups (a scale, see Settings.scale).
+-- theme: the colour theme of the window and popups (an id from ns.Themes).
 Settings.DEFAULTS = {
-	popup = true, sound = true, announce = true, chatter = false, greeting = true, lateAsk = false,
-	unitTooltip = true, popupScale = 1,
+	popup = true, sound = true, announce = true, greeting = true,
+	unitTooltip = true, popupScale = 1, theme = "soulshard",
 }
 
 -- The sizes of the window and the popups: the limits, the step of the options' - and +
@@ -52,8 +50,8 @@ function Settings.percent(scale)
 	return math.floor(scale * 100 + 0.5) .. "%"
 end
 
--- Returns a new table with every default key present: switches that are no boolean and
--- scales that are no usable number fall back to the default.
+-- Returns a new table with every default key present: switches that are no boolean,
+-- scales that are no usable number and a theme no one knows fall back to the default.
 function Settings.normalise(t)
 	local result = {}
 	for key, default in pairs(Settings.DEFAULTS) do
@@ -63,6 +61,9 @@ function Settings.normalise(t)
 		end
 		if type(default) == "number" then
 			result[key] = Settings.scale(value) or default
+		elseif type(default) == "string" then
+			-- The theme: kept only when ns.Themes knows it.
+			result[key] = ns.Themes and ns.Themes.id(value) or default
 		elseif type(value) == "boolean" then
 			result[key] = value
 		else

@@ -2,7 +2,34 @@ describe("UIFormat", function()
 	local F
 
 	before_each(function()
-		F = LoadAddonFile("src/UIFormat.lua", LoadAddonFile("src/View.lua", LoadAddonFile("src/Rarity.lua", {}))).UIFormat
+		local ns = LoadAddonFile("src/Rarity.lua", LoadAddonFile("src/Themes.lua"))
+		F = LoadAddonFile("src/UIFormat.lua", LoadAddonFile("src/View.lua", ns)).UIFormat
+	end)
+
+	describe("applyTheme", function()
+		it("starts on Soul Shard and refills the same colour table", function()
+			local C = F.COLORS
+			assert.equal("9dff3a", C.ACCENT)
+			assert.truthy(F.MARKS.ACCENT_STAR:find(":157:255:58|t", 1, true))
+			assert.equal("ember", F.applyTheme("ember"))
+			assert.equal(C, F.COLORS)
+			assert.equal("ff7a1a", C.ACCENT)
+			assert.equal("9a3022", C.BORDER)
+			assert.truthy(F.MARKS.ACCENT_STAR:find(":255:122:26|t", 1, true))
+			assert.equal("3" .. F.MARKS.ACCENT_STAR .. " \195\1512", F.masteryCount(3, 2))
+		end)
+
+		it("keeps the rarity colours in every theme", function()
+			F.applyTheme("shadow")
+			assert.equal("ffd25a", F.COLORS.ELITE)
+			assert.equal("ff9a5a", F.COLORS.BOSS)
+		end)
+
+		it("takes the default theme for an unknown id", function()
+			F.applyTheme("ember")
+			assert.equal("soulshard", F.applyTheme("gone"))
+			assert.equal("6b4fa0", F.COLORS.BORDER)
+		end)
 	end)
 
 	local function texts(lines)
@@ -214,13 +241,13 @@ describe("UIFormat", function()
 		end)
 
 		it("puts mastery stars in front of a row's count", function()
-			assert.equal("3" .. F.MARKS.FEL_STAR .. " \195\151212", F.masteryCount(3, 212))
+			assert.equal("3" .. F.MARKS.ACCENT_STAR .. " \195\151212", F.masteryCount(3, 212))
 			assert.equal("\195\1514", F.masteryCount(nil, 4))
 			assert.equal("\195\1514", F.masteryCount(0, 4))
 			local rows = F.mobRows({ { name = "Wolf", count = 30, stars = 2 }, { name = "Boar", count = 1 } })
-			assert.equal("2" .. F.MARKS.FEL_STAR .. " \195\15130", rows[1].right)
+			assert.equal("2" .. F.MARKS.ACCENT_STAR .. " \195\15130", rows[1].right)
 			assert.equal("\195\1511", rows[2].right)
-			assert.are_not.equal(F.MARKS.STAR, F.MARKS.FEL_STAR) -- not the elite mark
+			assert.are_not.equal(F.MARKS.STAR, F.MARKS.ACCENT_STAR) -- not the elite mark
 		end)
 	end)
 
@@ -250,7 +277,7 @@ describe("UIFormat", function()
 				"Claimed | \195\15112", "First | 3 Nov 26 \194\183 Lv 12", "Where | 26.4, 89.1", "Last | 9 Nov 26",
 			}, cells(card))
 			assert.same({ lit = 1, total = 8, text = "12 / 25 to next star", bar = 2 / 15 }, card.stars)
-			assert.equal(F.MARKS.FEL_STAR, F.starText(card.stars):sub(1, #F.MARKS.FEL_STAR))
+			assert.equal(F.MARKS.ACCENT_STAR, F.starText(card.stars):sub(1, #F.MARKS.ACCENT_STAR))
 		end)
 
 		it("never shows nil for a friend's bare mob, and leaves out what it lacks", function()

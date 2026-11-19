@@ -1,5 +1,16 @@
 describe("Art", function()
-	local ns = LoadAddonFile("src/Ranks.lua")
+	local ns = LoadAddonFile("src/Ranks.lua", LoadAddonFile("src/Themes.lua"))
+
+	-- Every theme's emblem files: art/rank<N>.tga for Soul Shard, art/<theme>/rank<N>.tga else.
+	local function paths()
+		local out = {}
+		for _, theme in ipairs(ns.Themes.LIST) do
+			for index in ipairs(ns.Ranks.LIST) do
+				out[#out + 1] = "art/" .. ns.Themes.emblemDir(theme.id):gsub("\\", "/") .. "rank" .. index .. ".tga"
+			end
+		end
+		return out
+	end
 
 	local function bytes(path)
 		local file = io.open(path, "rb")
@@ -11,9 +22,8 @@ describe("Art", function()
 		return data
 	end
 
-	it("has a 64x64 32-bit uncompressed TGA for every rank", function()
-		for index in ipairs(ns.Ranks.LIST) do
-			local path = "art/rank" .. index .. ".tga"
+	it("has a 64x64 32-bit uncompressed TGA for every rank in every theme", function()
+		for _, path in ipairs(paths()) do
 			local data = bytes(path)
 			assert.is_truthy(data, path .. " is missing")
 			assert.equal(0, data:byte(1), path .. ": no id field")
@@ -26,9 +36,9 @@ describe("Art", function()
 	end)
 
 	it("has a transparent corner and something drawn", function()
-		for index in ipairs(ns.Ranks.LIST) do
-			local data = bytes("art/rank" .. index .. ".tga")
-			assert.equal(0, data:byte(18 + 4), "rank " .. index .. ": first pixel's alpha")
+		for _, path in ipairs(paths()) do
+			local data = bytes(path)
+			assert.equal(0, data:byte(18 + 4), path .. ": first pixel's alpha")
 			local drawn = false
 			for pixel = 0, 64 * 64 - 1 do
 				if data:byte(18 + pixel * 4 + 4) > 0 then
@@ -36,7 +46,7 @@ describe("Art", function()
 					break
 				end
 			end
-			assert.is_true(drawn, "rank " .. index .. " is empty")
+			assert.is_true(drawn, path .. " is empty")
 		end
 	end)
 

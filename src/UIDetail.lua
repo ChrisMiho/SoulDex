@@ -7,9 +7,6 @@ local UIDetail = {}
 ns.UIDetail = UIDetail
 
 local SLIDE_TIME = 0.2
-local PANE_BG, PANE_EDGE = "0d0a14", "8a72b8"
-local CELL_BG, CELL_EDGE, TRACK, FILL, QUOTE_BAR = "151020", "231a35", "2d2240", "7dff6a", "4a3470"
-local BADGE_BG, BADGE_EDGE = "0a1404", "3d6b1f"
 local LINE_H = 15
 local PAD = 7
 local BAND_H, ICON = 44, 30
@@ -131,7 +128,7 @@ function Pane:close(instant)
 end
 
 local function buildParts(frame, width)
-	local UI, C = ns.UI, ns.UIFormat.COLORS
+	local UI = ns.UI
 	local p = {}
 	p.band = frame:CreateTexture(nil, "BORDER")
 	p.band:SetPoint("TOPLEFT", 1, 0)
@@ -145,7 +142,7 @@ local function buildParts(frame, width)
 	p.iconBack = frame:CreateTexture(nil, "ARTWORK", nil, 1)
 	p.iconBack:SetSize(ICON, ICON)
 	p.iconBack:SetPoint("TOPLEFT", PAD + 1, -7)
-	UI.fill(p.iconBack, "14101c")
+	UI.fill(p.iconBack, "BG")
 	p.icon = frame:CreateTexture(nil, "OVERLAY")
 	p.icon:SetSize(ICON, ICON)
 	p.icon:SetPoint("TOPLEFT", PAD + 1, -7)
@@ -153,10 +150,10 @@ local function buildParts(frame, width)
 	p.badge = CreateFrame("Frame", nil, frame, "BackdropTemplate")
 	p.badge:SetSize(40, 15)
 	p.badge:SetPoint("TOPRIGHT", -PAD + 1, -7)
-	UI.backdrop(p.badge, BADGE_BG, BADGE_EDGE)
+	UI.backdrop(p.badge, "CHIP_BG", "CHIP_EDGE")
 	p.badge.label = p.badge:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	p.badge.label:SetPoint("CENTER")
-	UI.textColor(p.badge.label, C.GREEN)
+	UI.textColor(p.badge.label, "GOOD")
 
 	p.title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 	p.title:SetPoint("TOPLEFT", p.iconEdge, "TOPRIGHT", 7, -1)
@@ -168,44 +165,44 @@ local function buildParts(frame, width)
 	p.sub:SetPoint("RIGHT", -PAD, 0)
 	p.sub:SetJustifyH("LEFT")
 	p.sub:SetWordWrap(false)
-	UI.textColor(p.sub, C.MUTED)
+	UI.textColor(p.sub, "MUTED")
 
 	p.quoteBar = frame:CreateTexture(nil, "ARTWORK")
 	p.quoteBar:SetWidth(2)
-	UI.fill(p.quoteBar, QUOTE_BAR)
+	UI.fill(p.quoteBar, "QUOTE_BAR")
 	p.quote = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	p.quote:SetWidth(width - 2 * PAD - 9)
 	p.quote:SetJustifyH("LEFT")
 	p.quote:SetWordWrap(true)
-	UI.textColor(p.quote, C.FLAVOUR)
+	UI.textColor(p.quote, "FLAVOUR")
 
 	p.stars = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 	p.stars:SetJustifyH("LEFT")
-	UI.textColor(p.stars, C.FEL)
+	UI.textColor(p.stars, "ACCENT")
 	p.starsNote = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	p.starsNote:SetJustifyH("RIGHT")
-	UI.textColor(p.starsNote, C.MUTED)
+	UI.textColor(p.starsNote, "MUTED")
 	p.track = frame:CreateTexture(nil, "BORDER")
 	p.track:SetSize(width - 2 * PAD, 3)
-	UI.fill(p.track, TRACK)
+	UI.fill(p.track, "TRACK")
 	p.fill = frame:CreateTexture(nil, "ARTWORK")
 	p.fill:SetHeight(3)
-	UI.fill(p.fill, FILL)
+	UI.fill(p.fill, "GOOD")
 
 	p.cells = {}
 	for i = 1, 4 do
 		local box = CreateFrame("Frame", nil, frame, "BackdropTemplate")
-		UI.backdrop(box, CELL_BG, CELL_EDGE)
+		UI.backdrop(box, "TILE_BG", "TILE_EDGE")
 		box.label = box:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 		box.label:SetPoint("TOPLEFT", 5, -2)
 		box.label:SetTextHeight(8)
-		UI.textColor(box.label, C.HEADER)
+		UI.textColor(box.label, "HEADER")
 		box.value = box:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 		box.value:SetPoint("BOTTOMLEFT", 5, 3)
 		box.value:SetPoint("RIGHT", -3, 0)
 		box.value:SetJustifyH("LEFT")
 		box.value:SetWordWrap(false)
-		UI.textColor(box.value, C.TEXT)
+		UI.textColor(box.value, "TEXT")
 		p.cells[i] = box
 	end
 	return p
@@ -222,12 +219,12 @@ function UIDetail.create(parent, x, width, height, onClose)
 
 	local bg = frame:CreateTexture(nil, "BACKGROUND")
 	bg:SetAllPoints()
-	UI.fill(bg, PANE_BG)
+	UI.fill(bg, "PANE_BG")
 	local edge = frame:CreateTexture(nil, "BORDER")
 	edge:SetWidth(1)
 	edge:SetPoint("TOPLEFT")
 	edge:SetPoint("BOTTOMLEFT")
-	UI.fill(edge, PANE_EDGE)
+	UI.fill(edge, "HEADER")
 
 	local pane = setmetatable({
 		frame = frame, parent = parent, x = x, width = width, height = height, pos = 1, target = 1,

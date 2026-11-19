@@ -20,14 +20,18 @@ Ranks.LIST = {
 -- Rank-ups from this rank on go to guild chat (when announcements are on).
 Ranks.ANNOUNCE_FROM = 5
 
--- The texture path of a rank's emblem (art/rank<N>.tga under this addon's folder). A
--- bad index gives the first rank's emblem; one past the end gives the last.
-function Ranks.emblem(index)
+-- The texture path of a rank's emblem (art/rank<N>.tga under this addon's folder, or
+-- art/<theme>/rank<N>.tga for a theme other than Soul Shard). theme: a theme id, nil for
+-- the one in use (ns.Themes.current). A bad index gives the first rank's emblem; one past
+-- the end gives the last.
+function Ranks.emblem(index, theme)
 	if type(index) ~= "number" or index ~= index then
 		index = 1
 	end
 	index = math.min(math.max(math.floor(index), 1), #Ranks.LIST)
-	return "Interface\\AddOns\\" .. addonName .. "\\art\\rank" .. index .. ".tga"
+	local Themes = ns.Themes
+	local dir = Themes and Themes.emblemDir(theme or Themes.current) or ""
+	return "Interface\\AddOns\\" .. addonName .. "\\art\\" .. dir .. "rank" .. index .. ".tga"
 end
 
 -- The rank a score holds: { index, count, name, min, score, nextName, nextMin, toNext,

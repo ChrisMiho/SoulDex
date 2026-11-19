@@ -76,25 +76,35 @@ describe("Flavour", function()
 		assert.is_true(count >= 2)
 	end)
 
-	describe("chatter", function()
-		it("words a first claim and a repeat, with the points when there are any", function()
-			local first = Flavour.chatter("Hogger", 1, 5)
-			assert.truthy(first:find("Hogger", 1, true))
-			assert.truthy(first:find("(+5 pts)", 1, true))
-			local again = Flavour.chatter("Hogger", 12, 0)
-			assert.truthy(again:find("12", 1, true))
-			assert.is_nil(again:find("pts", 1, true))
-			assert.equal(again, Flavour.chatter("Hogger", 12, 0)) -- the same line each time
+	describe("announce", function()
+		it("adds one tail after the news, the same tail each time", function()
+			local line = Flavour.announce("SoulDex: reached the rank of Reaper!")
+			assert.equal(1, line:find("SoulDex: reached the rank of Reaper! ", 1, true))
+			local tail = line:sub(#"SoulDex: reached the rank of Reaper! " + 1)
+			local known = false
+			for _, t in ipairs(Flavour.GUILD_TAILS) do
+				known = known or t == tail
+			end
+			assert.is_true(known)
+			assert.equal(line, Flavour.announce("SoulDex: reached the rank of Reaper!"))
 		end)
 
-		it("copes with odd names and none", function()
-			assert.truthy(Flavour.chatter("100% Wolf", 2, 0):find("100% Wolf", 1, true))
-			assert.is_nil(Flavour.chatter(nil, 1, 1))
-			assert.is_nil(Flavour.chatter("", 1, 1))
-			for count = 1, 9 do
-				local line = Flavour.chatter("Boar", count, 0)
-				assert.is_nil(line:find("{", 1, true))
+		it("uses more than one tail across messages", function()
+			local seen, count = {}, 0
+			for n = 1, 20 do
+				local line = Flavour.announce("SoulDex: Collector (" .. n * 100 .. " unique mobs)!")
+				if not seen[line] then
+					seen[line], count = true, count + 1
+				end
 			end
+			assert.is_true(count >= 3)
+		end)
+
+		it("leaves nothing, empty text and a message too long for guild chat alone", function()
+			assert.is_nil(Flavour.announce(nil))
+			assert.equal("", Flavour.announce(""))
+			local long = string.rep("x", 250)
+			assert.equal(long, Flavour.announce(long))
 		end)
 	end)
 end)

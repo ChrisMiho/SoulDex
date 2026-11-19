@@ -22,6 +22,14 @@ describe("Settings", function()
 			t.popup = false
 			assert.is_true(Settings.DEFAULTS.popup)
 		end)
+
+		it("keeps a known theme and drops an unknown one", function()
+			local ns = LoadAddonFile("src/Settings.lua", LoadAddonFile("src/Themes.lua"))
+			assert.equal("soulshard", ns.Settings.normalise({}).theme)
+			assert.equal("ember", ns.Settings.normalise({ theme = "ember" }).theme)
+			assert.equal("soulshard", ns.Settings.normalise({ theme = "gone" }).theme)
+			assert.equal("soulshard", ns.Settings.normalise({ theme = 3 }).theme)
+		end)
 	end)
 
 	describe("scale", function()
@@ -68,11 +76,11 @@ describe("Settings", function()
 			assert.equal("60%", Settings.percent(0.6))
 		end)
 
-		it("defaults the greeting on and the boss-name experiment off", function()
+		it("defaults the greeting on, and drops the switches that were removed", function()
 			assert.is_true(Settings.normalise({}).greeting)
 			assert.is_false(Settings.normalise({ greeting = false }).greeting)
-			assert.is_false(Settings.normalise({}).lateAsk)
-			assert.is_false(Settings.normalise({ lateAsk = 1 }).lateAsk) -- a number is no switch
+			assert.is_nil(Settings.normalise({ lateAsk = true }).lateAsk)
+			assert.is_nil(Settings.normalise({ chatter = true }).chatter)
 		end)
 
 		it("defaults the unit tooltip line on, and keeps it off once switched off", function()

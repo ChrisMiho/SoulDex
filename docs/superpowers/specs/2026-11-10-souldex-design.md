@@ -338,6 +338,15 @@ The look was settled through mockups; the final versions are in
 
 - Small, dense window (around 340 px wide in the mockups), dark purple
   warlock palette, movable, position saved, closes with Escape.
+- (changed after 1.6.0: colour themes.) The purple, the fel green and every
+  other window colour named in this spec are the **Soul Shard** theme's, the
+  default. The options (7) offer three more, each a whole look of its own
+  (chrome, text tones, accent and rank emblems): **Fel**, **Shadow** and
+  **Ember**. Where this spec says "fel green" for a highlight (the rank chip,
+  mastery stars, progress lines, the selected-row marker, the tab underline),
+  read "the theme's accent". Rarity and class colours are the same in every
+  theme. The palettes and the design: `docs/superpowers/specs/2026-11-18-themes-design.md`.
+  **[user]**
 - Title bar: "SoulDex · <tab>", plus the total for that tab and the score.
 - Tabs along the bottom: **Me · Mobs · Players · Raids · Milestones · Friends**.
   (changed during build: user asked for their own stats on a Me tab instead of a row in Friends) Mobs stays the default tab for a fresh character.
@@ -854,6 +863,13 @@ earns double.
   (rank 5 of 8, 2,500 points) is announced the same way: "SoulDex: reached the
   rank of <rank>!". Lower ranks are not. **[call]**
 
+- (after 1.6.0) Every guild announcement, milestone or rank-up, ends with one
+  short line in the warlock's voice after the news, e.g. "SoulDex: reached the
+  rank of Reaper! They never learn." The line is picked by the message itself
+  (`Flavour.announce`, eight lines in `Flavour.GUILD_TAILS`), so the same news
+  always reads the same, and it is left off when the whole would pass guild
+  chat's 255 bytes. **[user]**
+
 ### 6.5 Flavour text
 
 Each mob gets one silly line built from templates using its type, family,
@@ -886,6 +902,14 @@ names and thresholds]**
 (Emblem column added after 1.2.4: rank emblems.) Each rank builds on
 the one below it. **[user]** A new rank needs a new `art/rank<N>.tga`;
 `spec/Art_spec.lua` enforces it. **[call]**
+
+(changed after 1.6.0: colour themes.) Each colour theme has its own set,
+drawn from the same art: the violet family takes the theme's main hue and
+the fel-green family its accent (Fel: green shard, yellow-green bolts;
+Shadow: indigo shard, violet lightning; Ember: blood-red shard, orange fire).
+Soul Shard's set stays at `art/rank<N>.tga`; the others are
+`art/<theme>/rank<N>.tga`, and a new rank needs one in every folder.
+**[user]**
 
 (Raised when repeat claims began to score, 6.1: a raider claiming every boss
 each week can earn over 1,000 points a week. **[call]**)
@@ -942,23 +966,31 @@ left out if the dex isn't loaded yet). The settings:
 
 - New-soul popup on/off
 - New-soul sound on/off
-- Claim chatter in chat on/off, **off** by default: one line in your own chat
-  frame for every claim, in the warlock's voice ("Hogger's soul is yours.
-  That's 12.", with "(+N pts)" when it scored). `Flavour.chatter`. **[user]**
 - Guild announcements on/off
 - Login message in chat on/off, **on** by default (changed after 1.3.0): the
   "loaded" line above.
-- Boss names after the fight (test) on/off, **off** by default (added after
-  1.4.0-beta.1): the experiment described under "Naming souls in dungeons and
-  raids".
+- (Removed after 1.6.0: "Claim chatter in chat", one chat line per claim, which
+  went unused, and the "Boss names after the fight (test)" switch: that
+  behaviour is now always on. A saved value for either is dropped at load.)
 - "Soul collected" on tooltips on/off, **on** by default (added after 1.5.0):
   the unit tooltip line (6.3a).
 
 The same controls are drawn on both surfaces, the small panel and the game's
 Settings page, and each follows a change made on the other. Top to bottom:
-the switches, the SIZE section, then two buttons.
+the switches, the Theme row, the SIZE section, then two buttons.
 
-Under the switches, a **SIZE** section **[user]** with one row per thing that can
+(added after 1.6.0: colour themes, **[user]**.) Under the switches, a rule
+and a **Theme** row: the label, then `<  Soul Shard  >` with the small `<` and
+`>` buttons. They step through Soul Shard, Fel, Shadow and Ember, wrapping
+round. The theme applies at once, with no `/reload`: the window, its lists,
+the trophy card, the Me and Friends tabs, the options panel and the rank
+emblems repaint, and a silent sample popup shows the new look. Saved per
+character as `db.settings.theme` (an id: `soulshard`, `fel`, `shadow`,
+`ember`); an unknown or damaged value loads as Soul Shard. Chat lines and the
+game's tooltip keep their colours in every theme. There is no slash command
+for it. **[call]**
+
+Under the Theme row, a **SIZE** section **[user]** with one row per thing that can
 be made bigger or smaller, each a label, then `-  100%  +`:
 
 - **Window**: the dex window, text and all. Saved as `db.window.scale`.
@@ -1004,6 +1036,15 @@ glue and tab live in `Net.lua`.
 `scripts/art/` holds their source (`emblem.html`) and build (`render.sh`),
 which are not shipped. `Ranks.emblem(index)` gives a rank's texture path, and
 `Ranks.of(score).emblem` the one for a score. **[call]**
+
+(changed after 1.6.0: colour themes.) `Themes.lua` (pure) holds the four
+palettes under shared slot names. `UIFormat.applyTheme(id)` refills
+`UIFormat.COLORS` in place, so every file reading it follows. The painting
+helpers in `UIList.lua` take a slot name or a hex colour; what was painted
+by slot name is remembered and `UIList.repaint()` paints it again.
+`UI.setTheme(id)` saves, refills, repaints and redraws. `Ranks.emblem(index,
+theme)` takes the theme in use when none is given; `emblem.html?theme=<id>`
+and `render.sh` draw every theme's set. **[call]**
 
 ## 8. Left to the builder
 
@@ -1155,6 +1196,9 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
   the row. Crossing one prints "Milestone earned: <name> (<goal>)"; a guild message goes out only for the
   announce milestones (100 mobs, 25 players, raids), only in a guild with
   announcements on.
+- (after 1.6.0) A guild milestone or rank-up message reads the news first, then
+  one short warlock line ("... reached the rank of Reaper! They never learn.").
+  The same milestone gives the same line every time.
 - Announcement during a lockdown: `/console addonChatRestrictionsForced 1`,
   then earn an announce milestone (or a raid completion during a boss
   fight). Only the "Milestone earned" chat line appears, no guild message.
@@ -1163,10 +1207,10 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
   off: it still goes out once.
 
 **Settings and commands**
-- `/souldex options` or the gear opens six checkboxes (popup, sound, guild
-  announcements, claim chatter, login message, boss names after the fight); clicking the label text toggles too. Untick each in turn,
+- `/souldex options` or the gear opens five checkboxes (popup, sound, guild
+  announcements, login message, "Soul collected" on tooltips); clicking the label text toggles too. Untick each in turn,
   `/reload`: still unticked, and the matching behaviour stops.
-- The panel, top to bottom: six switches, a rule, "SIZE" with its two rows,
+- The panel, top to bottom: five switches, a rule, "SIZE" with its two rows,
   then "Test popup" and "Reset window" side by side. Nothing overlaps, nothing
   is cut off at the panel's bottom edge, and clicking a SIZE row or a button
   never ticks the last checkbox above it. (**Please check**: the panel grew
@@ -1186,6 +1230,35 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
 - `/souldex help` (or any unknown word) prints the commands.
 - `/dex`, `/dex options`, `/dex add <name>` do the same as their `/souldex`
   forms.
+
+**Colour themes (after 1.6.0)** Drawn blind: none of this has been seen in game.
+- Quit the game fully and start it again first (new emblem files in
+  `art/fel/`, `art/shadow/`, `art/ember/`).
+- Open the options: under the switches, a rule and a "Theme" row reading
+  `<  Soul Shard  >`, the `>` lined up with the SIZE `+` buttons below. Nothing
+  overlaps, nothing is cut off at the panel's bottom, and the game's Settings
+  page (Options > AddOns > SoulDex) has the same row.
+- With the dex open on Mobs, click `>`: it reads "Fel", and at once the window
+  border, its shading, the tabs, the title, the rank chip, the progress line,
+  the list rows, the selected-row marker and the rank emblem in the title bar
+  are all green; a silent sample popup appears in the green look. Nothing in
+  the window is still purple (**please check** the scroll thumb, the
+  hover colour of a row, the `x` and the gear's hover).
+- Click `>` again for "Shadow" (indigo, violet accent) and again for "Ember"
+  (charcoal and blood red, orange accent), then once more: back to "Soul
+  Shard", looking exactly as before this change.
+- In each theme, open a mob's trophy card, the Me tab, Milestones and the
+  Friends tab: the card's cells, quote bar, mastery stars and progress bar,
+  the Me tiles and crest, and the Friends panes follow the theme. Elite gold,
+  rare silver, boss orange and class colours look the same in every theme.
+- In Ember, a boss row's orange name is still told apart from the accent
+  (the selected-row marker, the mastery stars).
+- Change the theme on the game's Settings page while the small panel is open
+  too (or the other way round): both show the new name.
+- Pick Shadow, `/reload`: the window and the first real popup are in Shadow.
+- Claim something and rank up in a non-default theme: both popups use its
+  border, title and accent, and show that theme's emblem.
+- Every theme's emblems are recognisable at 14 px in the title bar.
 
 **Comforts and fixes (after 1.3.0)** None of this has been seen in game.
 - Fully restart the game (new files). No Lua errors at login.
@@ -1247,9 +1320,9 @@ One list, grouped by feature. Enable script errors first, then `/reload`.
 - (after 1.4.0-beta.1) In a listed raid, drain a trash mob out of a boss
   fight: after the popup, the Raids tab shows it claimed in that raid's list,
   not under Mobs > Raids.
-- (after 1.4.0-beta.1) Experimental, in a dungeon with a boss that starts an
-  encounter (Arcanist Doan in the Scarlet Monastery Library did): tick "Boss
-  names after the fight (test)". Drain the boss so it dies during your
+- (after 1.4.0-beta.1; always on since after 1.6.0) In a dungeon with a boss
+  that starts an encounter (Arcanist Doan in the Scarlet Monastery Library
+  did): drain the boss so it dies during your
   channel, and **keep it targeted** until a few seconds after it dies. Expected:
   no red "Interface action failed" error, the shard's tooltip reads "name
   pending" for a moment, then the popup names the boss. If instead the soul is
@@ -1321,8 +1394,6 @@ that overlaps, is cut off, or shows as a solid green square (a missing icon).
   ("+5" over "PTS"), and a band of light that crosses once. Ranking up shows
   a second popup just under it with "RANK UP" and plays a different sound; a
   boss plays a different sound too. Neither popup overlaps the other.
-- Options has four boxes; ticking "Claim chatter in chat" prints one line per
-  claim, and unticking stops it.
 
 **Rank emblems (after 1.2.4)**
 - Quit the game fully and start it again before these checks: the client
@@ -1461,7 +1532,7 @@ The rule stands: a lead that could give a wrong name is not used.
 
 | # | Lead | Would solve | What must be true (probe) |
 |---|---|---|---|
-| A | Ask late: keep the boss's shard held through the encounter and send the whisper when the chat lock lifts (`ENCOUNTER_END`, `ADDON_RESTRICTION_STATE_CHANGED`), if the target hasn't changed since the cast (the target-change count already exists). **Built as an experiment, off by default** (the "Boss names after the fight (test)" option; below). | 1 | `%t` still expands to a **dead** target's name, and the send is allowed right after the encounter ends. The probe sends `SDXP:ENCOUNTER_END+0/+1/+3:%t` and logs the replies. |
+| A | Ask late: keep the boss's shard held through the encounter and send the whisper when the chat lock lifts (`ENCOUNTER_END`, `ADDON_RESTRICTION_STATE_CHANGED`), if the target hasn't changed since the cast (the target-change count already exists). **Built; always on** ("Boss names after the fight", below). | 1 | `%t` still expands to a **dead** target's name, and the send is allowed right after the encounter ends. The probe sends `SDXP:ENCOUNTER_END+0/+1/+3:%t` and logs the replies. |
 | B | `BOSS_KILL` / `ENCOUNTER_END` carry `encounterID` and `encounterName`, and the docs do not mark them secret. A shard gained from a capture on a boss-classified target while that encounter runs could take the name the raid lists for that encounter. | 1 | The payload is readable inside the instance. Needs a table from encounter name to boss (the encounter is "The Four Horsemen", the soul is one horseman), so only encounters whose name is a listed boss can be used; dungeons have no list yet. |
 | C | `CHAT_MSG_COMBAT_XP_GAIN` ("<name> dies, you gain N experience") names what died at the moment of the kill. | 1, 4 (while levelling only) | The text is readable in an instance and during an encounter. No use at level cap, and with a group kill of two mobs in one moment the names can't be told apart. |
 | D | `C_Secrets.ShouldUnitIdentityBeSecret(unit)` says beforehand whether a unit's identity is hidden. | Cleaner guard, nothing new named | It answers readably. Would replace reading the name to find out. |
@@ -1492,8 +1563,10 @@ encounters, which unlocks B and H. Whatever names a soul, the rule holds: two
 clues that disagree, or one clue that could mean two creatures, give an
 Unknown soul.
 
-**Boss names after the fight (experimental; lead A).** A switch in the options,
-**off** by default, `settings.lateAsk`. With it on, a Drain Soul or Shadowburn
+**Boss names after the fight (lead A).** Always on (an experimental switch,
+`settings.lateAsk`, until after 1.6.0; made permanent after the City of Dalaran
+probe run below showed a boss drained during its encounter named in the dex,
+and the player had it on for a long time with no trouble). A Drain Soul or Shadowburn
 on a hidden-name target while chat is locked (a boss encounter) no longer
 gives up on the name: when everything else about the ask is right
 (`Whisper.shouldDefer`), the ask is held, and its shard is held like any
@@ -1504,9 +1577,9 @@ target has not changed since the cast; any target change, or no target,
 fails it at once (an Unknown soul, as today). A recast on the same target
 replaces the held ask, so a long fight ends in one whisper. A held ask never
 sends into a chat lock. The usual limits apply (60 s of unrestricted time, at
-most 600 s). It is off by default because it has never run in game: if the
-client refuses the send it shows a red error and turns soul names off for the
-session (4.2). What it cannot do: name a boss you stopped targeting before
+most 600 s). If the client ever refuses the send, it shows a red error and
+turns soul names off for the session (4.2), the same safety net as any other
+soul-name whisper. What it cannot do: name a boss you stopped targeting before
 the fight ended.
 
 Probe run to do (adds to section 9): install `scripts/probe/SoulDexProbe` as its

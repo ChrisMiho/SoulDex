@@ -15,6 +15,7 @@
 
 embeds.xml
 
+src\Themes.lua
 src\Settings.lua
 src\Version.lua
 src\RaidData.lua

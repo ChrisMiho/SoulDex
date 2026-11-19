@@ -5,6 +5,10 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Colour themes: pick Soul Shard, Fel, Shadow or Ember in the options to change the window's look, popups and rank emblems included. The change shows at once and is saved per character.
+- Bosses drained mid-fight now get their real name once the fight ends, if you keep them targeted, for everyone: the "Boss names after the fight (test)" option is gone.
+- Guild announcements for milestones and rank-ups end with a short line in the warlock's voice.
+- Removed the "Claim chatter in chat" option.
 - The Friends tab lists warlocks only. Other classes running SoulDex no longer show up, and ones already listed are removed.
 - `/souldex find` ignores capitals for accented letters too: "æthel" finds "Æthelwulf".
 

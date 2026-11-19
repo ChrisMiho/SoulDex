@@ -49,23 +49,27 @@ function Toast.title(info, stars)
 	return "SOUL CLAIMED"
 end
 
-local BORDER, TITLE, FEL = "6b4fa0", "c9a8ff", "9dff3a"
-local BG = "14101c"
+-- The theme's colours (UIFormat.COLORS, refilled in place on a theme change).
+local function colors()
+	return ns.UIFormat.COLORS
+end
 
 local function rgb(hex)
 	return tonumber(hex:sub(1, 2), 16) / 255, tonumber(hex:sub(3, 4), 16) / 255, tonumber(hex:sub(5, 6), 16) / 255
 end
 
--- Hex colours for the popup's border and title: fel green for a mastery star, the soul's
--- own colour for a rare one (anything not plain white), else the window's purple.
+-- Hex colours for the popup's border and title: the theme's accent for a mastery star,
+-- the soul's own colour for a rare one (anything not plain white), else the theme's border
+-- and title.
 function Toast.accent(color, stars)
+	local C = colors()
 	if stars then
-		return FEL, FEL
+		return C.ACCENT, C.ACCENT
 	end
 	if type(color) == "string" and #color == 6 and color:lower() ~= "ffffff" then
 		return color, color
 	end
-	return BORDER, TITLE
+	return C.BORDER, C.TITLE
 end
 
 -- The rank-up popup's second line: "Rank 4 of 8 · next: Reaper at 2,500".
@@ -102,8 +106,8 @@ local function build()
 		edgeFile = "Interface\\Buttons\\WHITE8X8",
 		edgeSize = 1,
 	})
-	frame:SetBackdropColor(rgb(BG))
-	frame:SetBackdropBorderColor(rgb(BORDER))
+	frame:SetBackdropColor(rgb(colors().BG))
+	frame:SetBackdropBorderColor(rgb(colors().BORDER))
 
 	-- A fade of the soul's colour from the left edge, and a solid bar on that edge.
 	frame.tint = frame:CreateTexture(nil, "BORDER")
@@ -125,7 +129,6 @@ local function build()
 	frame.ptsLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 	frame.ptsLabel:SetPoint("TOPRIGHT", frame.pts, "BOTTOMRIGHT", 0, -1)
 	frame.ptsLabel:SetText("PTS")
-	frame.ptsLabel:SetTextColor(0x9a / 255, 0x8f / 255, 0xb0 / 255)
 
 	frame.title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 	frame.title:SetPoint("TOPLEFT", frame.icon, "TOPRIGHT", 8, 0)
@@ -136,7 +139,6 @@ local function build()
 	frame.name:SetWordWrap(false)
 	frame.sub = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 	frame.sub:SetPoint("TOPLEFT", frame.name, "BOTTOMLEFT", 0, -2)
-	frame.sub:SetTextColor(0x9a / 255, 0x8f / 255, 0xb0 / 255)
 
 	frame.shine = frame:CreateTexture(nil, "OVERLAY")
 	frame.shine:SetSize(SHINE_W, HEIGHT)
@@ -205,8 +207,13 @@ function Toast.rescale()
 	end
 end
 
--- Colours a frame and starts its slide. accent: border, bar and fade; title: the top line.
+-- Colours a frame from the theme in use and starts its slide. accent: border, bar and
+-- fade; title: the top line.
 local function present(frame, accent, title)
+	local C = colors()
+	frame:SetBackdropColor(rgb(C.BG))
+	frame.ptsLabel:SetTextColor(rgb(C.MUTED))
+	frame.sub:SetTextColor(rgb(C.MUTED))
 	frame:SetBackdropBorderColor(rgb(accent))
 	frame.bar:SetColorTexture(rgb(accent))
 	if ns.UIList then
@@ -234,7 +241,7 @@ function Toast.show(result, info, ctx, color, emblem)
 	frame.name:SetText("|cff" .. (color or "ffffff") .. Toast.nameLine(info) .. "|r")
 	frame.sub:SetText(Toast.subtitle(result, ctx.zone))
 	frame.pts:SetText(Toast.pointsText(result))
-	frame.pts:SetTextColor(0x7d / 255, 1, 0x6a / 255)
+	frame.pts:SetTextColor(rgb(colors().GOOD))
 	present(frame, border, title)
 end
 
@@ -245,9 +252,10 @@ function Toast.showRank(rank)
 	local frame = frames.rank
 	frame.icon:SetTexture(rank.emblem or ns.Ranks.emblem(rank.index))
 	frame.title:SetText("RANK UP")
-	frame.name:SetText("|cff" .. FEL .. rank.name .. "|r")
+	local C = colors()
+	frame.name:SetText("|cff" .. C.ACCENT .. rank.name .. "|r")
 	frame.sub:SetText(Toast.rankSub(rank))
 	frame.pts:SetText(ns.View and ns.View.thousands(rank.score) or tostring(rank.score))
-	frame.pts:SetTextColor(0xe8 / 255, 0xe0 / 255, 0xf0 / 255)
-	present(frame, FEL, FEL)
+	frame.pts:SetTextColor(rgb(C.TEXT))
+	present(frame, C.ACCENT, C.ACCENT)
 end

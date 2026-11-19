@@ -572,7 +572,7 @@ local function milestones(db, dex)
 			local label = ns.Milestones.label(m)
 			ns.Print("Milestone earned: " .. label)
 			if m.announce and settings.announce then
-				announce(db, "SoulDex: " .. label .. "!")
+				announce(db, ns.Flavour.announce("SoulDex: " .. label .. "!"))
 			end
 		end)
 	end
@@ -640,7 +640,7 @@ local function rankUp(db, rank)
 	local place = " (rank " .. rank.index .. " of " .. rank.count .. ")."
 	ns.Print("Rank up: you are now |cff9dff3a" .. rank.name .. "|r" .. place)
 	if db.settings.announce and rank.index >= ns.Ranks.ANNOUNCE_FROM then
-		announce(db, "SoulDex: reached the rank of " .. rank.name .. "!")
+		announce(db, ns.Flavour.announce("SoulDex: reached the rank of " .. rank.name .. "!"))
 	end
 end
 
@@ -672,14 +672,6 @@ local function afterCatch(db, dex, result, entry)
 	end
 	if rank then
 		Capture.protect(errorHandler(), rankUp, db, rank)
-	end
-	if db.settings.chatter and ns.Flavour.chatter and result.kind ~= "unknown" then
-		Capture.protect(errorHandler(), function()
-			local line = ns.Flavour.chatter(entry.info.name, result.count, result.points)
-			if line then
-				ns.Print(line)
-			end
-		end)
 	end
 	if result.stars then
 		Capture.protect(errorHandler(), function()
@@ -1190,7 +1182,7 @@ function Capture.start(db, dex)
 
 	-- A capture whose target name is hidden: whispers the player for the name when the
 	-- guard allows. Returns the capture's info, carrying the pend when the whisper went out.
-	-- Experimental (settings.lateAsk): asks held because chat was locked at the cast (a
+	-- Asks held because chat was locked at the cast (a
 	-- boss encounter). Each is sent the moment the lock lifts, if the target is still the
 	-- one the spell was cast at; any target change in between fails it (an Unknown soul).
 	local held = {}
@@ -1226,7 +1218,7 @@ function Capture.start(db, dex)
 		end
 		local state = Capture.askState()
 		local later = not Whisper.shouldAsk(state)
-		if later and not (db.settings.lateAsk and Whisper.shouldDefer(state)) then
+		if later and not Whisper.shouldDefer(state) then
 			return info
 		end
 		-- The spell's target was fixed when the cast was sent; %t names the target now. A

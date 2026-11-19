@@ -9,10 +9,7 @@ ns.UIList = L
 local F = ns.UIFormat
 local C = F.COLORS
 
-local BORDER = "6b4fa0"
-local SELECTED, HOVER, ROW_LINE, RULE = "3a2a55", "2a2040", "1d1629", "2d2240"
-local BAR_TRACK, BAR_FILL, BAR_H = "2d2240", "7dff6a", 2
-local MARK = "9dff3a" -- the fel-green marker on the selected row
+local BAR_H = 2
 
 local BACKDROP = {
 	bgFile = "Interface\\Buttons\\WHITE8X8",
@@ -21,27 +18,48 @@ local BACKDROP = {
 }
 
 -- Painting helpers (shared with the window, the detail pane and Options) -----------------------
+-- A colour is a slot name from UIFormat.COLORS ("BORDER", "ACCENT": it follows the theme)
+-- or a hex "rrggbb" (a soul's or class's own colour: it doesn't). What was painted by slot
+-- name is remembered, weakly, so L.repaint() can paint it again after a theme change; a
+-- later paint with hex only forgets it.
 
-function L.textColor(fontString, hex)
-	local r, g, b = F.hexRGB(hex)
+local painted = setmetatable({}, { __mode = "k" })
+
+local function hex(color)
+	return C[color] or color
+end
+
+local function remember(obj, kind, a, b, c, d, e)
+	if C[a] or C[c] or (kind == "gradient" and C[d]) then
+		painted[obj] = { kind, a, b, c, d, e }
+	else
+		painted[obj] = nil
+	end
+end
+
+function L.textColor(fontString, color)
+	remember(fontString, "textColor", color)
+	local r, g, b = F.hexRGB(hex(color))
 	fontString:SetTextColor(r, g, b, 1)
 end
 
-function L.fill(texture, hex, alpha)
-	local r, g, b = F.hexRGB(hex)
+function L.fill(texture, color, alpha)
+	remember(texture, "fill", color, alpha)
+	local r, g, b = F.hexRGB(hex(color))
 	texture:SetColorTexture(r, g, b, alpha or 1)
 end
 
 -- Shades a texture from one colour to another: "VERTICAL" runs bottom to top,
 -- "HORIZONTAL" left to right. Clients name the call differently; where neither works
 -- the texture is filled flat with the end colour.
-function L.gradient(texture, orientation, fromHex, fromAlpha, toHex, toAlpha)
-	local r1, g1, b1 = F.hexRGB(fromHex)
-	local r2, g2, b2 = F.hexRGB(toHex)
+function L.gradient(texture, orientation, from, fromAlpha, to, toAlpha)
+	remember(texture, "gradient", orientation, fromAlpha, from, to, toAlpha)
+	local r1, g1, b1 = F.hexRGB(hex(from))
+	local r2, g2, b2 = F.hexRGB(hex(to))
 	texture:SetColorTexture(1, 1, 1, 1)
 	if texture.SetGradient and CreateColor then
-		local from, to = CreateColor(r1, g1, b1, fromAlpha), CreateColor(r2, g2, b2, toAlpha)
-		if pcall(texture.SetGradient, texture, orientation, from, to) then
+		local fromColor, toColor = CreateColor(r1, g1, b1, fromAlpha), CreateColor(r2, g2, b2, toAlpha)
+		if pcall(texture.SetGradient, texture, orientation, fromColor, toColor) then
 			return
 		end
 	end
@@ -53,32 +71,52 @@ function L.gradient(texture, orientation, fromHex, fromAlpha, toHex, toAlpha)
 end
 
 function L.backdrop(frame, bg, border, alpha)
+	remember(frame, "backdrop", bg, alpha, border)
 	frame:SetBackdrop(BACKDROP)
-	local r, g, b = F.hexRGB(bg)
+	local r, g, b = F.hexRGB(hex(bg))
 	frame:SetBackdropColor(r, g, b, alpha or 1)
-	r, g, b = F.hexRGB(border)
+	r, g, b = F.hexRGB(hex(border))
 	frame:SetBackdropBorderColor(r, g, b, 1)
 end
 
-local BUTTON_BG, BUTTON_BORDER, BUTTON_HOVER = "251b36", "5a4486", "3d2d5c"
+-- Paints everything painted by slot name again, from UIFormat.COLORS as it is now.
+function L.repaint()
+	local jobs = {}
+	for obj, job in pairs(painted) do
+		jobs[#jobs + 1] = { obj, job }
+	end
+	for _, entry in ipairs(jobs) do
+		local obj, job = entry[1], entry[2]
+		local kind, a, b, c, d, e = job[1], job[2], job[3], job[4], job[5], job[6]
+		if kind == "textColor" then
+			L.textColor(obj, a)
+		elseif kind == "fill" then
+			L.fill(obj, a, b)
+		elseif kind == "gradient" then
+			L.gradient(obj, a, c, b, d, e)
+		else
+			L.backdrop(obj, a, c, b)
+		end
+	end
+end
 
--- A small text button ("« Back", "Clean up"): dark purple, lighter on hover.
+-- A small text button ("« Back", "Clean up"): theme-coloured, lighter on hover.
 -- onClick is optional (callers may set OnClick later).
 function L.button(parent, text, width, height, onClick)
 	local button = CreateFrame("Button", nil, parent, "BackdropTemplate")
 	button:SetSize(width, height)
-	L.backdrop(button, BUTTON_BG, BUTTON_BORDER)
+	L.backdrop(button, "TAB_BG", "BUTTON_EDGE")
 	button.label = button:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	button.label:SetPoint("CENTER", 0, 0)
 	button.label:SetText(text)
-	L.textColor(button.label, C.TITLE)
+	L.textColor(button.label, "TITLE")
 	button:SetScript("OnEnter", function(self)
-		L.backdrop(self, BUTTON_HOVER, BUTTON_BORDER)
-		L.textColor(self.label, C.WHITE)
+		L.backdrop(self, "DIVIDER", "BUTTON_EDGE")
+		L.textColor(self.label, "WHITE")
 	end)
 	button:SetScript("OnLeave", function(self)
-		L.backdrop(self, BUTTON_BG, BUTTON_BORDER)
-		L.textColor(self.label, C.TITLE)
+		L.backdrop(self, "TAB_BG", "BUTTON_EDGE")
+		L.textColor(self.label, "TITLE")
 	end)
 	if onClick then
 		button:SetScript("OnClick", onClick)
@@ -117,7 +155,7 @@ function L.new(parent, width, height, rowHeight, lines)
 	sf:SetScrollChild(child)
 	local thumb = sf:CreateTexture(nil, "OVERLAY")
 	thumb:SetWidth(2)
-	L.fill(thumb, BORDER, 0.8)
+	L.fill(thumb, "BORDER", 0.8)
 	thumb:Hide()
 
 	local list = setmetatable({
@@ -164,7 +202,7 @@ function List:row(i)
 	row:SetWidth(self.width)
 	row.sel = row:CreateTexture(nil, "BACKGROUND")
 	row.sel:SetAllPoints()
-	L.fill(row.sel, SELECTED)
+	L.fill(row.sel, "SELECTED")
 	-- Left edge: the selection marker, or a stripe in the row's own colour (item.stripe).
 	row.mark = row:CreateTexture(nil, "ARTWORK")
 	row.mark:SetWidth(2)
@@ -172,27 +210,27 @@ function List:row(i)
 	row.mark:SetPoint("BOTTOMLEFT", 0, 2)
 	row.hover = row:CreateTexture(nil, "HIGHLIGHT")
 	row.hover:SetAllPoints()
-	L.fill(row.hover, HOVER)
+	L.fill(row.hover, "HOVER")
 	row.line = row:CreateTexture(nil, "BORDER")
 	row.line:SetHeight(1)
 	row.line:SetPoint("BOTTOMLEFT")
 	row.line:SetPoint("BOTTOMRIGHT")
-	L.fill(row.line, ROW_LINE)
+	L.fill(row.line, "ROW_LINE")
 	-- Progress bar along the bottom (item.bar): a track and its fill.
 	row.track = row:CreateTexture(nil, "BORDER")
 	row.track:SetHeight(BAR_H)
 	row.track:SetPoint("BOTTOMLEFT", 4, 0)
 	row.track:SetPoint("BOTTOMRIGHT", -4, 0)
-	L.fill(row.track, BAR_TRACK)
+	L.fill(row.track, "TRACK")
 	row.bar = row:CreateTexture(nil, "ARTWORK")
 	row.bar:SetHeight(BAR_H)
 	row.bar:SetPoint("BOTTOMLEFT", 4, 0)
-	L.fill(row.bar, BAR_FILL)
+	L.fill(row.bar, "GOOD")
 	row.rule = row:CreateTexture(nil, "BORDER")
 	row.rule:SetHeight(1)
 	row.rule:SetPoint("LEFT", 2, 0)
 	row.rule:SetPoint("RIGHT", -2, 0)
-	L.fill(row.rule, RULE)
+	L.fill(row.rule, "TRACK")
 	row.right = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	row.right:SetPoint("RIGHT", -4, 0)
 	row.right:SetJustifyH("RIGHT")
@@ -216,9 +254,9 @@ function List:set(items, onClick, keepScroll)
 		local h = item.hr and 5 or self.rowHeight
 		left:SetFontObject(item.big and GameFontNormal or GameFontHighlightSmall)
 		left:SetText(item.text or "")
-		L.textColor(left, item.color or C.TEXT)
+		L.textColor(left, item.color or "TEXT")
 		right:SetText(item.right or "")
-		L.textColor(right, item.rightColor or C.MUTED)
+		L.textColor(right, item.rightColor or "MUTED")
 		left:ClearAllPoints()
 		if item.wrap then
 			left:SetPoint("TOPLEFT", 4, -1)
@@ -234,7 +272,7 @@ function List:set(items, onClick, keepScroll)
 		L.setShown(right, not item.hr)
 		L.setShown(row.rule, item.hr)
 		L.setShown(row.sel, item.selected)
-		local mark = item.selected and MARK or item.stripe
+		local mark = item.selected and "ACCENT" or item.stripe
 		if mark then
 			L.fill(row.mark, mark)
 		end

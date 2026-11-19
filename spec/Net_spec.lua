@@ -7,7 +7,8 @@ describe("Net", function()
 			Print = function() end,
 		}
 		local files = {
-			"Settings", "Raids", "Points", "Rarity", "Ranks", "Flavour", "Dex", "Milestones", "View", "UIFormat", "Version",
+			"Themes", "Settings", "Raids", "Points", "Rarity", "Ranks", "Flavour", "Dex", "Milestones", "View", "UIFormat",
+			"Version",
 			"Comm", "Friends", "Shards", "Capture", "Net",
 		}
 		for _, file in ipairs(files) do
