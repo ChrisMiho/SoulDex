@@ -270,6 +270,9 @@ describe("Net", function()
 			local lines = Net.personLines(row, { summary = {}, seen = 1, dex = "D\t1", dexAt = 86400 * 300 }, os.date)
 			assert.equal("Dex saved", lines[#lines].text)
 			assert.equal(ns.UIFormat.dateText(86400 * 300, os.date), lines[#lines].right)
+			local sum = { score = 1, mobs = 1, players = 0, raids = 0 }
+			local current = Net.personLines(row, { summary = sum, seen = 1, dex = "D\t1", dexAt = 5, dexSummary = sum }, os.date)
+			assert.equal("up to date", current[#current].right)
 			local none = Net.personLines(row, { summary = {}, seen = 1 }, os.date)
 			assert.are_not.equal("Dex saved", none[#none].text)
 		end)
@@ -279,6 +282,9 @@ describe("Net", function()
 			assert.same({ copy = false, ask = true, quiet = false }, Net.browsePlan(false, false))
 			assert.same({ copy = true, ask = true, quiet = true }, Net.browsePlan(true, true))
 			assert.same({ copy = true, ask = false, quiet = true }, Net.browsePlan(true, false))
+			-- a copy that is still current: nothing to ask, online or not
+			assert.same({ copy = true, ask = false, quiet = true }, Net.browsePlan(true, true, true))
+			assert.same({ copy = true, ask = false, quiet = true }, Net.browsePlan(true, false, true))
 		end)
 	end)
 
@@ -852,6 +858,32 @@ describe("Net", function()
 				assert.equal(payload, db.friends.Bob.dex)
 				assert.equal(wall, db.friends.Bob.dexAt)
 				assert.is_nil(shown[1].savedAt) -- a fresh one: no "saved" date
+			end)
+
+			it("remembers the numbers the dex came with", function()
+				local db = start()
+				ns.Net.addFriend("Bob")
+				ns.Net:OnCommReceived("SoulDex", summary(9), "WHISPER", "Bob")
+				ns.Net.browse("Bob")
+				ns.Net:OnCommReceived("SoulDex", friendDex(), "WHISPER", "Bob")
+				assert.equal(9, db.friends.Bob.dexSummary.score)
+			end)
+
+			it("doesn't ask someone online again while their saved copy is current", function()
+				local db = start()
+				local sum = { score = 9, mobs = 3, players = 1, raids = 0 }
+				db.friends.Bob = { added = true, seen = wall, summary = sum, dex = friendDex(), dexAt = 5, dexSummary = sum }
+				local count = #sent
+				ns.Net.browse("Bob")
+				assert.equal(count, #sent)
+				assert.equal(1, #shown)
+				assert.is_nil(shown[1].savedAt) -- current: no "saved" date in the title
+				assert.equal(0, #timers)
+				-- they catch something: the next browse shows the date and asks
+				db.friends.Bob.summary = { score = 11, mobs = 4, players = 1, raids = 0 }
+				ns.Net.browse("Bob")
+				assert.equal(5, shown[2].savedAt)
+				assert.equal(ns.Comm.encodeRequest("R"), sent[#sent].text)
 			end)
 
 			it("opens the saved copy of someone offline without asking them", function()

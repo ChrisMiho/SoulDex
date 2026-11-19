@@ -294,18 +294,20 @@ describe("UI", function()
 		assert.is_false(ns.UI.isBrowsing())
 	end)
 
-	it("shows '« My dex' while browsing; it and closing the window go back to yours", function()
+	it("shows '« Friends' while browsing; it goes back to the Friends list on your own dex", function()
 		loadDb()
 		local friend = ns.Dex.new({})
 		ns.UI.showDex(friend, "Pal")
+		ns.UI.selectTab("Mobs")
 		local button = find("Button", function(f)
 			local label = rawget(f, "label")
-			return label and label.text == "\194\171 My dex"
+			return label and label.text == "\194\171 Friends"
 		end)
 		assert.is_true(button.shown)
 		button.scripts.OnClick(button)
 		assert.is_false(ns.UI.isBrowsing())
 		assert.is_false(button.shown)
+		assert.equal("Friends", ns.UI.currentTab())
 
 		ns.UI.showDex(friend, "Pal")
 		local frame = _G.SoulDexFrame
@@ -356,8 +358,19 @@ describe("UI", function()
 			end
 			return out
 		end
+		local tip = {}
+		local savedTooltip = _G.GameTooltip
+		_G.GameTooltip = {
+			SetOwner = function() end,
+			SetText = function(_, text) tip.name = text end,
+			Show = function() tip.shown = true end,
+			Hide = function() tip.shown = false end,
+		}
 		local before = shownCrosses()
 		row.scripts.OnEnter(row) -- Ann is added: hovering shows her ×
+		-- and a tooltip with her full name
+		assert.equal("Ann", tip.name)
+		assert.is_true(tip.shown)
 		local remove
 		for f in pairs(shownCrosses()) do
 			if not before[f] then
@@ -370,6 +383,9 @@ describe("UI", function()
 		ns.UI.refresh()
 		assert.is_true(remove.shown)
 		row.IsMouseOver = nil
+		row.scripts.OnLeave(row)
+		assert.is_false(tip.shown)
+		_G.GameTooltip = savedTooltip
 		remove.scripts.OnClick(remove)
 		assert.is_false(db.friends.Ann.added) -- seen recently: kept, but no longer added
 

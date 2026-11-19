@@ -23,8 +23,13 @@ local FULL_ROW_H = 16 -- Me and Milestones: the rank lines and nine stats fit wi
 
 UI.TABS = { "Me", "Mobs", "Players", "Raids", "Milestones", "Friends" }
 
+-- Friends gets a wider left column than the other tabs, so two-part names fit in the
+-- leaderboard ("2. Psepsis Doomchov"); its right side only holds short numbers.
+local FRIENDS_LEFT_W = 164
+local FRIENDS_RIGHT_X = FRIENDS_LEFT_W + 5
+
 -- Sizes of the two Friends tab frames handed to the builder (see setFriendsTab).
-UI.FRIENDS_LEFT_W, UI.FRIENDS_RIGHT_W, UI.FRIENDS_H = LEFT_W, BODY_W - RIGHT_X, BODY_H
+UI.FRIENDS_LEFT_W, UI.FRIENDS_RIGHT_W, UI.FRIENDS_H = FRIENDS_LEFT_W, BODY_W - FRIENDS_RIGHT_X, BODY_H
 
 local WINDOW_BG, BORDER, DIVIDER = "14101c", "6b4fa0", "3d2d5c"
 local TAB_BG = "251b36"
@@ -241,11 +246,7 @@ draw = function(action)
 	local left, right = ns.View.header(dex, tab)
 	titleLeft:ClearAllPoints()
 	if state.owner then
-		left = "SoulDex \194\183 Viewing " .. state.owner
-		local saved = F.dateText(state.savedAt)
-		if saved then
-			left = left .. " \194\183 saved " .. saved
-		end
+		left = F.browseTitle(state.owner, state.savedAt, time())
 		titleLeft:SetPoint("LEFT", myDexButton, "RIGHT", 5, 0)
 	else
 		titleLeft:SetPoint("LEFT", TITLE_H, 0)
@@ -272,6 +273,10 @@ draw = function(action)
 	fullList:show(tab == "Milestones")
 	setShown(meBox, tab == "Me")
 	setShown(divider, tab ~= "Milestones")
+	local split = (tab == "Friends" and FRIENDS_LEFT_W or LEFT_W) + 2
+	divider:ClearAllPoints()
+	divider:SetPoint("TOPLEFT", split, 0)
+	divider:SetPoint("BOTTOMLEFT", split, 0)
 	setShown(friendsBox, tab == "Friends")
 
 	if collection then
@@ -403,8 +408,13 @@ local function buildTitle()
 	chip.label = chip:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	chip.label:SetPoint("CENTER", 0, 0)
 	UI.textColor(chip.label, FEL)
-	-- "« My dex": shown while browsing a friend's dex (draw anchors the title after it).
-	myDexButton = UI.button(bar, "\194\171 My dex", 56, 14, function()
+	-- "« Friends": shown while browsing a friend's dex (draw anchors the title after it).
+	-- Back to the list you browsed from, on your own dex.
+	myDexButton = UI.button(bar, "\194\171 Friends", 60, 14, function()
+		state.tab = "Friends"
+		if ns.db and ns.db.window then
+			ns.db.window.tab = "Friends"
+		end
 		UI.showDex(nil, nil)
 	end)
 	myDexButton:SetPoint("LEFT", 0, 0)
@@ -511,10 +521,10 @@ local function buildBody()
 	friendsBox:SetAllPoints()
 	friendsLeft = CreateFrame("Frame", nil, friendsBox)
 	friendsLeft:SetPoint("TOPLEFT", 0, 0)
-	friendsLeft:SetSize(LEFT_W, BODY_H)
+	friendsLeft:SetSize(FRIENDS_LEFT_W, BODY_H)
 	friendsRight = CreateFrame("Frame", nil, friendsBox)
-	friendsRight:SetPoint("TOPLEFT", RIGHT_X, 0)
-	friendsRight:SetSize(BODY_W - RIGHT_X, BODY_H)
+	friendsRight:SetPoint("TOPLEFT", FRIENDS_RIGHT_X, 0)
+	friendsRight:SetSize(BODY_W - FRIENDS_RIGHT_X, BODY_H)
 	friendsNote = friendsBox:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	friendsNote:SetPoint("CENTER")
 	friendsNote:SetText("Friends arrive soon")

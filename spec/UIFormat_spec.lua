@@ -37,6 +37,13 @@ describe("UIFormat", function()
 			assert.is_nil(F.dateText(nil, os.date))
 		end)
 
+		it("titles a browsed dex: the full name, or the first name and when a saved copy is from", function()
+			local now = stamp(2026, 11, 18)
+			assert.equal("Psepsis Doomchov", F.browseTitle("Psepsis Doomchov", nil, now, os.date))
+			assert.equal("Psepsis \194\183 saved today", F.browseTitle("Psepsis Doomchov", now, now, os.date))
+			assert.equal("Bob \194\183 saved 3 Nov 26", F.browseTitle("Bob", stamp(2026, 11, 3), now, os.date))
+		end)
+
 		it("joins only the parts that exist", function()
 			assert.equal("a · c", F.join({ "a", nil, "c" }, " · ", 3))
 			assert.equal("b", F.join({ nil, "b", "" }, " ", 3))

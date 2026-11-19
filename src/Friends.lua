@@ -1,6 +1,7 @@
 -- The friends store and leaderboard (pure; no WoW API). The store maps a
--- normalised name to { summary, seen, added, dex, dexAt }: dex is the last dex they
--- sent, as it came over the wire, and dexAt the time() it arrived.
+-- normalised name to { summary, seen, added, dex, dexAt, dexSummary }: dex is the last
+-- dex they sent, as it came over the wire, dexAt the time() it arrived and dexSummary
+-- their summary numbers then.
 local _, ns = ...
 
 local Friends = {}
@@ -82,7 +83,7 @@ function Friends.tidy(store, me, now)
 					cur.seen, cur.summary = old.seen, old.summary or cur.summary
 				end
 				if old.dex and (old.dexAt or 0) > (cur.dexAt or 0) then
-					cur.dex, cur.dexAt = old.dex, old.dexAt
+					cur.dex, cur.dexAt, cur.dexSummary = old.dex, old.dexAt, old.dexSummary
 				end
 			end
 		end
@@ -113,14 +114,42 @@ function Friends.isOnline(entry, now)
 	return entry ~= nil and isSeen(entry, now)
 end
 
+local SUMMARY_FIELDS = { "score", "mobs", "players", "raids" }
+
 -- Keeps text (a dex as it came over the wire) as the person's saved copy, replacing
--- any older one. Only for someone already in the store; returns whether it was kept.
-function Friends.keepDex(store, name, text, now)
+-- any older one, with a copy of summary: their numbers when it arrived. Only for
+-- someone already in the store; returns whether it was kept.
+function Friends.keepDex(store, name, text, now, summary)
 	local entry = store[Friends.normalise(name) or ""]
 	if not entry or type(text) ~= "string" then
 		return false
 	end
-	entry.dex, entry.dexAt = text, now
+	local numbers
+	if type(summary) == "table" then
+		numbers = {}
+		for _, k in ipairs(SUMMARY_FIELDS) do
+			numbers[k] = summary[k]
+		end
+	end
+	entry.dex, entry.dexAt, entry.dexSummary = text, now, numbers
+	return true
+end
+
+-- Whether the saved copy is still their whole dex: their latest numbers are the ones
+-- it came with. Without numbers to compare it is never current.
+function Friends.dexCurrent(entry)
+	if not entry or type(entry.dex) ~= "string" then
+		return false
+	end
+	local was, now = entry.dexSummary, entry.summary
+	if type(was) ~= "table" or type(now) ~= "table" then
+		return false
+	end
+	for _, k in ipairs(SUMMARY_FIELDS) do
+		if was[k] == nil or was[k] ~= now[k] then
+			return false
+		end
+	end
 	return true
 end
 
@@ -136,7 +165,7 @@ end
 function Friends.dropDex(store, name)
 	local entry = store[Friends.normalise(name) or ""]
 	if entry then
-		entry.dex, entry.dexAt = nil, nil
+		entry.dex, entry.dexAt, entry.dexSummary = nil, nil, nil
 	end
 end
 

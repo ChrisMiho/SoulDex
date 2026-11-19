@@ -203,8 +203,8 @@ describe("Friends", function()
 	it("tidy keeps the newer saved dex when two spellings merge", function()
 		local store = {
 			["Bob jones"] = { added = true, seen = 1, dex = "old", dexAt = 10 },
-			["Bob Jones"] = { added = false, seen = 9, dex = "new", dexAt = 20 },
-			["Ann smith"] = { added = true, seen = 1, dex = "mine", dexAt = 30 },
+			["Bob Jones"] = { added = false, seen = 9, dex = "new", dexAt = 20, dexSummary = { score = 4 } },
+			["Ann smith"] = { added = true, seen = 1, dex = "mine", dexAt = 30, dexSummary = { score = 7 } },
 			["Ann Smith"] = { added = false, seen = 9 },
 		}
 		Friends.tidy(store, "Fel")
@@ -212,6 +212,28 @@ describe("Friends", function()
 		assert.equal(20, store["Bob Jones"].dexAt)
 		assert.equal("mine", store["Ann Smith"].dex)
 		assert.equal(30, store["Ann Smith"].dexAt)
+		assert.equal(7, store["Ann Smith"].dexSummary.score)
+		assert.equal(4, store["Bob Jones"].dexSummary.score)
+	end)
+
+	it("remembers the numbers a saved dex came with and tells when it is still current", function()
+		local store = {}
+		Friends.merge(store, "bob", sum(10, 2, 0, 0), 100, true)
+		Friends.keepDex(store, "Bob", "D\t1", 200, store.Bob.summary)
+		assert.same(sum(10, 2, 0, 0), store.Bob.dexSummary)
+		assert.are_not.equal(store.Bob.summary, store.Bob.dexSummary) -- a copy, not the same table
+		assert.is_true(Friends.dexCurrent(store.Bob))
+		-- they caught something since
+		Friends.merge(store, "Bob", sum(12, 3, 0, 0), 300, true)
+		assert.is_false(Friends.dexCurrent(store.Bob))
+		-- no numbers to go by: never current
+		Friends.keepDex(store, "Bob", "D\t1", 400, nil)
+		assert.is_nil(store.Bob.dexSummary)
+		assert.is_false(Friends.dexCurrent(store.Bob))
+		assert.is_false(Friends.dexCurrent({ summary = sum(1) }))
+		assert.is_false(Friends.dexCurrent(nil))
+		Friends.dropDex(store, "Bob")
+		assert.is_nil(store.Bob.dexSummary)
 	end)
 
 	it("tells who is online", function()

@@ -481,6 +481,17 @@ function F.whenText(t, now, fmt)
 	return F.dateText(t, fmt)
 end
 
+-- The window title while browsing someone's dex: their name, or, for a saved copy
+-- that may be out of date (savedAt: when it arrived), their first name and when the
+-- copy is from, short enough that the date isn't cut off.
+function F.browseTitle(owner, savedAt, now, fmt)
+	local when = F.whenText(savedAt, now, fmt)
+	if not when then
+		return owner
+	end
+	return (owner:match("^%S+") or owner) .. " \194\183 saved " .. when
+end
+
 -- View.meCard's records as list lines. A record: { label, name, count, time, souls,
 -- class, classification, text }.
 function F.recordLines(records, now, fmt, classColors)

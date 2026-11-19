@@ -304,19 +304,21 @@ function Net.personLines(row, entry, fmt)
 		lines[#lines + 1] = { text = "Not heard from yet.", color = C.MUTED }
 	end
 	if entry and type(entry.dex) == "string" then
-		lines[#lines + 1] = kv("Dex saved", F.dateText(entry.dexAt, fmt) or F.DASH)
+		local saved = ns.Friends.dexCurrent(entry) and "up to date" or F.dateText(entry.dexAt, fmt) or F.DASH
+		lines[#lines + 1] = kv("Dex saved", saved)
 	end
 	return lines
 end
 
--- What Browse dex does. hasCopy: a saved copy of their dex; online: Friends.isOnline.
--- copy: open the saved copy at once; ask: ask them for a fresh one; quiet: that ask
--- prints nothing in chat (the copy is already on screen).
-function Net.browsePlan(hasCopy, online)
+-- What Browse dex does. hasCopy: a saved copy of their dex; online: Friends.isOnline;
+-- current: the copy is still their whole dex (Friends.dexCurrent). copy: open the
+-- saved copy at once; ask: ask them for a fresh one; quiet: that ask prints nothing in
+-- chat (the copy is already on screen).
+function Net.browsePlan(hasCopy, online, current)
 	if not hasCopy then
 		return { copy = false, ask = true, quiet = false }
 	end
-	return { copy = true, ask = online == true, quiet = true }
+	return { copy = true, ask = online == true and current ~= true, quiet = true }
 end
 
 -- Game wiring ---------------------------------------------------------------------------
@@ -568,7 +570,8 @@ function handlers.D(name, _, db, _, message)
 		refreshFriends()
 		return
 	end
-	Friends.keepDex(ns.db.friends, name, message, time())
+	local entry = ns.db.friends[name]
+	Friends.keepDex(ns.db.friends, name, message, time(), entry and entry.summary)
 	refreshFriends()
 	local UI = ns.UI
 	if quiet then
@@ -739,9 +742,10 @@ function Net.browse(name)
 	if saved and not copy then
 		Friends.dropDex(store, name) -- unreadable (an older wire format): ask as before
 	end
-	local plan = Net.browsePlan(copy ~= nil and copy ~= false, Friends.isOnline(store[name], time()))
+	local upToDate = Friends.dexCurrent(store[name])
+	local plan = Net.browsePlan(copy ~= nil and copy ~= false, Friends.isOnline(store[name], time()), upToDate)
 	if plan.copy then
-		openDex(copy, name, savedAt)
+		openDex(copy, name, not upToDate and savedAt or nil) -- a current copy needs no date
 	end
 	if not plan.ask then
 		refreshFriends()
@@ -808,10 +812,18 @@ local tab = {} -- frames, built once
 local removeButtons = {} -- leaderboard row -> its "×" button
 local removable = {} -- leaderboard row -> true when it shows a person (not the hint)
 
+-- Hovering a person: the "×" takes the score's place, and a tooltip shows the full name
+-- (a long two-part name can still be cut off in the list).
 local function onRowEnter(row)
 	if removable[row] then
 		row.right:Hide()
 		removeButtons[row]:Show()
+		if not GameTooltip then
+			return
+		end
+		GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
+		GameTooltip:SetText(row.value)
+		GameTooltip:Show()
 	end
 end
 
@@ -819,6 +831,9 @@ local function onRowLeave(row)
 	if not row:IsMouseOver() then
 		removeButtons[row]:Hide()
 		row.right:Show()
+		if GameTooltip then
+			GameTooltip:Hide()
+		end
 	end
 end
 

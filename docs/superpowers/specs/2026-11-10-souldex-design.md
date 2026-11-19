@@ -520,6 +520,9 @@ lit/unlit medallion. **[call]**
 ### 5.7 Friends tab
 
 Not mocked up. Same two columns. **[user for what; call for layout]**
+(changed after 1.5.2-beta.1, user's call: two-part names were cut off.) The
+left column is wider here than on the other tabs (164 instead of 124), and
+hovering a person shows their full name in a tooltip.
 
 - Left: SoulDex users found in your **party, raid and guild**, plus anyone
   **added by name** (saved list, with an add box and a remove option). **[user]**
@@ -545,8 +548,11 @@ Not mocked up. Same two columns. **[user for what; call for layout]**
   who hasn't answered yet stays listed, so they can be selected and removed;
   the help text shows only when nobody is listed.
 - Clicking someone shows their summary; a **Browse dex** button opens
-  **their dex** read-only in the same window, with a visible "Viewing <name>"
-  marker and a "« My dex" button back to yours. Entries they have and you
+  **their dex** read-only in the same window, with their name as the title
+  and a "« Friends" button back to the Friends list on your own dex. (changed
+  after 1.5.2-beta.1, user's call: the button was "« My dex" and left you on
+  your own dex's current tab, a strange place to land; the title was
+  "SoulDex · Viewing <name>", which cut off long two-part names.) Entries they have and you
   don't are highlighted green. **[user]** (changed during build: the build
   plan put a summary and a Browse dex button first, so scores can be compared
   without fetching a whole dex over the network; the user's intent, a
@@ -590,11 +596,17 @@ Not mocked up. Same two columns. **[user for what; call for layout]**
   - (changed after 1.5.2-beta.1, user's call: so a rival's dex can be looked
     at while they're offline.) Every dex SoulDex asked for and received is
     saved with that person, in the form it came over the wire, with the time
-    it arrived; a newer one replaces it. Their summary pane shows "Dex saved
-    <date>". Browse dex on someone with a saved copy opens the copy at once,
-    the title reading "SoulDex · Viewing X · saved <date>". If they are
-    offline (not heard from in 10 minutes) nothing is sent. If they are online
-    a fresh dex is asked for quietly: no chat lines for the second ask or for
+    it arrived, and with their summary numbers at that moment. The copy is
+    **up to date** while their latest summary still has those numbers
+    (score, unique mobs, players, raids). Most catches change one of them,
+    but not all (see Known limitations). Their summary pane shows
+    "Dex saved" with "up to date" or the date it arrived. Browse dex on
+    someone with a saved copy opens the copy at once. An up-to-date copy is
+    titled with their name only and nothing is sent, online or not. An older
+    one is titled with their first name and when it's from ("Psepsis · saved
+    today", short so the date isn't cut off). If they are offline (not heard
+    from in 10 minutes) nothing is sent. If they are online and the copy is
+    older, a fresh dex is asked for quietly: no chat lines for the second ask or for
     no answer (the tab then says "No answer from X. Showing the copy saved
     <date>."). The fresh dex replaces the view only while that person's copy
     is still on screen; otherwise, or with the window closed, it is just
@@ -1262,7 +1274,7 @@ that overlaps, is cut off, or shows as a solid green square (a missing icon).
   emblem sits at the left of the title. Right of the title: your rank in
   green in a small box, then the total and score, the gear and ×. None of
   these overlap, including on the Milestones tab and while browsing a friend
-  ("« My dex" button, "SoulDex · Viewing X").
+  ("« Friends" button, the friend's name as the title).
 - Under the title a thin line is green from the left as far as your progress
   to the next rank.
 - The active tab has a green underline; the selected zone, class or raid has
@@ -1342,9 +1354,10 @@ that overlaps, is cut off, or shows as a solid green square (a missing icon).
   hidden, the left side shows the help text ("Guild and group members with SoulDex appear here." and "/souldex add <name>") and the right side is empty.
 - Click the other person: Rank, Score, Unique mobs, Players, Raids completed, online.
 - A clicks Browse dex: "Asking B..." then B's dex fills every tab, the title
-  reads "SoulDex · Viewing B" with a "« My dex" button, and entries B has and
+  reads B's name with a "« Friends" button, and entries B has and
   A lacks are green. A catch made while browsing does not change the view;
-  "« My dex" returns to A's own dex including it. Close the window while
+  "« Friends" returns to the Friends tab, on A's own dex including it, with B
+  still selected. Close the window while
   browsing, then `/souldex`: it opens on A's own dex.
 - Not in a guild: a party invite makes each appear within 30 s.
 - Not grouped: typing B's name into "Add..." (Enter), or `/souldex add B`,
@@ -1355,6 +1368,9 @@ that overlaps, is cut off, or shows as a solid green square (a missing icon).
   B never appears; tell the builder).
 - Hover a guild member you never added: a × shows and removes them; they come
   back on their next score update.
+- Two-part names such as "2. Psepsis Doomchov" fit in the list beside the
+  score; hovering any person shows a tooltip with their full name. The right
+  side (their name and "online", Raids completed) still fits.
 - Click "Clean up" beside the add box: a dialog asks first; "Remove" drops
   everyone you didn't add who isn't in your guild or group right now and
   prints how many; "Cancel" changes nothing.
@@ -1363,14 +1379,17 @@ that overlaps, is cut off, or shows as a solid green square (a missing icon).
   60 s a chat line "No answer from X yet, asking again...", after 90 s
   "No answer from X." in chat and on the tab.
 - Browse A, then quickly browse B: only B's dex opens, even if A answers late.
-- Saved copies: after A has browsed B once, B logs out. About 10 minutes later
-  (B dimmed, "offline"), B's pane shows "Dex saved <today's date>" and Browse
-  dex opens B's dex at once, the title reading "SoulDex · Viewing B · saved
-  <date>", with no chat lines. `/reload` and try again: still there. With B
-  back online, Browse dex opens the copy at once, then within a few seconds to
-  minutes the "saved" date leaves the title (a fresh dex arrived); go back to
-  "« My dex" before it arrives and it doesn't pull you back. Remove B with the
-  ×: the copy is gone (add B again and the pane has no "Dex saved").
+- Saved copies: after A has browsed B once, B's pane shows "Dex saved: up to
+  date". Browse dex again: B's dex opens at once, titled with B's full name,
+  and the tab never shows "Asking B..." (nothing is sent). B catches
+  something: within about 30 s B's pane shows today's date instead of "up to
+  date"; Browse dex opens the copy at once titled "<B's first name> · saved
+  today", and shortly after the fresh dex replaces it (the title goes back to
+  B's full name, the pane back to "up to date"). Go back with "« Friends"
+  before it arrives and it doesn't pull you back. B logs out: about 10 minutes
+  later (B dimmed, "offline") Browse dex still opens the copy at once with no
+  chat lines. `/reload`: still there. Remove B with the ×: the copy is gone
+  (add B again and the pane has no "Dex saved").
 - B logs out: about 10 minutes later B is dimmed, "offline" and "Last seen
   <date>". A catch on B updates B's score on A within about 30 s (guild/group)
   or 60 s (added friend only).
@@ -1478,6 +1497,11 @@ The lines that decide the leads: `ENCOUNTER_START`, `BOSS_KILL`,
 - Added friends who are offline are asked every 60 s with no back-off (their
   "not playing" notices are hidden).
 - Alt-Z (hiding the UI) resets browsing to your own dex.
+- A saved friend's dex counts as up to date while their summary numbers are
+  unchanged, and some catches don't change them: a repeat catch of a normal
+  mob between star steps, or a known mob caught in a new zone. Their copy then
+  shows slightly old catch counts and zones until their score next moves. A
+  fix would add a dex fingerprint message, which older SoulDex versions ignore.
 - A browsed friend's Milestones tab shows nothing earned (no dates are sent).
 - Raid data is Classic Era and may need regenerating for WoW: Forever content.
 - A TBD raid's instance ID is learned from its English name: on another
