@@ -359,7 +359,7 @@ The look was settled through mockups; the final versions are in
 - An empty Mobs tab reads "No souls claimed yet. Go drain something."
 - (changed after 1.2.4: UI rework.) The user approved a sheet of 18 numbered
   changes ("I wanna do them all"). **[user]** For the whole window:
-  - It is **380 × 300 (see 5.9)** (was 360 × 232), shaded lighter purple at the top to
+  - It is **380 × 300** (see 5.9) (was 360 × 232), shaded lighter purple at the top to
     near-black at the bottom (flat fill on clients without texture gradients).
   - The title bar starts with the **rank emblem** of the dex on screen (a
     friend's while browsing; changed after 1.2.4: rank emblems.) **[user]**
@@ -696,19 +696,22 @@ Redraws on a catch like the other tabs.
 - **Search.** The strip starts with a search box whose empty text reads
   "Search all souls". It is on every tab. With 2 or more letters typed, the
   right list shows every mob, player and raid creature of the dex on screen
-  whose name contains the text (any case, plain text), names that start with
+  whose name contains the text (it matches the same way as `/souldex find`:
+  any case, accented letters included, plain text), names that start with
   it first; each row shows the name, and on the right where it was claimed and
   `×count`. Clicking a result opens its detail card over the results. Typing
   on Me, Milestones or Friends switches to Mobs. Escape, clearing the box,
   picking a tab or clicking a left-list row ends the search. Nothing found:
-  "No soul matching "<text>"."
+  "No soul matching "<text>"." Results are not compare-coloured and show no
+  totals line while browsing.
 - **Sort.** A "Sort: <choice>" button on Mobs and Players; a click steps
   forward, a right-click back. Mobs: A–Z (default), Most claimed, Newest,
   Rarest. Players: Most claimed (default), A–Z, Newest. Newest is left out
   while browsing a friend (their dex has no dates). Rarest orders world
   bosses, then rares, then elites, then the rest. Ties go by name. The choice
   is saved per character and per tab. Raids keep their roster order and have
-  no Sort button.
+  no Sort button. A saved Newest falls back to the tab's default choice while
+  browsing a friend.
 - **Show.** A "Show: <choice>" button. On your own Mobs tab: All, Rare and
   elite, Mastered (1 star or more), Not mastered. Your own Players and Raids
   tabs have none. While browsing a friend, on all three collection tabs:
@@ -729,7 +732,9 @@ Redraws on a catch like the other tabs.
   starts with one line of this tab's totals: "N missing · N only mine · N
   shared". Left-list rows show "count +N" in green where N souls there are
   Missing. In a raid's roster, a creature only you have shows its roster name
-  in amber instead of "? ? ?".
+  in amber instead of "? ? ?". In a raid, a soul only you have that is not on
+  the raid's roster (every soul of a raid whose roster is still sealed) is
+  listed in amber at the end of the list, with the name from your own dex.
 - **Column split.** On Mobs, Players and Raids the line between the lists can
   be dragged to widen the left list from 124 px (default) up to 200 px; the
   tooltip is "Drag to resize columns". Saved per character; `/souldex reset`
@@ -1070,8 +1075,9 @@ Under SIZE, two buttons (added after 1.3.0, **[call]**):
   claim sound when the sound switch is on. Only the SIZE row's own preview is
   silent.
 - **Reset window** (also `/souldex reset`): the window back in the middle of
-  the screen **and** at 100 %, and restores the column split (5.9). It differs from SIZE's "Reset", which leaves the
-  window where it is and also resets the Popup size.
+  the screen **and** at 100 %, and restores the column split (5.9). It
+  differs from SIZE's "Reset", which leaves the window where it is and also
+  resets the Popup size.
 
 There is no separate text-size setting: the window is a fixed layout drawn
 around the game's own fonts, so its text grows and shrinks with the Window
@@ -1552,6 +1558,44 @@ that overlaps, is cut off, or shows as a solid green square (a missing icon).
   the Friends tab still lists warlocks, and warlocks don't see them.
 - A dev checkout without `Libs/`: one chat line "Friends are offline:
   AceComm-3.0 is missing...", no Lua errors.
+
+**Dex toolbar: search, sort, show, compare, column split (5.9)** None of this
+has been seen in game.
+- `/souldex`: the window is a little taller; a strip under the title holds
+  "Search all souls", "Sort: A-Z" and "Show: All"; tabs are still along the
+  bottom; nothing overlaps the resize grip. The labels "Sort: Most claimed",
+  "Show: Rare and elite", "Show: Not mastered" and "Show: Differences" fit
+  their buttons.
+- Mobs opens on "All zones" with every mob listed once; clicking a zone works
+  as before.
+- Type two letters: results from mobs, players and raids appear with where and
+  count, and the hint "Search all souls" goes at the first letter. Click one:
+  its card opens, for a mob, a player and a raid creature; changing the text
+  closes it. Typing on Me, Milestones or Friends jumps to Mobs. Clicking a
+  tab or a left-list row empties the box; closing and reopening the window
+  starts with an empty box. Escape clears the box and does not close the
+  window; a second Escape closes the window.
+- Typing in the box does not trigger key bindings (no movement, no bars) and
+  the box loses focus on Enter. Hiding the window while the box has focus
+  releases the keyboard.
+- Click Sort through all four choices; right-click steps back. `/reload`: the
+  choice is kept. Show is back on "All".
+- Players: "All classes" first; Sort has three choices, no Show button. Raids:
+  no Sort, no Show.
+- Browse a friend's dex: the first right row gives the three totals in green,
+  amber and grey; zones with something new read "14 +3" in green; "Show:
+  Differences / Missing / Only mine / Shared" each change the list; amber rows
+  do nothing on click; Sort has no "Newest".
+- On a friend's raid, a creature only you have shows its name in amber.
+- Drag the line between the lists right: its tooltip reads "Drag to resize
+  columns", zone names get more room, up to a limit, and the line follows the
+  cursor at window sizes other than 100 %; `/reload` keeps it; `/souldex
+  reset` and "Reset window" restore it. Open a card with the left list
+  widened: it covers part of the left list and closes normally. The line does
+  not steal clicks from the list rows.
+- All four colour themes: the toolbar follows the theme; amber stays amber.
+- Window at 60% and 160% size: the toolbar scales with it and the search box
+  is still usable.
 
 ### Naming souls in dungeons and raids: where it stands and what to try next
 

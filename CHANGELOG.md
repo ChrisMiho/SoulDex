@@ -5,6 +5,12 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Search box in the window: type part of a name to find any soul in the dex on screen, your own or a friend's.
+- Sort and Show buttons on the Mobs and Players lists: order by name, most claimed, newest or rarest, and show only rares and elites or only mastered souls. Your sort is remembered.
+- "All zones" and "All classes" rows list a whole collection at once.
+- Browsing a friend's dex now compares both ways: what you're missing in green, what only you have in amber, with totals, and Show can narrow it to differences, missing, only yours or shared.
+- Drag the line between the two lists to give zone names more room. The window is slightly taller to fit the new toolbar.
+
 ## [1.7.0] - 2026-11-18
 
 - Colour themes: pick Soul Shard, Fel, Shadow or Ember in the options to change the window's look, popups and rank emblems included. The change shows at once and is saved per character.
