@@ -592,8 +592,9 @@ local function openDex(db, name, savedAt)
 	if UI then
 		UI.showDex(ns.Dex.new(db), name, savedAt)
 		UI.setCompare(ns.dex)
+		-- From the Friends tab it opens on their Me tab, the overview of that warlock.
 		if UI.currentTab() == "Friends" then
-			UI.selectTab("Mobs")
+			UI.selectTab("Me")
 		end
 	end
 end

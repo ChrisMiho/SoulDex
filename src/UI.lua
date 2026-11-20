@@ -35,7 +35,8 @@ UI.FRIENDS_LEFT_W, UI.FRIENDS_RIGHT_W, UI.FRIENDS_H = FRIENDS_LEFT_W, BODY_W - F
 local TILE_H, TILE_GAP = 30, 3
 
 local SORT_W, SHOW_W, TOOL_GAP = 98, 104, 3
-local VIEW_W = 48 -- a Me tab view button (All, Mobs, PvP)
+local BANNER_H = 14 -- the window grows by this while browsing, for the banner over the tabs
+local VIEW_W = 48-- a Me tab view button (All, Mobs, PvP)
 local HANDLE_W = 7 -- the invisible grip over the column divider
 
 -- A search result's kind and the tab whose card it opens.
@@ -62,7 +63,7 @@ local state = {
 	filter = nil, -- the Show choice (nil = the first); not saved
 }
 
-local frame, titleLeft, titleRight, divider, myDexButton
+local frame, titleLeft, titleRight, divider, myDexButton, banner
 local searchBox, searchHint, sortButton, showButton
 local splitHandle, splitDrag
 local appliedSplit = LEFT_W -- the left list's width as it is drawn now
@@ -234,12 +235,27 @@ local function selectLeft(value)
 	draw("select")
 end
 
+-- The tabs, and what says whose dex is on screen: while browsing a friend the window's
+-- edge and the tabs are blue and a banner over the tabs names the friend, in a window
+-- made taller by the banner's height (spec 5.7).
 local function styleTabs()
+	local browsing = state.owner ~= nil
 	for _, button in ipairs(tabButtons) do
 		local on = button.tab == state.tab
-		UI.backdrop(button, on and "DIVIDER" or "TAB_BG", on and "BORDER" or "DIVIDER")
+		local edge = on and "BORDER" or "DIVIDER"
+		if browsing then
+			edge = on and F.BROWSE or F.BROWSE_DIM
+		end
+		UI.backdrop(button, on and "DIVIDER" or "TAB_BG", edge)
 		UI.textColor(button.label, on and "WHITE" or "TEXT")
+		UI.fill(button.underline, browsing and F.BROWSE or "ACCENT")
 		setShown(button.underline, on)
+	end
+	frame:SetHeight(browsing and HEIGHT + BANNER_H or HEIGHT)
+	UI.backdrop(frame, "BG", browsing and F.BROWSE or "BORDER", 0.97)
+	setShown(banner, browsing)
+	if browsing then
+		banner:SetText(F.browseBanner(state.owner))
 	end
 end
 
@@ -970,6 +986,14 @@ local function buildTabs()
 		tabButtons[i] = button
 		previous = button
 	end
+	-- The browsing banner, in the room the taller window leaves over the tabs.
+	banner = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	banner:SetPoint("BOTTOMLEFT", PAD + 2, PAD + TAB_H + 1)
+	banner:SetPoint("RIGHT", -PAD, 0)
+	banner:SetJustifyH("LEFT")
+	banner:SetWordWrap(false)
+	UI.textColor(banner, F.BROWSE)
+	banner:Hide()
 end
 
 local function build()

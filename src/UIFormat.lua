@@ -158,6 +158,15 @@ end
 -- A soul only the viewer has, drawn beside a friend's: amber, the same in every theme.
 F.MINE = "ffb84d"
 
+-- Browsing a friend's dex (spec 5.7): the window's edge, the tabs and the banner over them
+-- take this blue, the same in every theme, with a dimmer one for the tabs not chosen.
+F.BROWSE, F.BROWSE_DIM = "5fb4ff", "2f5a80"
+
+-- The banner over the tabs while browsing.
+function F.browseBanner(owner)
+	return "Browsing " .. owner .. "'s dex \194\183 pick a tab"
+end
+
 -- The right-hand text of a left-list row: the count, with "+N" (green) for N souls there
 -- that the viewer lacks while browsing a friend's dex.
 local function countWithNew(row, browsing)

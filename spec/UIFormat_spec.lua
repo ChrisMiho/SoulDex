@@ -532,6 +532,10 @@ describe("UIFormat", function()
 			assert.equal(F.DASH, lines[7].right)
 		end)
 
+		it("the browsing banner names the friend and points at the tabs", function()
+			assert.equal("Browsing Ann Bell's dex \194\183 pick a tab", F.browseBanner("Ann Bell"))
+		end)
+
 		it("a class record shows the game's class name in the class's colour", function()
 			local colors = { ROGUE = { r = 1, g = 0.96, b = 0.41 } }
 			local records = {

@@ -19,6 +19,8 @@ describe("UI", function()
 		GetText = function(self) return self.text end,
 		SetSize = function(self, w, h) self.w, self.h = w, h end,
 		SetWidth = function(self, w) self.w = w end,
+		SetHeight = function(self, h) self.h = h end,
+		SetBackdropBorderColor = function(self, r, g, b) self.edge = { r, g, b } end,
 		SetScale = function(self, scale) self.scale = scale end,
 		SetAlpha = function(self, alpha) self.alpha = alpha end,
 		SetPoint = function(self, ...) self.point = { ... } end,
@@ -273,6 +275,34 @@ describe("UI", function()
 
 		ns.UI.selectTab("Mobs") -- the view buttons belong to Me only
 		assert.is_false(all.shown)
+	end)
+
+	it("browsing a friend: a taller, blue-edged window with a banner; your own dex puts it back", function()
+		loadDb()
+		local F = ns.UIFormat
+		local named = {}
+		local browseBanner = F.browseBanner
+		F.browseBanner = function(owner)
+			named[#named + 1] = owner
+			return browseBanner(owner)
+		end
+		ns.UI.toggle()
+		local frame = _G.SoulDexFrame
+		local own = frame.edge
+		assert.equal(300, frame.h)
+		assert.equal(0, #named)
+
+		ns.UI.showDex(ns.Dex.new({}), "Ann Bell")
+		assert.equal(314, frame.h)
+		assert.same({ F.hexRGB(F.BROWSE) }, frame.edge)
+		assert.equal("Ann Bell", named[#named])
+		local tab = find("Button", function(f) return rawget(f, "tab") == "Raids" end)
+		assert.same({ F.hexRGB(F.BROWSE_DIM) }, tab.edge) -- a tab not chosen: the dimmer blue
+
+		ns.UI.showDex(nil, nil)
+		assert.equal(300, frame.h)
+		assert.same(own, frame.edge)
+		assert.are_not.same({ F.hexRGB(F.BROWSE_DIM) }, tab.edge)
 	end)
 
 	it("the search box shows on Mobs, Players and Raids only", function()

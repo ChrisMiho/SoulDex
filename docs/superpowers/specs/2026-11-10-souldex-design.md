@@ -587,6 +587,15 @@ hovering a person shows their full name in a tooltip.
   Adding a name the roster or group knows as another class says "<name> isn't
   a warlock." and adds nobody. Someone whose class can't be read (outside
   your guild and group, or a hidden value) is kept.
+- **Browsing is marked** (changed after 1.8.0-alpha.1, user's call: it was
+  not obvious that the tabs then browse the friend's dex). **[user]** While a
+  friend's dex is on screen the window's edge, the tabs' edges and the chosen
+  tab's underline are blue (`5fb4ff`, tabs not chosen `2f5a80`; the same in
+  every theme: green is Missing and amber is Only mine), and a blue banner
+  over the tabs reads "Browsing <name>'s dex · pick a tab". The window is
+  14 px taller for the banner (**[call]** so the lists lose no height) and
+  returns to 300 on your own dex. Browse dex clicked on the Friends tab opens
+  on their **Me** tab, the overview of that warlock (it was Mobs).
 - Closing the window while browsing a friend returns you to your own dex the
   next time it opens. (changed during build: so `/souldex` never opens on
   someone else's data by surprise.)
@@ -1604,6 +1613,18 @@ that overlaps, is cut off, or shows as a solid green square (a missing icon).
   the Friends tab still lists warlocks, and warlocks don't see them.
 - A dev checkout without `Libs/`: one chat line "Friends are offline:
   AceComm-3.0 is missing...", no Lua errors.
+
+**Browsing is marked (5.7)** Not seen in game.
+- Click Browse dex on a friend: the window opens on their Me tab, its edge and
+  the tabs turn blue, it is a little taller, and a blue line over the tabs
+  reads "Browsing <name>'s dex · pick a tab". The line does not overlap the
+  lists, the tabs or the resize grip, and a long two-part name is not cut off.
+- Click each tab: the blue stays, and the chosen tab's underline is blue.
+- "« Friends": the window is back to its usual height and colours, with no
+  banner. The same after closing the window while browsing and reopening it.
+- Where the window grows (up or down) is acceptable wherever it was dragged,
+  including near the bottom of the screen.
+- All four themes: the blue reads well on each.
 
 **Me tab views (5.8)** Not seen in game.
 - On Me, the strip under the title holds "All", "Mobs" and "PvP" and no

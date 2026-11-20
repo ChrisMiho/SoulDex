@@ -10,6 +10,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - Sort and Show buttons on the Mobs and Players lists: order by name, most claimed, newest or rarest, and show only rares and elites or only mastered souls. Your sort is remembered.
 - "All zones" and "All classes" rows list a whole collection at once.
 - Browsing a friend's dex now compares both ways: what you're missing in green, what only you have in amber, with totals, and Show can narrow it to differences, missing, only yours or shared.
+- Browsing a friend's dex is easier to tell from your own: the window and tabs turn blue, a line over the tabs names whose dex it is, and it opens on their Me tab.
 - Drag the line between the two lists to give zone names more room. The window is slightly taller to fit the new toolbar.
 
 ## [1.7.0] - 2026-11-18
