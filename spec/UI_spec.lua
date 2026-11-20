@@ -56,8 +56,9 @@ describe("UI", function()
 			saved[name] = _G[name]
 		end
 		created = {}
-		_G.CreateFrame = function(kind, name)
+		_G.CreateFrame = function(kind, name, parent)
 			local f = stub(kind)
+			f.parent = parent
 			created[#created + 1] = f
 			if name then
 				_G[name] = f
@@ -293,7 +294,7 @@ describe("UI", function()
 		assert.equal(0, #named)
 
 		ns.UI.showDex(ns.Dex.new({}), "Ann Bell")
-		assert.equal(314, frame.h)
+		assert.equal(332, frame.h) -- the banner's 14 and the compare filter's 18
 		assert.same({ F.hexRGB(F.BROWSE) }, frame.edge)
 		assert.equal("Ann Bell", named[#named])
 		local tab = find("Button", function(f) return rawget(f, "tab") == "Raids" end)
@@ -842,6 +843,27 @@ describe("UI", function()
 		end)
 	end
 
+	local function shownRow(text)
+		return find("Button", function(f)
+			local left = rawget(f, "left")
+			return f.shown and left ~= nil and type(left.text) == "string" and left.text:find(text, 1, true) ~= nil
+		end)
+	end
+
+	-- A compare chip whose text starts with `prefix`; chipShown says whether its row is up.
+	local function chip(prefix)
+		return find("Button", function(f)
+			local label = rawget(f, "label")
+			return rawget(f, "id") ~= nil and label ~= nil and type(label.text) == "string"
+				and label.text:sub(1, #prefix) == prefix
+		end)
+	end
+
+	local function chipsShown()
+		local any = chip("Theirs")
+		return any ~= nil and any.parent.shown == true
+	end
+
 	local function friendDex()
 		local friend = ns.Dex.new({})
 		friend:recordMob({ name = "Wolf" }, { time = 5, zone = "Durotar", group = "Kalimdor" })
@@ -916,16 +938,62 @@ describe("UI", function()
 		assert.equal("Show: All", show.label.text)
 	end)
 
-	it("the Show choice resets when another friend's dex is shown", function()
+	it("the compare filter resets when another friend's dex is shown", function()
 		loadDb()
 		ns.UI.showDex(friendDex(), "Morwen")
+		ns.UI.setCompare(ns.dex)
+		ns.UI.selectTab("Mobs")
+		assert.is_true(chip("Theirs").on)
+		local mine = chip("Only mine")
+		mine.scripts.OnClick(mine)
+		assert.is_true(mine.on)
+		assert.is_false(chip("Theirs").on)
+		ns.UI.showDex(friendDex(), "Ann")
+		ns.UI.setCompare(ns.dex)
+		assert.is_true(chip("Theirs").on)
+		assert.is_false(chip("Only mine").on)
+	end)
+
+	it("browsing: four chips with counts replace the Show button; the lists follow the chosen one", function()
+		loadDb() -- yours: Hogger in Elwynn Forest
+		ns.UI.toggle()
 		ns.UI.selectTab("Mobs")
 		local show = toolButton("Show:")
-		assert.equal("Show: Their dex", show.label.text)
-		show.scripts.OnClick(show, "LeftButton")
-		assert.equal("Show: Differences", show.label.text)
-		ns.UI.showDex(friendDex(), "Ann")
-		assert.equal("Show: Their dex", show.label.text)
+		assert.is_true(show.shown)
+		assert.is_false(chipsShown())
+
+		ns.UI.showDex(friendDex(), "Morwen") -- theirs: Wolf in Durotar
+		ns.UI.setCompare(ns.dex)
+		assert.is_false(show.shown)
+		assert.is_true(chipsShown())
+		assert.equal("Theirs 1", chip("Theirs").label.text)
+		assert.equal("Missing 1", chip("Missing").label.text)
+		assert.equal("Only mine 1", chip("Only mine").label.text)
+		assert.equal("Shared 0", chip("Shared").label.text)
+		assert.is_truthy(shownRow("Wolf"))
+		assert.is_nil(shownRow("Hogger"))
+		assert.is_truthy(shownRow("Durotar"))
+
+		local mine = chip("Only mine")
+		mine.scripts.OnClick(mine)
+		assert.is_truthy(shownRow("Hogger")) -- your soul, under your zone
+		assert.is_nil(shownRow("Wolf"))
+		assert.is_truthy(shownRow("Elwynn Forest"))
+		assert.is_nil(shownRow("Durotar"))
+
+		local shared = chip("Shared")
+		shared.scripts.OnClick(shared)
+		assert.is_truthy(shownRow("You share no souls here yet."))
+		assert.is_true(chipsShown()) -- still there to pick another
+
+		ns.UI.setFilter("junk")
+		assert.is_true(chip("Theirs").on)
+		ns.UI.selectTab("Me")
+		assert.is_false(chipsShown())
+		ns.UI.showDex(nil, nil)
+		ns.UI.selectTab("Mobs")
+		assert.is_false(chipsShown())
+		assert.is_true(show.shown)
 	end)
 
 	it("widens the left list to the saved split; Reset window restores it", function()
@@ -963,13 +1031,6 @@ describe("UI", function()
 	end)
 
 	-- A shown list row whose text contains `text`.
-	local function shownRow(text)
-		return find("Button", function(f)
-			local left = rawget(f, "left")
-			return f.shown and left ~= nil and type(left.text) == "string" and left.text:find(text, 1, true) ~= nil
-		end)
-	end
-
 	it("opens a search result's card and keeps it only while that search lasts", function()
 		loadDb()
 		ns.UI.toggle()
@@ -993,14 +1054,15 @@ describe("UI", function()
 		assert.equal(2, cards) -- the search ended and took the card with it
 	end)
 
-	it("starts the right list with the compare line while browsing, but not during a search", function()
+	it("shows the compare chips while browsing, but not during a search or with nothing to compare with", function()
 		loadDb()
 		ns.UI.showDex(friendDex(), "Morwen")
-		ns.UI.setCompare(ns.dex)
 		ns.UI.selectTab("Mobs")
-		assert.is_truthy(shownRow("1 missing"))
+		assert.is_false(chipsShown()) -- no dex to compare with yet
+		ns.UI.setCompare(ns.dex)
+		assert.is_true(chipsShown())
 		ns.UI.setSearch("wo")
-		assert.is_nil(shownRow("1 missing"))
+		assert.is_false(chipsShown())
 		assert.is_truthy(shownRow("Wolf"))
 	end)
 
@@ -1074,16 +1136,17 @@ describe("UI", function()
 		assert.equal("wo", ns.UI.search())
 		assert.is_truthy(shownRow("Wolf"))
 		ns.UI.setSearch("")
-		local show = toolButton("Show:")
-		show.scripts.OnClick(show, "LeftButton")
-		assert.equal("Show: Differences", show.label.text)
+		ns.UI.setCompare(ns.dex)
+		ns.UI.setFilter("missing")
+		assert.is_true(chip("Missing").on)
 		ns.UI.showDex(friendDex(), "Morwen")
-		assert.equal("Show: Differences", show.label.text)
+		assert.is_true(chip("Missing").on)
 		-- another friend's dex still starts afresh
 		ns.UI.setSearch("wo")
 		ns.UI.showDex(friendDex(), "Ann")
+		ns.UI.setCompare(ns.dex)
 		assert.equal("", ns.UI.search())
-		assert.equal("Show: Their dex", show.label.text)
+		assert.is_true(chip("Theirs").on)
 	end)
 
 	it("a fresh copy of the same friend's dex keeps an open card that is still valid", function()
@@ -1215,16 +1278,20 @@ describe("UI", function()
 		assert.is_truthy(shownRow("Nothing here matches."))
 	end)
 
-	it("no compare line above an empty dex's note", function()
+	it("an empty friend's dex still offers the chips, and Only mine lists yours", function()
 		loadDb()
 		ns.UI.showDex(ns.Dex.new({}), "Morwen")
 		ns.UI.setCompare(ns.dex)
 		ns.UI.selectTab("Mobs")
-		assert.is_truthy(shownRow("No souls claimed yet."))
-		assert.is_nil(shownRow("only mine"))
+		assert.is_truthy(shownRow("Nothing claimed here yet."))
+		assert.is_true(chipsShown())
+		assert.equal("Theirs 0", chip("Theirs").label.text)
+		ns.UI.setFilter("mine")
+		assert.is_truthy(shownRow("Hogger"))
 		ns.UI.selectTab("Players")
-		assert.is_truthy(shownRow("No player souls yet."))
-		assert.is_nil(shownRow("only mine"))
+		assert.is_truthy(shownRow("Stab"))
+		ns.UI.setFilter("all")
+		assert.is_truthy(shownRow("Nothing claimed here yet."))
 	end)
 
 	it("labels the Show button as kind show", function()

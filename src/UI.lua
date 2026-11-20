@@ -36,6 +36,8 @@ local TILE_H, TILE_GAP = 30, 3
 
 local SORT_W, SHOW_W, TOOL_GAP = 98, 104, 3
 local BANNER_H = 14 -- the window grows by this while browsing, for the banner over the tabs
+local CHIP_H = 18 -- and by this, for the compare filter's row over the lists (spec 5.9)
+local BODY_Y = PAD + TITLE_H + 6 + TOOLBAR_H -- the body's top edge under the window's
 local VIEW_W = 48-- a Me tab view button (All, Mobs, PvP)
 local HANDLE_W = 7 -- the invisible grip over the column divider
 
@@ -63,7 +65,7 @@ local state = {
 	filter = nil, -- the Show choice (nil = the first); not saved
 }
 
-local frame, titleLeft, titleRight, divider, myDexButton, banner
+local frame, titleLeft, titleRight, divider, myDexButton, banner, bodyFrame, chipBar
 local searchBox, searchHint, sortButton, showButton
 local splitHandle, splitDrag
 local appliedSplit = LEFT_W -- the left list's width as it is drawn now
@@ -73,8 +75,15 @@ local meBox, crest, tiles, recordList
 local friendsBox, friendsLeft, friendsRight, friendsNote
 local tabButtons = {}
 local viewButtons = {} -- the Me tab's All, Mobs and PvP buttons, in the toolbar
+local chips = {} -- the compare filter's buttons while browsing, in chipBar
 
 -- A view button as it rests: the chosen one is lit like the chosen tab.
+-- A compare chip: lit when chosen; a side's chip keeps that side's colour.
+local function paintChip(button)
+	UI.backdrop(button, button.on and "DIVIDER" or "TAB_BG", button.on and "BORDER" or "BUTTON_EDGE")
+	UI.textColor(button.label, button.color or (button.on and "WHITE" or "TITLE"))
+end
+
 local function paintViewButton(button)
 	UI.backdrop(button, button.on and "DIVIDER" or "TAB_BG", button.on and "BORDER" or "BUTTON_EDGE")
 	UI.textColor(button.label, button.on and "WHITE" or "TITLE")
@@ -237,7 +246,8 @@ end
 
 -- The tabs, and what says whose dex is on screen: while browsing a friend the window's
 -- edge and the tabs are blue and a banner over the tabs names the friend, in a window
--- made taller by the banner's height (spec 5.7).
+-- made taller by the banner's height (spec 5.7) and by the compare filter's row, which
+-- pushes the body down (spec 5.9).
 local function styleTabs()
 	local browsing = state.owner ~= nil
 	for _, button in ipairs(tabButtons) do
@@ -251,7 +261,9 @@ local function styleTabs()
 		UI.fill(button.underline, browsing and F.BROWSE or "ACCENT")
 		setShown(button.underline, on)
 	end
-	frame:SetHeight(browsing and HEIGHT + BANNER_H or HEIGHT)
+	frame:SetHeight(browsing and HEIGHT + BANNER_H + CHIP_H or HEIGHT)
+	bodyFrame:ClearAllPoints()
+	bodyFrame:SetPoint("TOPLEFT", PAD, -(BODY_Y + (browsing and CHIP_H or 0)))
 	UI.backdrop(frame, "BG", browsing and F.BROWSE or "BORDER", 0.97)
 	setShown(banner, browsing)
 	if browsing then
@@ -271,42 +283,67 @@ local function pickOrAll(rows, field, current)
 	return ns.Browse.ALL
 end
 
--- rows: what Browse.apply kept of `all`; a list left empty says so. all nil (Mobs and
--- Players, which list a zone or class): always, even when nothing was there to filter (a
--- dex of only unknown souls). A raid's list: only when the filter emptied it.
-local function filtered(rows, all)
-	if #rows == 0 and (all == nil or #all > 0) then
-		return { F.emptyNote() }
+-- The compare filter's chips (browsing, with a dex to compare with, outside a search):
+-- each with its count, the chosen one lit. counts nil hides them.
+local function drawChips(counts, filter)
+	setShown(chipBar, counts ~= nil)
+	if not counts then
+		return
 	end
-	return rows
+	local x = 0
+	for i, item in ipairs(F.compareChips(counts)) do
+		local button = chips[i]
+		button.id, button.color, button.on = item.id, item.color or false, item.id == filter
+		button.label:SetText(item.text)
+		local width = math.ceil(button.label:GetStringWidth() or 0) + 16
+		button:SetWidth(width)
+		button:ClearAllPoints()
+		button:SetPoint("LEFT", x, 0)
+		x = x + width + TOOL_GAP
+		paintChip(button)
+	end
 end
 
 local function drawLists(dex, keepLeft, keepRight)
 	local View, Browse, tab = ns.View, ns.Browse, state.tab
 	local browsing, them = state.owner ~= nil, other()
+	local comparing = browsing and them ~= nil
 	local filter = Browse.valid(Browse.filters(tab, browsing), state.filter)
+	if browsing and not comparing then
+		filter = "all" -- nothing to compare with yet
+	end
 	local sort = sortFor(tab, browsing)
 	-- During a search the right list holds its results, so the usual rows are not built.
 	local search = activeSearch()
-	local leftRows, rightRows, emptyDex
+	-- What an emptied list says: under a compare filter, in that filter's words. all nil
+	-- (Mobs and Players): always; a raid's list: only when the filter emptied it.
+	local function filtered(rows, all)
+		if #rows == 0 and (all == nil or #all > 0) then
+			return { comparing and F.compareEmpty(filter) or F.emptyNote() }
+		end
+		return rows
+	end
+	-- The left list follows the compare filter: the zones or classes of that side's souls.
+	local shown = Browse.subset(dex, them, tab, filter)
+	local leftRows, rightRows
 	if tab == "Mobs" then
-		local places = View.places(dex, them)
+		local places = View.places(shown)
 		local place = pickOrAll(places, "place", state.sel.Mobs)
 		state.sel.Mobs = place
-		leftRows = F.placeRows(places, place, Browse.size(dex, "Mobs"), browsing)
+		leftRows = F.placeRows(places, place, Browse.size(shown, "Mobs"))
 		if not place then
-			rightRows, emptyDex = { F.note("No souls claimed yet. Go drain something.") }, true
+			rightRows = { comparing and F.compareEmpty(filter) or F.note("No souls claimed yet. Go drain something.") }
 		elseif not search then
 			rightRows = filtered(F.mobRows(Browse.apply(Browse.mobs(dex, place, them), filter, sort)))
 		end
 	elseif tab == "Players" then
-		local classes = View.classes(dex, them)
+		local classes = View.classes(shown)
 		local class = pickOrAll(classes, "class", state.sel.Players)
 		state.sel.Players = class
 		leftRows = F.classRows(classes, class, RAID_CLASS_COLORS, LOCALIZED_CLASS_NAMES_MALE,
-			Browse.size(dex, "Players"), browsing)
+			Browse.size(shown, "Players"))
 		if not class then
-			rightRows, emptyDex = { F.note("No player souls yet.") }, true
+			rightRows = { comparing and F.compareEmpty(filter) or F.note("No player souls yet.") }
 		elseif not search then
 			rightRows = filtered(F.playerRows(Browse.apply(Browse.players(dex, class, them), filter, sort)))
 		end
@@ -318,7 +355,7 @@ local function drawLists(dex, keepLeft, keepRight)
 		leftRows = F.raidRows(raids, key)
 		local raid = key and ns.Raids.byKey(key)
 		if not raid then
-			rightRows, emptyDex = { F.note("No raid data.") }, true
+			rightRows = { F.note("No raid data.") }
 		elseif not search then
 			local all = View.raidMobs(dex, raid.instanceID, them)
 			rightRows = filtered(F.raidMobRows(Browse.apply(all, filter, nil)), all)
@@ -333,9 +370,8 @@ local function drawLists(dex, keepLeft, keepRight)
 		if #rightRows == 0 then
 			rightRows = { F.emptyNote(search) }
 		end
-	elseif browsing and them and not emptyDex then
-		table.insert(rightRows, 1, F.compareLine(Browse.counts(dex, them, tab)))
 	end
+	drawChips(comparing and not search and Browse.counts(dex, them, tab) or nil, filter)
 	leftList:set(leftRows, selectLeft, keepLeft)
 	rightList:set(rightRows, openDetail, keepRight)
 end
@@ -413,7 +449,7 @@ local function drawToolbar()
 	end
 	local filters = Browse.filters(tab, browsing)
 	local showSort = #Browse.sorts(tab, browsing) > 0 and not searching
-	local showFilter = #filters > 0 and not searching
+	local showFilter = #filters > 0 and not searching and not browsing -- browsing: the chips
 	setShown(searchHint, state.search == "")
 	setShown(sortButton, showSort)
 	setShown(showButton, showFilter)
@@ -493,6 +529,7 @@ draw = function(action)
 	placeDivider(split)
 	setShown(friendsBox, tab == "Friends")
 
+	setShown(chipBar, false) -- drawLists shows it when there is something to compare
 	if collection then
 		drawLists(dex, keepLeft, keepRight)
 	elseif tab == "Me" then
@@ -920,7 +957,8 @@ end
 
 local function buildBody()
 	local body = CreateFrame("Frame", nil, frame)
-	body:SetPoint("TOPLEFT", PAD, -(PAD + TITLE_H + 6 + TOOLBAR_H))
+	bodyFrame = body
+	body:SetPoint("TOPLEFT", PAD, -BODY_Y)
 	body:SetSize(BODY_W, BODY_H)
 	if body.SetClipsChildren then
 		body:SetClipsChildren(true) -- the detail pane slides in from outside
@@ -958,6 +996,19 @@ local function buildBody()
 	pane = ns.UIDetail.create(body, PANE_X, BODY_W - PANE_X, BODY_H, function()
 		state.detail = nil
 	end)
+
+	-- The compare filter's chips, in the row the body leaves free while browsing.
+	chipBar = CreateFrame("Frame", nil, frame)
+	chipBar:SetPoint("TOPLEFT", PAD, -BODY_Y)
+	chipBar:SetSize(BODY_W, CHIP_H - 2)
+	for i = 1, 4 do
+		local button = UI.button(chipBar, "", 40, CHIP_H - 2, function(self)
+			UI.setFilter(self.id)
+		end)
+		button:SetScript("OnLeave", paintChip)
+		chips[i] = button
+	end
+	chipBar:Hide()
 end
 
 local function buildTabs()
@@ -1207,6 +1258,18 @@ end
 
 function UI.search()
 	return state.search
+end
+
+-- Picks the Show choice (your own Mobs tab) or the compare filter (browsing): an id of
+-- Browse.filters for the tab on screen; anything else is the first. Not saved. The open
+-- card closes: its row may be one the new choice leaves out.
+function UI.setFilter(id)
+	unfocusSearch()
+	state.filter = ns.Browse.valid(ns.Browse.filters(state.tab, state.owner ~= nil), id)
+	closeDetail(true)
+	if frame and frame:IsShown() then
+		draw("select")
+	end
 end
 
 -- Picks the Me tab's view (one of View.ME_VIEWS; anything else is "all") and saves it.

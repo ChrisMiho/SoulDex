@@ -69,7 +69,7 @@ describe("Browse", function()
 			assert.equal("all", own[1])
 			assert.equal(4, #own)
 			assert.same({}, Browse.filters("Players", false))
-			assert.equal(5, #Browse.filters("Raids", true))
+			assert.same({ "all", "missing", "mine", "shared" }, Browse.filters("Raids", true))
 			assert.same({}, Browse.filters("Me", true))
 		end)
 	end)
@@ -105,11 +105,10 @@ describe("Browse", function()
 			assert.equal("Newest", Browse.label("recent"))
 			assert.equal("Rarest", Browse.label("rarity"))
 			assert.equal("All", Browse.label("all", false))
-			assert.equal("Their dex", Browse.label("all", true))
+			assert.equal("Theirs", Browse.label("all", true))
 			assert.equal("Rare and elite", Browse.label("rare"))
 			assert.equal("Mastered", Browse.label("mastered"))
 			assert.equal("Not mastered", Browse.label("unmastered"))
-			assert.equal("Differences", Browse.label("diff"))
 			assert.equal("Missing", Browse.label("missing"))
 			assert.equal("Only mine", Browse.label("mine"))
 			assert.equal("Shared", Browse.label("shared"))
@@ -250,7 +249,6 @@ describe("Browse", function()
 			local rows = {
 				row("A", { side = "missing" }), row("B", { side = "mine" }), row("C", { side = "shared" }),
 			}
-			assert.same({ "A", "B" }, names(Browse.apply(rows, "diff", "name")))
 			assert.same({ "A" }, names(Browse.apply(rows, "missing", "name")))
 			assert.same({ "B" }, names(Browse.apply(rows, "mine", "name")))
 			assert.same({ "C" }, names(Browse.apply(rows, "shared", "name")))
@@ -267,7 +265,7 @@ describe("Browse", function()
 
 		it("drops rows without a side under the compare filters", function()
 			local rows = { row("A"), row("B") }
-			for _, filter in ipairs({ "diff", "missing", "mine", "shared" }) do
+			for _, filter in ipairs({ "missing", "mine", "shared" }) do
 				assert.same({}, Browse.apply(rows, filter, "name"))
 			end
 		end)
@@ -283,7 +281,7 @@ describe("Browse", function()
 				assert.is_true(out[3].unknown)
 			end
 			assert.same({}, Browse.apply(rows, "rare", "name"))
-			assert.same({}, Browse.apply(rows, "diff", "name"))
+			assert.same({}, Browse.apply(rows, "missing", "name"))
 			assert.same({}, Browse.apply(rows, "mastered", "name"))
 			assert.same({ "A", "B" }, names(Browse.apply(rows, "unmastered", "name")))
 		end)
@@ -329,25 +327,67 @@ describe("Browse", function()
 			claim(friend, "Hogger", "Elwynn Forest", 1)
 			claim(you, "Wolf", "Westfall", 1)
 			claim(you, "Boar", "Westfall", 1)
-			assert.same({ missing = 1, mine = 1, shared = 1 }, Browse.counts(friend, you, "Mobs"))
+			assert.same({ all = 2, missing = 1, mine = 1, shared = 1 }, Browse.counts(friend, you, "Mobs"))
 		end)
 
 		it("counts players by key", function()
 			friend:recordPlayer(player("Anna", "MAGE"), ctx("Elwynn Forest"))
 			friend:recordPlayer(player("Bob", "MAGE"), ctx("Elwynn Forest"))
 			you:recordPlayer(player("Anna", "MAGE"), ctx("Elwynn Forest"))
-			assert.same({ missing = 1, mine = 0, shared = 1 }, Browse.counts(friend, you, "Players"))
+			assert.same({ all = 2, missing = 1, mine = 0, shared = 1 }, Browse.counts(friend, you, "Players"))
 		end)
 
 		it("counts raid creatures by NPC ID", function()
 			friend:recordRaid(mob("Lucifron"), ctx("Molten Core"), 409, 12118)
 			friend:recordRaid(mob("Core Hound"), ctx("Molten Core"), 409, 11671)
 			you:recordRaid(mob("Core Hound"), ctx("Molten Core"), 409, 11671)
-			assert.same({ missing = 1, mine = 0, shared = 1 }, Browse.counts(friend, you, "Raids"))
+			assert.same({ all = 2, missing = 1, mine = 0, shared = 1 }, Browse.counts(friend, you, "Raids"))
 		end)
 
 		it("counts nothing for other tabs", function()
-			assert.same({ missing = 0, mine = 0, shared = 0 }, Browse.counts(friend, you, "Me"))
+			assert.same({ all = 0, missing = 0, mine = 0, shared = 0 }, Browse.counts(friend, you, "Me"))
+		end)
+	end)
+
+	describe("subset", function()
+		local function keys(t)
+			local out = {}
+			for key in pairs(t) do
+				out[#out + 1] = key
+			end
+			table.sort(out)
+			return out
+		end
+
+		before_each(function()
+			claim(friend, "Wolf", "Elwynn Forest", 1)
+			claim(friend, "Hogger", "Elwynn Forest", 1)
+			claim(you, "Wolf", "Westfall", 1)
+			claim(you, "Boar", "Westfall", 1)
+			friend:recordPlayer(player("Anna", "MAGE"), ctx("Elwynn Forest"))
+			you:recordPlayer(player("Bob", "ROGUE"), ctx("Westfall"))
+		end)
+
+		it("is the dex on screen for all, for other tabs and with nothing to compare with", function()
+			assert.equal(friend, Browse.subset(friend, you, "Mobs", "all"))
+			assert.equal(friend, Browse.subset(friend, you, "Mobs", nil))
+			assert.equal(friend, Browse.subset(friend, you, "Raids", "mine"))
+			assert.equal(friend, Browse.subset(friend, nil, "Mobs", "mine"))
+		end)
+
+		it("cuts the souls of one side; only mine comes from the viewer's dex, with its zones", function()
+			assert.same({ "Hogger" }, keys(Browse.subset(friend, you, "Mobs", "missing").db.mobs))
+			assert.same({ "Wolf" }, keys(Browse.subset(friend, you, "Mobs", "shared").db.mobs))
+			local mine = Browse.subset(friend, you, "Mobs", "mine")
+			assert.same({ "Boar" }, keys(mine.db.mobs))
+			assert.equal(1, Browse.size(mine, "Mobs"))
+			local zones = {}
+			for _, row in ipairs(ns.View.places(mine)) do
+				zones[#zones + 1] = row.place
+			end
+			assert.same({ "Westfall" }, zones)
+			assert.equal(1, #keys(Browse.subset(friend, you, "Players", "mine").db.players))
+			assert.equal(0, Browse.size(Browse.subset(friend, you, "Players", "shared"), "Players"))
 		end)
 	end)
 

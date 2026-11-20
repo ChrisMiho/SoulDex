@@ -313,20 +313,30 @@ function F.findRows(found, classNames)
 	return out
 end
 
--- The compare view's totals line: "61 missing, 87 only mine, 140 shared".
-function F.compareLine(counts)
-	local function part(color, n, word)
-		return "|cff" .. color .. n .. " " .. word .. "|r"
-	end
-	local dot = "|cff" .. C.MUTED .. DOT .. "|r"
+-- The compare filter while browsing a friend (spec 5.9): one chip per choice with its
+-- count, in the side's own colour (nil: the plain button colours).
+function F.compareChips(counts)
 	return {
-		text = part(C.GOOD, counts.missing, "missing") .. dot .. part(F.MINE, counts.mine, "only mine") .. dot
-			.. "|cff" .. C.MUTED .. counts.shared .. " shared|r",
-		wrap = true,
+		{ id = "all", text = "Theirs " .. counts.all },
+		{ id = "missing", text = "Missing " .. counts.missing, color = C.GOOD },
+		{ id = "mine", text = "Only mine " .. counts.mine, color = F.MINE },
+		{ id = "shared", text = "Shared " .. counts.shared },
 	}
 end
 
--- A toolbar button's text: "Sort: A-Z" or "Show: Their dex".
+-- What an empty list says under a compare filter.
+local COMPARE_EMPTY = {
+	all = "Nothing claimed here yet.",
+	missing = "Nothing here that you're missing.",
+	mine = "Nothing here that only you have.",
+	shared = "You share no souls here yet.",
+}
+
+function F.compareEmpty(filter)
+	return F.note(COMPARE_EMPTY[filter] or COMPARE_EMPTY.all)
+end
+
+-- A toolbar button's text: "Sort: A-Z" or "Show: Rare and elite".
 function F.toolLabel(kind, id, browsing)
 	if kind == "sort" then
 		return "Sort: " .. ns.Browse.label(id)

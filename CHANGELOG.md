@@ -9,7 +9,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - Search box on the Mobs, Players and Raids tabs: type part of a name to find any soul in the dex on screen, your own or a friend's.
 - Sort and Show buttons on the Mobs and Players lists: order by name, most claimed, newest or rarest, and show only rares and elites or only mastered souls. Your sort is remembered.
 - "All zones" and "All classes" rows list a whole collection at once.
-- Browsing a friend's dex now compares both ways: what you're missing in green, what only you have in amber, with totals, and Show can narrow it to differences, missing, only yours or shared.
+- Browsing a friend's dex now compares both ways. Four buttons over the lists, each with its count, switch between their souls, the ones you're missing (green), the ones only you have (amber) and the ones you share; the zone and class lists follow.
 - Browsing a friend's dex is easier to tell from your own: the window and tabs turn blue, a line over the tabs names whose dex it is, and it opens on their Me tab.
 - Drag the line between the two lists to give zone names more room. The window is slightly taller to fit the new toolbar.
 

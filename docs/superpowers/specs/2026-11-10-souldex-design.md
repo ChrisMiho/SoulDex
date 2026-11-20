@@ -593,8 +593,8 @@ hovering a person shows their full name in a tooltip.
   tab's underline are blue (`5fb4ff`, tabs not chosen `2f5a80`; the same in
   every theme: green is Missing and amber is Only mine), and a blue banner
   over the tabs reads "Browsing <name>'s dex · pick a tab". The window is
-  14 px taller for the banner (**[call]** so the lists lose no height) and
-  returns to 300 on your own dex. Browse dex clicked on the Friends tab opens
+  14 px taller for the banner (**[call]** so the lists lose no height; with
+  the compare chips' row of 5.9 it is 332) and returns to 300 on your own dex. Browse dex clicked on the Friends tab opens
   on their **Me** tab, the overview of that warlock (it was Mobs).
 - Closing the window while browsing a friend returns you to your own dex the
   next time it opens. (changed during build: so `/souldex` never opens on
@@ -741,8 +741,8 @@ friend.
   it first; each row shows the name, and on the right where it was claimed and
   `×count`. Clicking a result opens its detail card over the results. Escape, clearing the box,
   picking a tab or clicking a left-list row ends the search. Nothing found:
-  "No soul matching "<text>"." Results are not compare-coloured and show no
-  totals line while browsing. A mob's card opened from a search result is
+  "No soul matching "<text>"." Results are not compare-coloured and the compare
+  chips are hidden while browsing. A mob's card opened from a search result is
   the one the All row opens (below).
 - **Sort.** A "Sort: <choice>" button on Mobs and Players; a click steps
   forward, a right-click back. Mobs: A–Z (default), Most claimed, Newest,
@@ -755,11 +755,9 @@ friend.
   own dex too: there is one choice per tab.
 - **Show.** A "Show: <choice>" button. On your own Mobs tab: All, Rare and
   elite, Mastered (1 star or more), Not mastered. Your own Players and Raids
-  tabs have none. While browsing a friend, on all three collection tabs:
-  Their dex, Differences, Missing, Only mine, Shared. It is not saved: it
-  returns to the first choice when the window closes or another dex is shown.
-  A newer copy of the same friend's dex arriving while it is on screen keeps
-  the search and the Show choice, and a card that is still in it. Stepping
+  tabs have none, and there is no Show button while browsing a friend (the
+  compare filter below takes its place). It is not saved: it returns to the
+  first choice when the window closes or another dex is shown. Stepping
   Show closes an open card. Sort and Show are hidden during a search.
 - **All row.** The Mobs left list starts with "All zones" and the Players
   left list with "All classes", each with the total of the rows it lists
@@ -771,24 +769,44 @@ friend.
   the level at that earliest claim), and Where names its most-claimed zone
   ("Zone +N" when it has N more) instead of coordinates. The "Unknown soul"
   row appears only for a single zone under the first Show choice.
-- **Compare (browsing a friend).** A soul they have and you don't is
-  **Missing**, drawn green as before. A soul you have and they don't is
-  **Only mine**, drawn amber (`ffb84d`, the same in every theme), not
-  clickable, and listed only under Differences and Only mine: Their dex
-  lists their souls alone (changed after 1.8.0-alpha.1, user's call: against
-  a friend with 2 souls, the viewer's own 120 in amber read as the friend's
-  dex). **[user]** Both having it is **Shared**. A mob counts by name
-  over the whole dex, a player by key, a raid creature by NPC ID, whatever the
-  zone. Differences shows Missing and Only mine together. The right list
-  starts with one line of this tab's totals: "N missing · N only mine · N
-  shared" (not above the note of an empty dex). In the Raids totals, a soul
-  of yours without a readable name is counted but not listed. Left-list rows
-  show "count +N" in green where N souls there are Missing. In a raid's
-  roster, a creature only you have shows its roster name in amber instead of
-  "? ? ?". In a raid, a soul only you have that is not on
-  the raid's roster (every soul of a raid whose roster is still sealed) is
-  listed in amber at the end of the list, with the name from your own dex,
-  under Differences and Only mine (not under Their dex).
+- **Compare (browsing a friend).** (changed after 1.8.0-alpha.1, user's call
+  after playing it: a "Show:" button stepping through Their dex,
+  Differences, Missing, Only mine and Shared hid its choices, two pairs of
+  them looked alike, and the left list ignored the choice.) **[user]**
+  - A soul they have and you don't is **Missing**, drawn green. A soul you
+    have and they don't is **Only mine**, drawn amber (`ffb84d`, the same in
+    every theme) and not clickable. Both having it is **Shared**. A mob counts
+    by name over the whole dex, a player by key, a raid creature by NPC ID,
+    whatever the zone.
+  - **The filter is a row of four chips** over the lists on Mobs, Players and
+    Raids, each with this tab's count: "Theirs N" (Missing and Shared
+    together), "Missing N" (green), "Only mine N" (amber), "Shared N". The
+    chosen one is lit; Theirs is the first choice. A click picks one and
+    closes an open card. It is not saved: it returns to Theirs when the window
+    closes or another dex is shown; a newer copy of the same friend's dex
+    arriving while it is on screen keeps the search, the chosen chip and a
+    card that is still in it. The chips are hidden during a search and until
+    there is a dex to compare with. The window is 18 px taller while browsing
+    for this row (with the banner of 5.7: 332), on every tab so it doesn't
+    jump; **[call]** the row is empty on Me, Milestones and Friends.
+  - **The lists follow the chip.** On Mobs and Players the left list shows
+    the zones or classes of that side's souls, each with the number of them
+    there, and "All zones" / "All classes" with their total: under Only mine
+    these are your own zones and classes. The right list holds that side's
+    souls. There is no "+N" beside a zone any more: the count already belongs
+    to the chosen chip. Theirs lists their souls alone (a friend with 2 souls
+    against your 120 read as the friend's dex otherwise).
+  - An empty list says why: "Nothing claimed here yet." (Theirs), "Nothing
+    here that you're missing.", "Nothing here that only you have.", "You
+    share no souls here yet." An empty friend's dex still shows the chips, so
+    Only mine can be listed against it.
+  - **Raids** keep their left list. Under Theirs a raid's roster is shown
+    whole, a creature only you have with its roster name in amber instead of
+    "? ? ?"; the other chips keep the roster rows of that side. A soul only
+    you have that is not on the roster (every soul of a raid whose roster is
+    still sealed) is listed in amber at the end, with the name from your own
+    dex, under Only mine alone. In the Raids counts, a soul of yours without a
+    readable name is counted but not listed.
 - **Column split.** On Mobs, Players and Raids the line between the lists can
   be dragged to widen the left list from 124 px (default) up to 200 px; the
   tooltip is "Drag to resize columns". Saved per character; `/souldex reset`
@@ -1646,8 +1664,7 @@ has been seen in game.
 - `/souldex`: the window is a little taller; a strip under the title holds
   "Search all souls", "Sort: A–Z" and "Show: All"; tabs are still along the
   bottom; nothing overlaps the resize grip. The labels "Sort: Most claimed",
-  "Show: Rare and elite", "Show: Not mastered" and "Show: Differences" fit
-  their buttons.
+  "Show: Rare and elite" and "Show: Not mastered" fit their buttons.
 - Mobs opens on "All zones" with every mob listed once; clicking a zone works
   as before.
 - Type two letters: results from mobs, players and raids appear with where and
@@ -1664,10 +1681,25 @@ has been seen in game.
   `/reload`: the choice is kept. Show is back on "All".
 - Players: "All classes" first; Sort has three choices, no Show button. Raids:
   no Sort, no Show.
-- Browse a friend's dex: the first right row gives the three totals in green,
-  amber and grey; zones with something new read "14 +3" in green; "Show:
-  Differences / Missing / Only mine / Shared" each change the list; amber rows
-  do nothing on click; Sort has no "Newest".
+- Browse a friend's dex, Mobs: there is no Show button; a row of four chips
+  sits over the lists, "Theirs N", "Missing N" (green), "Only mine N" (amber)
+  and "Shared N", with Theirs lit. The chips fit the row with three- and
+  four-digit counts and don't overlap the toolbar or the lists.
+- Click each chip: it lights up, and both lists change. Under Only mine the
+  left list shows your own zones with your counts and "All zones" with the
+  chip's number; picking one of your zones lists your amber souls there.
+  Under Theirs, Missing and Shared it shows their zones. No zone shows a
+  "+N". Amber rows do nothing on click; Sort has no "Newest".
+- A chip with nothing to list says why ("You share no souls here yet." and
+  the like) and the chips stay to pick another.
+- The same on Players (classes on the left) and on Raids (the raid list stays;
+  the roster narrows to the chip).
+- Browse a friend whose dex is empty: the chips show, and Only mine lists your
+  souls.
+- While browsing, Me, Milestones and Friends show an empty row where the
+  chips are; nothing is misplaced on them (the crest, tiles, lists and the
+  Friends panes sit 18 px lower, above the banner).
+- A card opened while browsing covers the right list only, not the chips.
 - On a friend's raid, a creature only you have shows its name in amber.
 - Drag the line between the lists right: its tooltip reads "Drag to resize
   columns", zone names get more room, up to a limit, and the line follows the
@@ -1686,20 +1718,19 @@ has been seen in game.
   disturbing typing.
 - Type `|` and `%` in the box: no error, and the "No soul matching" line
   reads correctly.
-- During a search while browsing, results are uncoloured and there is no
-  totals line.
+- During a search while browsing, results are uncoloured and the chips are
+  hidden.
 - A mob claimed in two zones: its card from "All zones" and from a search
   result shows the same total as its row.
-- Open a friend's saved dex and type a search or pick a Show choice before
-  the fresh copy arrives: nothing is reset when it lands.
-- On a friend's raid whose roster is sealed, under "Show: Differences" your
-  own souls there are amber at the end of the list.
-- Browse a friend with a small dex: under "Show: Their dex" Mobs and Players
-  list only their souls (green or plain, none amber); your amber souls appear
-  under Differences and Only mine.
+- Open a friend's saved dex and type a search or pick a chip before the
+  fresh copy arrives: nothing is reset when it lands.
+- On a friend's raid whose roster is sealed, under Only mine your own souls
+  there are amber at the end of the list.
+- Browse a friend with a small dex: under Theirs, Mobs and Players list only
+  their souls (green or plain, none amber).
 - On a large dex (500+ mobs) on "All zones", claim a soul with the window
   open and drag the column split: no hitch.
-- While dragging the column line, notes and the totals line re-wrap only
+- While dragging the column line, wrapped notes re-wrap only
   when the mouse is let go.
 
 ### Naming souls in dungeons and raids: where it stands and what to try next

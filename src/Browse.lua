@@ -14,7 +14,7 @@ local SORTS = {
 }
 local COLLECTIONS = { Mobs = true, Players = true, Raids = true }
 local OWN_MOB_FILTERS = { "all", "rare", "mastered", "unmastered" }
-local BROWSING_FILTERS = { "all", "diff", "missing", "mine", "shared" }
+local BROWSING_FILTERS = { "all", "missing", "mine", "shared" }
 local RARE = { elite = true, rare = true, rareelite = true, worldboss = true }
 local RARITY = { worldboss = 3, rare = 2, rareelite = 2, elite = 1 }
 
@@ -27,7 +27,6 @@ local LABELS = {
 	rare = "Rare and elite",
 	mastered = "Mastered",
 	unmastered = "Not mastered",
-	diff = "Differences",
 	missing = "Missing",
 	mine = "Only mine",
 	shared = "Shared",
@@ -94,7 +93,7 @@ end
 
 function Browse.label(id, browsing)
 	if id == "all" and browsing then
-		return "Their dex"
+		return "Theirs"
 	end
 	return LABELS[id]
 end
@@ -222,12 +221,10 @@ local function keeps(row, filter)
 		return not row.stars
 	elseif filter == "missing" or filter == "mine" or filter == "shared" then
 		return row.side == filter
-	elseif filter == "diff" then
-		return row.side == "missing" or row.side == "mine"
 	end
 	-- "all" is the dex on screen: a soul only the viewer has is no part of a friend's dex
-	-- (it shows under Differences and Only mine). A raid's roster row stays: it is the
-	-- raid's checklist, whoever claimed it.
+	-- (it shows under Only mine). A raid's roster row stays: it is the raid's checklist,
+	-- whoever claimed it.
 	return not (row.side == "mine" and row.known ~= true)
 end
 
@@ -302,8 +299,33 @@ function Browse.size(dex, tab)
 	return n
 end
 
+-- The dex whose zones (Mobs) or classes (Players) the left list shows under a compare
+-- filter, as something View.places, View.classes and Browse.size can read: the dex on
+-- screen for "all" (or with nothing to compare with), else only the souls of that side.
+-- "mine" is cut from the viewer's own dex, so its zones are the viewer's.
+function Browse.subset(dex, other, tab, filter)
+	local field = tab == "Mobs" and "mobs" or tab == "Players" and "players"
+	if not other or not field or (filter ~= "missing" and filter ~= "mine" and filter ~= "shared") then
+		return dex
+	end
+	local from, against = dex.db, other.db
+	if filter == "mine" then
+		from, against = other.db, dex.db
+	end
+	local keep = {}
+	for key, entry in pairs(from[field]) do
+		if (against[field][key] ~= nil) == (filter == "shared") then
+			keep[key] = entry
+		end
+	end
+	local db = { mobs = {}, players = {}, places = from.places or {} }
+	db[field] = keep
+	return { db = db }
+end
+
+-- all: every soul of the dex on screen (missing and shared together).
 function Browse.counts(dex, other, tab)
-	local result = { missing = 0, mine = 0, shared = 0 }
+	local result = { all = 0, missing = 0, mine = 0, shared = 0 }
 	local field = tab == "Mobs" and "mobs" or tab == "Players" and "players" or tab == "Raids" and "raids"
 	if not field then
 		return result
@@ -318,5 +340,6 @@ function Browse.counts(dex, other, tab)
 			result.mine = result.mine + 1
 		end
 	end
+	result.all = result.missing + result.shared
 	return result
 end
