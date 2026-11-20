@@ -254,7 +254,15 @@ describe("Browse", function()
 			assert.same({ "A" }, names(Browse.apply(rows, "missing", "name")))
 			assert.same({ "B" }, names(Browse.apply(rows, "mine", "name")))
 			assert.same({ "C" }, names(Browse.apply(rows, "shared", "name")))
-			assert.same({ "A", "B", "C" }, names(Browse.apply(rows, "all", "name")))
+		end)
+
+		it("all is the dex on screen: a soul only the viewer has is left out, a raid's roster row is not", function()
+			local rows = {
+				row("A", { side = "missing" }), row("B", { side = "mine" }), row("C", { side = "shared" }),
+				row("D", { side = "mine", known = true }), row("E", { side = "mine", known = false }),
+				row("F"),
+			}
+			assert.same({ "A", "C", "D", "F" }, names(Browse.apply(rows, "all", "name")))
 		end)
 
 		it("drops rows without a side under the compare filters", function()

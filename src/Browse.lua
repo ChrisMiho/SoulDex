@@ -225,7 +225,10 @@ local function keeps(row, filter)
 	elseif filter == "diff" then
 		return row.side == "missing" or row.side == "mine"
 	end
-	return true
+	-- "all" is the dex on screen: a soul only the viewer has is no part of a friend's dex
+	-- (it shows under Differences and Only mine). A raid's roster row stays: it is the
+	-- raid's checklist, whoever claimed it.
+	return not (row.side == "mine" and row.known ~= true)
 end
 
 local function byName(a, b)

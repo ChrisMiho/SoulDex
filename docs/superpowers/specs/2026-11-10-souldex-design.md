@@ -764,8 +764,11 @@ friend.
   row appears only for a single zone under the first Show choice.
 - **Compare (browsing a friend).** A soul they have and you don't is
   **Missing**, drawn green as before. A soul you have and they don't is
-  **Only mine**, drawn amber (`ffb84d`, the same in every theme), listed among
-  theirs, not clickable. Both having it is **Shared**. A mob counts by name
+  **Only mine**, drawn amber (`ffb84d`, the same in every theme), not
+  clickable, and listed only under Differences and Only mine: Their dex
+  lists their souls alone (changed after 1.8.0-alpha.1, user's call: against
+  a friend with 2 souls, the viewer's own 120 in amber read as the friend's
+  dex). **[user]** Both having it is **Shared**. A mob counts by name
   over the whole dex, a player by key, a raid creature by NPC ID, whatever the
   zone. Differences shows Missing and Only mine together. The right list
   starts with one line of this tab's totals: "N missing · N only mine · N
@@ -775,7 +778,8 @@ friend.
   roster, a creature only you have shows its roster name in amber instead of
   "? ? ?". In a raid, a soul only you have that is not on
   the raid's roster (every soul of a raid whose roster is still sealed) is
-  listed in amber at the end of the list, with the name from your own dex.
+  listed in amber at the end of the list, with the name from your own dex,
+  under Differences and Only mine (not under Their dex).
 - **Column split.** On Mobs, Players and Raids the line between the lists can
   be dragged to widen the left list from 124 px (default) up to 200 px; the
   tooltip is "Drag to resize columns". Saved per character; `/souldex reset`
@@ -1667,8 +1671,11 @@ has been seen in game.
   result shows the same total as its row.
 - Open a friend's saved dex and type a search or pick a Show choice before
   the fresh copy arrives: nothing is reset when it lands.
-- On a friend's raid whose roster is sealed, your own souls there are amber
-  at the end of the list.
+- On a friend's raid whose roster is sealed, under "Show: Differences" your
+  own souls there are amber at the end of the list.
+- Browse a friend with a small dex: under "Show: Their dex" Mobs and Players
+  list only their souls (green or plain, none amber); your amber souls appear
+  under Differences and Only mine.
 - On a large dex (500+ mobs) on "All zones", claim a soul with the window
   open and drag the column split: no hitch.
 - While dragging the column line, notes and the totals line re-wrap only
