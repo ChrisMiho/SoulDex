@@ -5,7 +5,8 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-- Search box in the window: type part of a name to find any soul in the dex on screen, your own or a friend's.
+- The Me tab has three views: All, Mobs and PvP. Mobs adds your top and rarest creature type; PvP adds your most and least claimed class, most claimed race and guild, and where you take the most player souls.
+- Search box on the Mobs, Players and Raids tabs: type part of a name to find any soul in the dex on screen, your own or a friend's.
 - Sort and Show buttons on the Mobs and Players lists: order by name, most claimed, newest or rarest, and show only rares and elites or only mastered souls. Your sort is remembered.
 - "All zones" and "All classes" rows list a whole collection at once.
 - Browsing a friend's dex now compares both ways: what you're missing in green, what only you have in amber, with totals, and Show can narrow it to differences, missing, only yours or shared.

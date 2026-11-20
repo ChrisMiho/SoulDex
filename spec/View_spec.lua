@@ -606,6 +606,111 @@ describe("View", function()
 			assert.truthy(rec["Hunting ground"].text:find("Elwynn Forest", 1, true))
 		end)
 
+		describe("views", function()
+			local DAY = 86400
+			local function at(zone, time)
+				return { time = time, myLevel = 9, zone = zone, group = "Eastern Kingdoms" }
+			end
+			local function labelled(list)
+				local out = {}
+				for _, item in ipairs(list) do
+					out[item.label] = item
+				end
+				return out
+			end
+
+			before_each(function()
+				for i = 1, 3 do
+					dex:recordMob(mob("Wolf"), at("Elwynn Forest", DAY + i))
+				end
+				dex:recordMob(mob("Hogger", { classification = "elite", creatureType = "Humanoid" }), at("Westfall", DAY * 2))
+				dex:recordRaid({ name = "Lucifron", classification = "elite", creatureType = "Humanoid" },
+					at("Molten Core", DAY * 5), 409, 12118)
+				for _ = 1, 3 do
+					dex:recordPlayer(player("Stab", "ROGUE", { guild = "Knives" }), at("Westfall", DAY * 3))
+				end
+				dex:recordPlayer(player("Ann", "MAGE", { race = "Troll", guild = "Knives" }), at("Duskwood", DAY * 4))
+				dex:recordPlayer(player("Bo", "MAGE", { race = "Troll", guild = "Sparks" }), at("Westfall", DAY * 6))
+			end)
+
+			it("meView keeps a known view and turns anything else into all", function()
+				assert.equal("mobs", View.meView("mobs"))
+				assert.equal("pvp", View.meView("pvp"))
+				assert.equal("all", View.meView(nil))
+				assert.equal("all", View.meView(7))
+				assert.same({ "all", "mobs", "pvp" }, View.ME_VIEWS)
+			end)
+
+			it("the default view is the combined one", function()
+				assert.same(View.meCard(dex, nil, nil, 0), View.meCard(dex, nil, nil, 0, "junk"))
+				assert.equal("Souls taken", View.meCard(dex, nil, nil, 0, "all").tiles[5].label)
+			end)
+
+			it("mobs: tiles and records count mobs and raid creatures, never players", function()
+				local card = View.meCard(dex, nil, nil, 0, "mobs")
+				assert.equal(6, #card.tiles)
+				local t, r = labelled(card.tiles), labelled(card.records)
+				assert.equal(tostring(dex:uniqueMobs()), t["Unique mobs"].value)
+				assert.equal("5", t["Mob souls"].value) -- 3 wolves, Hogger, Lucifron
+				assert.equal("2", t["Zones"].value) -- player-only Duskwood is not one
+				assert.equal("2", t["Rare & elite"].value)
+				assert.truthy(t["Raids"].value:find("^0 / "))
+				assert.equal("Wolf " .. View.TIMES .. "3", r["Most claimed"].text)
+				assert.equal("Beast " .. View.TIMES .. "3", r["Top creature type"].text)
+				assert.equal("Humanoid " .. View.TIMES .. "2", r["Rarest creature type"].text)
+				assert.equal("Elwynn Forest " .. View.TIMES .. "3", r["Hunting ground"].text)
+				assert.equal("Lucifron", r["Latest mob"].name)
+				assert.equal(DAY * 5, r["Latest mob"].time)
+				assert.truthy(r["Rarest trophy"].name)
+			end)
+
+			it("pvp: tiles and records count players only", function()
+				local card = View.meCard(dex, nil, nil, 0, "pvp")
+				assert.equal(6, #card.tiles)
+				local t, r = labelled(card.tiles), labelled(card.records)
+				assert.equal("3", t["Players"].value)
+				assert.equal("5", t["Player souls"].value)
+				assert.equal("2", t["Classes"].value)
+				assert.equal("2", t["Races"].value)
+				assert.equal("2", t["Guilds"].value)
+				assert.equal("2", t["PvP zones"].value)
+				assert.equal("Stab", r["Nemesis"].name)
+				assert.equal("ROGUE", r["Most claimed class"].class)
+				assert.equal(3, r["Most claimed class"].count)
+				assert.is_true(r["Most claimed class"].isClass)
+				assert.equal("MAGE", r["Least claimed class"].class)
+				assert.equal(2, r["Least claimed class"].count)
+				assert.equal("Orc " .. View.TIMES .. "3", r["Most claimed race"].text)
+				assert.equal("Knives " .. View.TIMES .. "4", r["Most claimed guild"].text)
+				assert.equal("Westfall " .. View.TIMES .. "4", r["PvP ground"].text)
+				assert.equal("Bo", r["Latest player"].name)
+				assert.equal("MAGE", r["Latest player"].class)
+			end)
+
+			it("one class alone is no least claimed class; an empty dex is all dashes", function()
+				local one = ns.Dex.new({})
+				one:recordPlayer(player("Stab", "ROGUE"), at("Westfall", DAY))
+				local r = labelled(View.meCard(one, nil, nil, 0, "pvp").records)
+				assert.equal("ROGUE", r["Most claimed class"].class)
+				assert.is_nil(r["Least claimed class"].class)
+				assert.is_nil(r["Least claimed class"].isClass)
+				for _, view in ipairs({ "mobs", "pvp" }) do
+					for _, rec in ipairs(View.meCard(ns.Dex.new({}), nil, nil, 0, view).records) do
+						assert.is_nil(rec.name, rec.label)
+						assert.is_nil(rec.class, rec.label)
+						assert.is_true(rec.text == nil or rec.text == View.DASH, rec.label)
+					end
+				end
+			end)
+
+			it("pvp while browsing: guilds and zones, which a friend's dex lacks, are a dash", function()
+				local t = labelled(View.meCard(dex, false, nil, 0, "pvp").tiles)
+				assert.equal(View.DASH, t["Guilds"].value)
+				assert.equal(View.DASH, t["PvP zones"].value)
+				assert.equal("2", t["Classes"].value)
+			end)
+		end)
+
 		it("works on an empty dex and swaps the friends tile when browsing", function()
 			local card = View.meCard(dex, false, nil, 0)
 			assert.equal("Zones", card.tiles[6].label)

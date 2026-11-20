@@ -585,7 +585,180 @@ end
 -- Browsing a friend (friendsStore == false) swaps the friends tile for zones.
 local RARITY_ORDER = { elite = 1, rare = 2, rareelite = 2, worldboss = 3 }
 
-function View.meCard(dex, friendsStore, me, now)
+-- The Me tab's views (spec 5.8): everything, mobs only (raid creatures with them), players only.
+View.ME_VIEWS = { "all", "mobs", "pvp" }
+View.ME_LABELS = { all = "All", mobs = "Mobs", pvp = "PvP" }
+
+-- A usable view from anything: junk gives "all".
+function View.meView(value)
+	for _, id in ipairs(View.ME_VIEWS) do
+		if id == value then
+			return id
+		end
+	end
+	return "all"
+end
+
+-- The key with the lowest count, of two keys or more (one alone is no "least"); ties go to
+-- the alphabetically first key.
+local function bottomOf(counts)
+	local best, bestCount, n
+	n = 0
+	for key, count in pairs(counts) do
+		n = n + 1
+		if not best or count < bestCount or (count == bestCount and key < best) then
+			best, bestCount = key, count
+		end
+	end
+	if n < 2 then
+		return nil
+	end
+	return best, bestCount
+end
+
+local function add(counts, key, n)
+	if key and n > 0 then
+		counts[key] = (counts[key] or 0) + n
+	end
+end
+
+local function size(t)
+	local n = 0
+	for _ in pairs(t) do
+		n = n + 1
+	end
+	return n
+end
+
+-- The rarer of `rarest` and this soul: a boss before a rare before an elite, the earliest
+-- of equals.
+local function rarerOf(rarest, name, entry, flat)
+	local order = ns.Points.rule(entry, flat) == "boss" and 3 or RARITY_ORDER[entry.classification] or 0
+	local first = entry.first or math.huge
+	if rarest and not (order > rarest.order or (order == rarest.order and first < rarest.first)) then
+		return rarest
+	end
+	return { name = name, order = order, first = first,
+		classification = order == 3 and "worldboss" or entry.classification }
+end
+
+-- The later claimed of `latest` and this soul (a soul with no date never wins).
+local function newerOf(latest, name, entry, class)
+	if entry.last and (not latest or entry.last > latest.time) then
+		return { name = name, time = entry.last, class = class, classification = entry.classification }
+	end
+	return latest
+end
+
+-- The Mobs view: open-world and dungeon mobs, and raid creatures with them. Zones and the
+-- hunting ground count mob catches only (raid catches have no zone).
+local function mobCard(dex)
+	local db = dex.db
+	local souls, special = 0, 0
+	local mobCounts, zoneCounts, typeCounts = {}, {}, {}
+	local rarest, latest
+	local function see(name, entry, count)
+		souls = souls + count
+		add(typeCounts, entry.creatureType, count)
+		rarest = rarerOf(rarest, name, entry, db.flat)
+		latest = newerOf(latest, name, entry)
+		if ns.Points.rule(entry, db.flat) == "boss" or RARITY_ORDER[entry.classification] then
+			special = special + 1
+		end
+	end
+	for key, mob in pairs(db.mobs) do
+		local total = 0
+		for zone, record in pairs(mob.places or {}) do
+			total = total + record.count
+			add(zoneCounts, zone, record.count)
+		end
+		add(mobCounts, mob.name or key, total)
+		see(mob.name or key, mob, total)
+	end
+	for _, entry in pairs(db.raids) do
+		if entry.name then
+			see(entry.name, entry, entry.count or 0)
+		end
+	end
+	local topType, topTypeCount = topOf(typeCounts)
+	local lowType, lowTypeCount = bottomOf(typeCounts)
+	return {
+		tiles = {
+			{ label = "Unique mobs", value = tostring(dex:uniqueMobs()) },
+			{ label = "Mastery", value = thousands(dex:masteryStars()), color = "ACCENT", star = true },
+			{ label = "Raids", value = dex:raidsCompleted() .. " / " .. #ns.Raids.completable() },
+			{ label = "Mob souls", value = thousands(souls) },
+			{ label = "Zones", value = tostring(size(zoneCounts)) },
+			{ label = "Rare & elite", value = tostring(special) },
+		},
+		records = {
+			{ label = "Most claimed", text = countedText(topOf(mobCounts)) },
+			{ label = "Top creature type", text = countedText(topType, topTypeCount) },
+			{ label = "Rarest creature type", text = countedText(lowType, lowTypeCount) },
+			{ label = "Hunting ground", text = countedText(topOf(zoneCounts)) },
+			{ label = "Rarest trophy", name = rarest and rarest.name, classification = rarest and rarest.classification },
+			{ label = "Latest mob", name = latest and latest.name, time = latest and latest.time,
+				classification = latest and latest.classification },
+		},
+	}
+end
+
+-- The PvP view: players only. A class record carries the class token and isClass, for
+-- the game's own class name. A friend's dex (browsing) carries no guilds and no player
+-- zones: those are a dash.
+local function pvpCard(dex, browsing)
+	local souls = 0
+	local classCounts, raceCounts, guildCounts, zoneCounts = {}, {}, {}, {}
+	local nemesis, latest
+	for key, player in pairs(dex.db.players) do
+		local name, count = player.name or key, player.count or 0
+		souls = souls + count
+		add(classCounts, player.class, count)
+		add(raceCounts, player.race, count)
+		add(guildCounts, player.guild, count)
+		for zone, record in pairs(player.places or {}) do
+			add(zoneCounts, zone, record.count)
+		end
+		latest = newerOf(latest, name, player, player.class)
+		if not nemesis or count > nemesis.count or (count == nemesis.count and name < nemesis.name) then
+			nemesis = { name = name, count = count, class = player.class }
+		end
+	end
+	local function classRecord(label, class, count)
+		return { label = label, class = class, count = count, isClass = class ~= nil or nil }
+	end
+	local unsent = browsing and DASH or nil
+	return {
+		tiles = {
+			{ label = "Players", value = tostring(dex:uniquePlayers()) },
+			{ label = "Player souls", value = thousands(souls) },
+			{ label = "Classes", value = tostring(size(classCounts)) },
+			{ label = "Races", value = tostring(size(raceCounts)) },
+			{ label = "Guilds", value = unsent or tostring(size(guildCounts)) },
+			{ label = "PvP zones", value = unsent or tostring(size(zoneCounts)) },
+		},
+		records = {
+			{ label = "Nemesis", name = nemesis and nemesis.name, count = nemesis and nemesis.count,
+				class = nemesis and nemesis.class },
+			classRecord("Most claimed class", topOf(classCounts)),
+			classRecord("Least claimed class", bottomOf(classCounts)),
+			{ label = "Most claimed race", text = countedText(topOf(raceCounts)) },
+			{ label = "Most claimed guild", text = countedText(topOf(guildCounts)) },
+			{ label = "PvP ground", text = countedText(topOf(zoneCounts)) },
+			{ label = "Latest player", name = latest and latest.name, time = latest and latest.time,
+				class = latest and latest.class },
+		},
+	}
+end
+
+-- view: one of View.ME_VIEWS (anything else is "all").
+function View.meCard(dex, friendsStore, me, now, view)
+	view = View.meView(view)
+	if view == "mobs" then
+		return mobCard(dex)
+	elseif view == "pvp" then
+		return pvpCard(dex, friendsStore == false)
+	end
 	local db = dex.db
 	local value = {}
 	for _, line in ipairs(View.me(dex, friendsStore, me, now)) do
@@ -606,35 +779,19 @@ function View.meCard(dex, friendsStore, me, now)
 
 	-- Most claimed and hunting ground come ready-made ("Wolf ×14"); the rest are found here.
 	local nemesis, rarest, latest
-	local function newer(name, entry, extra)
-		if entry.last and (not latest or entry.last > latest.time) then
-			latest = { name = name, time = entry.last, class = extra and extra.class,
-				classification = entry.classification }
-		end
-	end
-	local function rarer(name, entry)
-		local order = ns.Points.rule(entry, db.flat) == "boss" and 3 or RARITY_ORDER[entry.classification] or 0
-		local first = entry.first or math.huge
-		if not rarest or order > rarest.order or (order == rarest.order and first < rarest.first) then
-			rarest = { name = name, order = order, first = first, classification = entry.classification }
-			if order == 3 then
-				rarest.classification = "worldboss"
-			end
-		end
-	end
 	for name, mob in pairs(db.mobs) do
-		newer(mob.name or name, mob)
-		rarer(mob.name or name, mob)
+		latest = newerOf(latest, mob.name or name, mob)
+		rarest = rarerOf(rarest, mob.name or name, mob, db.flat)
 	end
 	for _, entry in pairs(db.raids) do
 		if entry.name then
-			newer(entry.name, entry)
-			rarer(entry.name, entry)
+			latest = newerOf(latest, entry.name, entry)
+			rarest = rarerOf(rarest, entry.name, entry, db.flat)
 		end
 	end
 	for key, player in pairs(db.players) do
 		local name = player.name or key
-		newer(name, player, player)
+		latest = newerOf(latest, name, player, player.class)
 		local count = player.count or 0
 		if not nemesis or count > nemesis.count or (count == nemesis.count and name < nemesis.name) then
 			nemesis = { name = name, count = count, class = player.class }

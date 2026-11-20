@@ -531,5 +531,19 @@ describe("UIFormat", function()
 			assert.equal("41 souls \194\183 9 Nov 26", lines[6].right)
 			assert.equal(F.DASH, lines[7].right)
 		end)
+
+		it("a class record shows the game's class name in the class's colour", function()
+			local colors = { ROGUE = { r = 1, g = 0.96, b = 0.41 } }
+			local records = {
+				{ label = "Most claimed class", class = "ROGUE", count = 31, isClass = true },
+				{ label = "Least claimed class" },
+			}
+			local lines = F.recordLines(records, 0, os.date, colors, { ROGUE = "Schurke" })
+			assert.equal("Schurke \195\15131", lines[1].right)
+			assert.equal("fff569", lines[1].rightColor)
+			assert.equal(F.DASH, lines[2].right)
+			-- no names from the game: the token in title case
+			assert.equal("Rogue \195\15131", F.recordLines(records, 0, os.date, colors)[1].right)
+		end)
 	end)
 end)

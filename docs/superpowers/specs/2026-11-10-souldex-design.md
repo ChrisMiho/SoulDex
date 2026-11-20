@@ -686,6 +686,35 @@ Three parts (`View.meCard`, numbers from `View.me`):
 
 Redraws on a catch like the other tabs.
 
+**Views** (changed after 1.7.0, user's call: stats for mobs and for PvP
+apart, with fun records such as the most and least claimed class.) **[user]**
+On Me the toolbar strip (5.9) holds three buttons, **All**, **Mobs** and
+**PvP**, the chosen one lit like the chosen tab. The crest stays; the tiles and
+records change (`View.meCard`'s `view`). The choice is saved per character
+(`db.window.meView`); anything unknown is All. The views work while browsing a
+friend.
+
+- **All:** the tiles and records above.
+- **Mobs** (open-world and dungeon mobs, raid creatures with them; never
+  players or unknown souls). Tiles: Unique mobs, Mastery, Raids, Mob souls,
+  Zones (zones with a mob catch), Rare & elite (souls that are a boss, rare
+  or elite). Records: Most claimed, Top creature type ("Beast ×212", by
+  catches), Rarest creature type (the type with fewest catches; a dash with
+  fewer than two types), Hunting ground (by mob catches), Rarest trophy,
+  Latest mob.
+- **PvP** (players only). Tiles: Players, Player souls, Classes (classes
+  claimed at least once; **[call]** no "/ 9", the pure code doesn't know how
+  many classes the game has), Races, Guilds, PvP zones. Records: Nemesis,
+  Most claimed class and Least claimed class (by catches, the game's class
+  name in class colour; Least counts only classes claimed at least once and
+  is a dash with fewer than two), Most claimed race, Most claimed guild, PvP
+  ground (the zone with most player catches), Latest player.
+- Ties go to the alphabetically first name. **[call]** There is no "least
+  claimed" mob: dozens tie at ×1.
+- A friend's dex carries no dates, guilds or player zones: Latest mob, Latest
+  player, Most claimed guild and PvP ground are a dash, and so are the Guilds
+  and PvP zones tiles.
+
 ### 5.9 Toolbar, search, sort, filter and compare
 
 (changed after 1.7.0, user's call.) **[user]**
@@ -694,13 +723,14 @@ Redraws on a catch like the other tabs.
   the rank progress line and the lists; tabs stay along the bottom; the lists
   keep their height.
 - **Search.** The strip starts with a search box whose empty text reads
-  "Search all souls". It is on every tab. With 2 or more letters typed, the
+  "Search all souls". It is on Mobs, Players and Raids only (changed during
+  build, user's call: it felt wrong on Me; Milestones and Friends have
+  nothing to search either). **[user]** With 2 or more letters typed, the
   right list shows every mob, player and raid creature of the dex on screen
   whose name contains the text (it matches the same way as `/souldex find`:
   any case, accented letters included, plain text), names that start with
   it first; each row shows the name, and on the right where it was claimed and
-  `×count`. Clicking a result opens its detail card over the results. Typing
-  on Me, Milestones or Friends switches to Mobs. Escape, clearing the box,
+  `×count`. Clicking a result opens its detail card over the results. Escape, clearing the box,
   picking a tab or clicking a left-list row ends the search. Nothing found:
   "No soul matching "<text>"." Results are not compare-coloured and show no
   totals line while browsing. A mob's card opened from a search result is
@@ -1571,6 +1601,21 @@ that overlaps, is cut off, or shows as a solid green square (a missing icon).
 - A dev checkout without `Libs/`: one chat line "Friends are offline:
   AceComm-3.0 is missing...", no Lua errors.
 
+**Me tab views (5.8)** Not seen in game.
+- On Me, the strip under the title holds "All", "Mobs" and "PvP" and no
+  search box; the chosen one is lit. All shows the tab as it was.
+- Mobs: tiles Unique mobs, Mastery, Raids, Mob souls, Zones, Rare & elite;
+  records Most claimed, Top creature type, Rarest creature type, Hunting
+  ground, Rarest trophy, Latest mob. The tile labels and the longest record
+  ("Rarest creature type" with its value) fit without being cut off.
+- PvP: tiles Players, Player souls, Classes, Races, Guilds, PvP zones; records
+  Nemesis, Most claimed class, Least claimed class (class names in class
+  colour), Most claimed race, Most claimed guild, PvP ground, Latest player.
+  With one class claimed, Least claimed class is a dash.
+- The view is still chosen after `/reload`. Browsing a friend: the three views
+  work; on PvP, Guilds, PvP zones, Most claimed guild, PvP ground and Latest
+  player are dashes.
+
 **Dex toolbar: search, sort, show, compare, column split (5.9)** None of this
 has been seen in game.
 - `/souldex`: the window is a little taller; a strip under the title holds
@@ -1583,7 +1628,7 @@ has been seen in game.
 - Type two letters: results from mobs, players and raids appear with where and
   count, and the hint "Search all souls" goes at the first letter. Click one:
   its card opens, for a mob, a player and a raid creature; changing the text
-  closes it. Typing on Me, Milestones or Friends jumps to Mobs. Clicking a
+  closes it. Me, Milestones and Friends show no search box. Clicking a
   tab or a left-list row empties the box; closing and reopening the window
   starts with an empty box. Escape clears the box and does not close the
   window; a second Escape closes the window.

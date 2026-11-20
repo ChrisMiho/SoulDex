@@ -35,6 +35,7 @@ UI.FRIENDS_LEFT_W, UI.FRIENDS_RIGHT_W, UI.FRIENDS_H = FRIENDS_LEFT_W, BODY_W - F
 local TILE_H, TILE_GAP = 30, 3
 
 local SORT_W, SHOW_W, TOOL_GAP = 98, 104, 3
+local VIEW_W = 48 -- a Me tab view button (All, Mobs, PvP)
 local HANDLE_W = 7 -- the invisible grip over the column divider
 
 -- A search result's kind and the tab whose card it opens.
@@ -70,6 +71,13 @@ local leftList, rightList, fullList, pane
 local meBox, crest, tiles, recordList
 local friendsBox, friendsLeft, friendsRight, friendsNote
 local tabButtons = {}
+local viewButtons = {} -- the Me tab's All, Mobs and PvP buttons, in the toolbar
+
+-- A view button as it rests: the chosen one is lit like the chosen tab.
+local function paintViewButton(button)
+	UI.backdrop(button, button.on and "DIVIDER" or "TAB_BG", button.on and "BORDER" or "BUTTON_EDGE")
+	UI.textColor(button.label, button.on and "WHITE" or "TITLE")
+end
 
 local function dexNow()
 	return state.dex or ns.dex
@@ -127,6 +135,12 @@ local function sortFor(tab, browsing)
 	local w = ns.db and ns.db.window
 	local saved = w and type(w.sort) == "table" and w.sort[tab] or nil
 	return ns.Browse.valid(ns.Browse.sorts(tab, browsing), saved)
+end
+
+-- The Me tab's saved view (spec 5.8), read through View.meView so junk is harmless.
+local function meViewNow()
+	local w = ns.db and ns.db.window
+	return ns.View.meView(w and w.meView)
 end
 
 -- The left list's width on Mobs, Players and Raids: the one being dragged, else the saved one.
@@ -315,9 +329,9 @@ end
 local function drawMe(dex, keepScroll)
 	local card
 	if state.owner then
-		card = ns.View.meCard(dex, false, nil, 0)
+		card = ns.View.meCard(dex, false, nil, 0, meViewNow())
 	else
-		card = ns.View.meCard(dex, ns.db and ns.db.friends, ns.Net and ns.Net.me(dex), time())
+		card = ns.View.meCard(dex, ns.db and ns.db.friends, ns.Net and ns.Net.me(dex), time(), meViewNow())
 	end
 	local rank = ns.Ranks.of(dex:score())
 	crest.icon:SetTexture(rank.emblem)
@@ -345,7 +359,7 @@ local function drawMe(dex, keepScroll)
 		end
 	end
 	local rows = { { text = "RECORDS", color = C.HEADER, header = true } }
-	for _, line in ipairs(F.recordLines(card.records, time(), nil, RAID_CLASS_COLORS)) do
+	for _, line in ipairs(F.recordLines(card.records, time(), nil, RAID_CLASS_COLORS, LOCALIZED_CLASS_NAMES_MALE)) do
 		rows[#rows + 1] = line
 	end
 	recordList:set(rows, nil, keepScroll)
@@ -368,11 +382,19 @@ local function drawFriends()
 	end
 end
 
--- The toolbar: the search box's hint, and Sort and Show with this tab's choices, each
--- hidden when the tab has none and during a search. The search box fills what they leave.
+-- The toolbar. On Mobs, Players and Raids: the search box with its hint, and Sort and Show
+-- with this tab's choices, each hidden when the tab has none and during a search; the
+-- search box fills what they leave. On Me: the three view buttons. Empty on the others.
 local function drawToolbar()
 	local Browse, tab, browsing = ns.Browse, state.tab, state.owner ~= nil
 	local searching = activeSearch() ~= nil
+	setShown(searchBox, isCollection(tab))
+	local view = meViewNow()
+	for _, button in ipairs(viewButtons) do
+		setShown(button, tab == "Me")
+		button.on = button.view == view
+		paintViewButton(button)
+	end
 	local filters = Browse.filters(tab, browsing)
 	local showSort = #Browse.sorts(tab, browsing) > 0 and not searching
 	local showFilter = #filters > 0 and not searching
@@ -757,6 +779,18 @@ local function buildToolbar()
 	end)
 	for _, button in ipairs({ showButton, sortButton }) do
 		button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+	end
+
+	-- The Me tab's views, where the search box is on the collection tabs.
+	for i, id in ipairs(ns.View.ME_VIEWS) do
+		local button = UI.button(bar, ns.View.ME_LABELS[id], VIEW_W, 16, function()
+			UI.setMeView(id)
+		end)
+		button.view = id
+		button:SetPoint("LEFT", (i - 1) * (VIEW_W + TOOL_GAP), 0)
+		button:SetScript("OnLeave", paintViewButton)
+		button:Hide()
+		viewButtons[i] = button
 	end
 end
 
@@ -1149,6 +1183,20 @@ end
 
 function UI.search()
 	return state.search
+end
+
+-- Picks the Me tab's view (one of View.ME_VIEWS; anything else is "all") and saves it.
+function UI.setMeView(view)
+	if ns.db and ns.db.window then
+		ns.db.window.meView = ns.View.meView(view)
+	end
+	if frame and frame:IsShown() then
+		draw("select")
+	end
+end
+
+function UI.meView()
+	return meViewNow()
 end
 
 -- Opens the detail pane for a row value of the current tab (what a row click does).

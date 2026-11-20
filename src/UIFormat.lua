@@ -589,15 +589,20 @@ function F.browseTitle(owner, savedAt, now, fmt)
 end
 
 -- View.meCard's records as list lines. A record: { label, name, count, time, souls,
--- class, classification, text }.
-function F.recordLines(records, now, fmt, classColors)
+-- class, classification, text, isClass }. An isClass record names a class (its token in
+-- `class`), shown by the game's own name (classNames) in the class's colour.
+function F.recordLines(records, now, fmt, classColors, classNames)
 	local out = {}
 	for i, r in ipairs(records) do
 		local value, color = r.text, C.TEXT
+		local name = r.name
+		if r.isClass and r.class then
+			name = F.className(r.class, classNames)
+		end
 		if r.souls then
 			value = F.join({ r.souls .. " souls", F.dateText(r.time, fmt) }, DOT, 2)
-		elseif r.name then
-			value = r.name
+		elseif name then
+			value = name
 			if r.count then
 				value = value .. " " .. F.countText(r.count)
 			end

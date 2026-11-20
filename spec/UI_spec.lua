@@ -233,6 +233,59 @@ describe("UI", function()
 		assert.is_truthy(textShown("ZONES"))
 	end)
 
+	it("the Me tab has three views; the choice is saved and shown", function()
+		local db = loadDb()
+		ns.UI.toggle()
+		ns.UI.selectTab("Me")
+		local function viewButton(text)
+			return find("Button", function(f)
+				local label = rawget(f, "label")
+				return rawget(f, "view") and label and label.text == text
+			end)
+		end
+		local function tileShown(text)
+			return find("Frame", function(f)
+				local label = rawget(f, "label")
+				return f.shown and rawget(f, "value") and label and label.text == text
+			end)
+		end
+		local all, mobs, pvp = viewButton("All"), viewButton("Mobs"), viewButton("PvP")
+		assert.is_true(all.shown and mobs.shown and pvp.shown)
+		assert.is_true(all.on)
+		assert.is_truthy(tileShown("SOULS TAKEN"))
+
+		pvp.scripts.OnClick(pvp)
+		assert.equal("pvp", db.window.meView)
+		assert.equal("pvp", ns.UI.meView())
+		assert.is_true(pvp.on)
+		assert.is_falsy(all.on)
+		assert.is_truthy(tileShown("PLAYER SOULS"))
+		assert.is_nil(tileShown("SOULS TAKEN"))
+
+		mobs.scripts.OnClick(mobs)
+		assert.is_truthy(tileShown("MOB SOULS"))
+		ns.UI.setMeView("junk")
+		assert.equal("all", db.window.meView)
+
+		db.window.meView = 42 -- damaged saved data
+		ns.UI.refresh()
+		assert.equal("all", ns.UI.meView())
+
+		ns.UI.selectTab("Mobs") -- the view buttons belong to Me only
+		assert.is_false(all.shown)
+	end)
+
+	it("the search box shows on Mobs, Players and Raids only", function()
+		loadDb()
+		ns.UI.toggle()
+		local box = find("EditBox", function() return true end)
+		for tab, shown in pairs({ Me = false, Mobs = true, Players = true, Raids = true, Milestones = false,
+			Friends = false }) do
+			ns.UI.selectTab(tab)
+			assert.equal(shown, box.shown, tab)
+		end
+	end)
+
 	it("keeps the left list's scroll on selection and both on a catch; a tab switch resets", function()
 		local db = loadDb()
 		db.window.tab = "Mobs"
